@@ -67,7 +67,7 @@ async function transcribe(pcmPath) {
         const response = await client.audio.transcriptions.create({
             file:     fs.createReadStream(wavPath),
             model:    'whisper-1',
-            language: 'ru',          // primary language; remove for auto-detect
+            // language auto-detected by Whisper
         });
         return response.text.trim();
     } finally {
