@@ -386,6 +386,7 @@ const content    = document.getElementById('content');
 const micBtn     = document.getElementById('micBtn');
 
 let isProcessing = false;
+let currentLang = 'ru-RU'; // global — used in sendMessage and mic
 
 // ── Bear ──────────────────────────────────────────────────────────────────────
 function setBear(state) {
@@ -553,7 +554,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   let micStarted = false; // guard against multiple start calls
   let micHeld = false;    // true while button is physically held
-  let currentLang = 'ru-RU'; // current STT language
 
   function setLang(lang, btn) {
     currentLang = lang;
