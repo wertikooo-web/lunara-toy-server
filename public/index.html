@@ -450,8 +450,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   function createRec() {
     const r = new SR();
-    r.continuous = true;
-    r.interimResults = true;
+    r.continuous = false;      // single session — more stable on mobile
+    r.interimResults = false;  // final result only — no duplicates
     r.maxAlternatives = 1;
 
     r.onstart = () => {
@@ -464,12 +464,11 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onresult = (e) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
-        else interim += e.results[i][0].transcript;
+      // Take only the single final result — no accumulation, no duplicates
+      if (e.results.length > 0 && e.results[0].isFinal) {
+        finalTranscript = e.results[0][0].transcript;
+        msgInput.value = finalTranscript;
       }
-      msgInput.value = finalTranscript + interim;
     };
 
     r.onend = () => {
@@ -495,15 +494,50 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 
   let micStarted = false; // guard against multiple start calls
+  let micTimer = null;
+  let micWarnTimer = null;
+  const MAX_REC_MS = 20000;  // 20 seconds before warning
+  const STOP_REC_MS = 23000; // 23 seconds — auto stop
+
+  // Generate beep via Web Audio API
+  function playBeep(freq = 880, duration = 0.2, vol = 0.3) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch(e) {}
+  }
 
   function startMic() {
     if (isProcessing || isRecording || micStarted) return;
     micStarted = true;
     recognition = createRec();
-    try { recognition.start(); } catch(e) { micStarted = false; }
+    try {
+      recognition.start();
+      // Warning beep at 20s
+      micWarnTimer = setTimeout(() => {
+        playBeep(880, 0.15, 0.4); // first beep
+        setTimeout(() => playBeep(880, 0.15, 0.4), 300); // second beep
+        bubbleText.textContent = '⚠️ Ещё 3 секунды...';
+      }, MAX_REC_MS);
+      // Auto-stop at 23s
+      micTimer = setTimeout(() => {
+        stopMic();
+      }, STOP_REC_MS);
+    } catch(e) { micStarted = false; }
   }
 
   function stopMic() {
+    // Always clear timers
+    if (micTimer)     { clearTimeout(micTimer);     micTimer = null; }
+    if (micWarnTimer) { clearTimeout(micWarnTimer); micWarnTimer = null; }
     if (!isRecording) { micStarted = false; return; }
     try { recognition.stop(); } catch(e) {}
   }
