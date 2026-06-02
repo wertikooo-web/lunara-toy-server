@@ -6,295 +6,246 @@
 <title>Луми — AI Мишка</title>
 <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg1: #0a0618;
-    --bg2: #12082a;
-    --purple: #7c3aed;
-    --purple2: #a855f7;
-    --purple3: #c084fc;
-    --gold: #fbbf24;
-    --text: #f5f0ff;
-    --text2: #c4b5fd;
-    --bubble-bg: rgba(30,15,60,0.97);
-    --bubble-border: rgba(168,85,247,0.5);
-    --phone-w: 390px;
-    --phone-h: 780px;
-  }
+:root {
+  --purple: #7c3aed;
+  --purple2: #a855f7;
+  --purple3: #c084fc;
+  --gold: #fbbf24;
+  --text: #f5f0ff;
+  --text2: #c4b5fd;
+  --bg: #0a0618;
+  --bubble-bg: rgba(30,15,60,0.97);
+  --bubble-border: rgba(168,85,247,0.45);
+}
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-  /* ── Desktop: dark bg with phone frame ── */
-  body {
-    background: #05030f;
-    font-family: 'Comfortaa', sans-serif;
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+body {
+  background: #05030f;
+  font-family: 'Comfortaa', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-  /* Stars on desktop bg */
-  .stars { position:absolute; inset:0; pointer-events:none; z-index:0; border-radius:44px; overflow:hidden; }
-  .star {
-    position:absolute; border-radius:50%; background:white;
-    animation: twinkle var(--d,3s) ease-in-out infinite;
-    animation-delay: var(--delay,0s);
-  }
-  @keyframes twinkle {
-    0%,100% { opacity:0.1; transform:scale(1); }
-    50%      { opacity:0.7; transform:scale(1.3); }
-  }
+/* Stars — desktop background */
+.bg-stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
+.star {
+  position:absolute; border-radius:50%; background:white;
+  animation: twinkle var(--d,3s) ease-in-out infinite;
+  animation-delay: var(--delay,0s);
+}
+@keyframes twinkle {
+  0%,100% { opacity:0.08; } 50% { opacity:0.6; }
+}
 
-  /* ── Phone frame (desktop only) ── */
-  .phone-frame {
-    position: relative;
-    z-index: 10;
-    width: var(--phone-w);
-    height: min(var(--phone-h), calc(100vh - 40px));
-    background: radial-gradient(ellipse at 60% 15%, #1a0a3e 0%, #0a0618 70%);
-    border-radius: 44px;
-    border: 2px solid rgba(168,85,247,0.3);
-    box-shadow:
-      0 0 0 6px #0d0920,
-      0 0 0 8px rgba(168,85,247,0.15),
-      0 40px 80px rgba(0,0,0,0.8),
-      0 0 60px rgba(124,58,237,0.15);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+/* ── Phone shell ── */
+.phone {
+  position: relative;
+  z-index: 10;
+  width: 390px;
+  height: min(780px, calc(100vh - 24px));
+  background: radial-gradient(ellipse at 55% 10%, #1a0a3e 0%, #0a0618 65%);
+  border-radius: 44px;
+  border: 2px solid rgba(168,85,247,0.25);
+  box-shadow: 0 0 0 6px #0d0920, 0 0 0 8px rgba(168,85,247,0.12), 0 40px 80px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* notch */
+.phone::before {
+  content:'';
+  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  width:90px; height:5px; background:rgba(168,85,247,0.25); border-radius:3px; z-index:20;
+}
 
-  /* Phone notch */
-  .phone-frame::before {
-    content: '';
-    position: absolute;
-    top: 12px; left: 50%; transform: translateX(-50%);
-    width: 100px; height: 6px;
-    background: rgba(168,85,247,0.3);
-    border-radius: 3px;
-    z-index: 20;
-  }
+/* phone stars */
+.phone-stars { position:absolute; inset:0; border-radius:44px; overflow:hidden; pointer-events:none; z-index:0; }
 
-  /* On mobile — full screen, no frame */
-  @media (max-width: 480px) {
-    body { background: radial-gradient(ellipse at 60% 15%, #1a0a3e 0%, #0a0618 70%); }
-    .phone-frame {
-      width: 100vw; height: 100vh;
-      border-radius: 0; border: none;
-      box-shadow: none;
-    }
-    .phone-frame::before { display: none; }
-    .stars { border-radius: 0; }
-  }
+/* Mobile — full screen */
+@media (max-width:480px) {
+  body { background: radial-gradient(ellipse at 55% 10%, #1a0a3e 0%, #0a0618 65%); }
+  .bg-stars { display:none; }
+  .phone { width:100vw; height:100vh; border-radius:0; border:none; box-shadow:none; }
+  .phone::before { display:none; }
+  .phone-stars { border-radius:0; }
+}
 
-  /* ── Moon glow ── */
-  .moon-glow {
-    position: absolute;
-    width: 260px; height: 260px;
-    background: radial-gradient(circle, rgba(251,191,36,0.1) 0%, transparent 70%);
-    border-radius: 50%;
-    top: 30px; left: 50%; transform: translateX(-50%);
-    pointer-events: none;
-  }
+/* ── Scroll content ── */
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  padding: 28px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+.content::-webkit-scrollbar { display:none; }
 
-  /* ── Scrollable content area ── */
-  .scroll-area {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 32px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    scrollbar-width: none;
-  }
-  .scroll-area::-webkit-scrollbar { display: none; }
+/* ── Bottom fixed ── */
+.bottom {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(to top, #0a0618 60%, transparent);
+  padding: 8px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
 
-  /* ── Fixed bottom bar ── */
-  .bottom-bar {
-    flex-shrink: 0;
-    padding: 12px 16px max(20px, env(safe-area-inset-bottom));
-    background: linear-gradient(to top, rgba(10,6,24,1) 70%, rgba(10,6,24,0));
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border-top: 1px solid rgba(168,85,247,0.1);
-  }
+/* ── Brand ── */
+.brand {
+  font-family:'Comfortaa',sans-serif;
+  font-size:0.62rem; font-weight:700;
+  letter-spacing:5px; text-transform:uppercase;
+  color:rgba(251,191,36,0.65);
+}
+.title {
+  font-family:'Unbounded',sans-serif; font-weight:900;
+  font-size:1.9rem; letter-spacing:5px;
+  background:linear-gradient(135deg,#fde68a 0%,#f0abfc 50%,#818cf8 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 14px rgba(192,132,252,.5));
+  line-height:1;
+}
+.title-sub { font-size:0.6rem; letter-spacing:3px; color:var(--text2); opacity:0.55; margin-top:3px; }
 
-  /* ── Title ── */
-  .title-wrap { text-align: center; }
-  .brand {
-    font-family: 'Comfortaa', sans-serif;
-    font-weight: 700;
-    font-size: 0.7rem;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    color: rgba(251,191,36,0.7);
-    margin-bottom: 4px;
-  }
-  .title {
-    font-family: 'Unbounded', sans-serif;
-    font-weight: 900;
-    font-size: 2rem;
-    letter-spacing: 6px;
-    background: linear-gradient(135deg, #fde68a 0%, #f0abfc 50%, #818cf8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    filter: drop-shadow(0 0 16px rgba(192,132,252,0.5));
-  }
-  .title-sub {
-    font-size: 0.65rem;
-    letter-spacing: 3px;
-    color: var(--text2);
-    text-transform: uppercase;
-    margin-top: 4px;
-    opacity: 0.6;
-  }
+/* ── Bear ── */
+.bear-wrap { position:relative; width:150px; height:150px; flex-shrink:0; }
+.bear-img {
+  width:100%; height:100%; object-fit:contain; border-radius:50%;
+  filter:drop-shadow(0 0 22px rgba(168,85,247,.5)) drop-shadow(0 0 40px rgba(251,191,36,.12));
+  transition:filter .4s;
+}
+.bear-wrap.speaking .bear-img { animation:bSpeak .5s ease-in-out infinite alternate; filter:drop-shadow(0 0 32px rgba(168,85,247,.9)); }
+.bear-wrap.thinking .bear-img { animation:bThink 1.2s ease-in-out infinite; filter:drop-shadow(0 0 26px rgba(251,191,36,.8)); }
+@keyframes bSpeak { from{transform:scale(1) rotate(-1deg)} to{transform:scale(1.04) rotate(1deg)} }
+@keyframes bThink { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
+.bear-ring {
+  position:absolute; inset:-7px; border-radius:50%;
+  border:2px solid transparent;
+  background:linear-gradient(#0a0618,#0a0618) padding-box,
+             linear-gradient(135deg,rgba(168,85,247,.6),rgba(251,191,36,.3),rgba(192,132,252,.6)) border-box;
+  animation:rPulse 3s ease-in-out infinite;
+}
+@keyframes rPulse { 0%,100%{opacity:.35;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
 
-  /* ── Bear ── */
-  .bear-wrap {
-    position: relative;
-    width: 160px; height: 160px;
-    flex-shrink: 0;
-  }
-  .bear-img {
-    width: 100%; height: 100%;
-    object-fit: contain;
-    border-radius: 50%;
-    filter: drop-shadow(0 0 24px rgba(168,85,247,0.5))
-            drop-shadow(0 0 48px rgba(251,191,36,0.15));
-    transition: filter 0.4s;
-  }
-  .bear-wrap.speaking .bear-img {
-    animation: bearSpeak 0.5s ease-in-out infinite alternate;
-    filter: drop-shadow(0 0 36px rgba(168,85,247,0.9));
-  }
-  .bear-wrap.thinking .bear-img {
-    animation: bearThink 1.2s ease-in-out infinite;
-    filter: drop-shadow(0 0 28px rgba(251,191,36,0.8));
-  }
-  @keyframes bearSpeak { from{transform:scale(1) rotate(-1deg)} to{transform:scale(1.04) rotate(1deg)} }
-  @keyframes bearThink { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
+/* ── Bubble ── */
+.bubble {
+  width:100%;
+  background:var(--bubble-bg); border:1px solid var(--bubble-border);
+  border-radius:16px; padding:12px 14px;
+  backdrop-filter:blur(10px); box-shadow:0 4px 16px rgba(124,58,237,.12);
+}
+.bubble-inner { display:flex; align-items:flex-start; gap:8px; }
+.dot {
+  width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:4px;
+  background:#4ade80; box-shadow:0 0 5px #4ade80;
+}
+.dot.thinking { background:var(--gold); box-shadow:0 0 5px var(--gold); animation:dp .8s ease-in-out infinite; }
+.dot.speaking  { background:var(--purple3); box-shadow:0 0 5px var(--purple3); animation:dp .4s ease-in-out infinite; }
+@keyframes dp { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+.bubble-text { font-size:.88rem; font-weight:600; line-height:1.5; color:var(--text); flex:1; white-space:pre-line; }
 
-  .bear-ring {
-    position: absolute; inset: -8px; border-radius: 50%;
-    border: 2px solid transparent;
-    background: linear-gradient(#0a0618,#0a0618) padding-box,
-                linear-gradient(135deg,rgba(168,85,247,.6),rgba(251,191,36,.3),rgba(192,132,252,.6)) border-box;
-    animation: ringPulse 3s ease-in-out infinite;
-  }
-  @keyframes ringPulse { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.03)} }
+.waveform { display:none; align-items:center; gap:3px; height:16px; margin-top:6px; }
+.waveform.active { display:flex; }
+.wave-bar {
+  width:3px; border-radius:2px; background:var(--purple3);
+  animation:wv var(--d,.6s) ease-in-out infinite alternate;
+  animation-delay:var(--delay,0s);
+}
+@keyframes wv { from{height:3px} to{height:14px} }
 
-  /* ── Bubble ── */
-  .bubble {
-    width: 100%;
-    background: var(--bubble-bg);
-    border: 1px solid var(--bubble-border);
-    border-radius: 18px;
-    padding: 14px 16px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 4px 20px rgba(124,58,237,0.15);
-  }
-  .bubble-inner { display:flex; align-items:flex-start; gap:8px; }
-  .status-dot {
-    width:7px; height:7px; border-radius:50%;
-    background:#4ade80; box-shadow:0 0 6px #4ade80;
-    flex-shrink:0; margin-top:5px;
-  }
-  .status-dot.thinking { background:var(--gold); box-shadow:0 0 6px var(--gold); animation:dp .8s ease-in-out infinite; }
-  .status-dot.speaking { background:var(--purple3); box-shadow:0 0 6px var(--purple3); animation:dp .4s ease-in-out infinite; }
-  @keyframes dp { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+/* ── Audio ── */
+.audio-wrap { width:100%; display:none; }
+.audio-wrap.on { display:block; }
+audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 
-  .bubble-text { font-size:.9rem; font-weight:600; line-height:1.5; color:var(--text); flex:1; white-space:pre-line; }
+/* ── Status row ── */
+.status-row { display:flex; align-items:center; gap:7px; }
+.conn-dot { width:8px; height:8px; border-radius:50%; background:#4ade80; box-shadow:0 0 6px #4ade80; flex-shrink:0; }
+.conn-dot.off { background:#f87171; box-shadow:0 0 6px #f87171; }
+.conn-label { font-size:.72rem; color:var(--text2); font-weight:600; }
 
-  .waveform { display:none; align-items:center; gap:3px; height:18px; margin-top:6px; }
-  .waveform.active { display:flex; }
-  .wave-bar {
-    width:3px; border-radius:2px; background:var(--purple3);
-    animation: wv var(--d,.6s) ease-in-out infinite alternate;
-    animation-delay: var(--delay,0s);
-  }
-  @keyframes wv { from{height:3px} to{height:16px} }
+/* ── Text input row ── */
+.input-row { width:100%; display:flex; gap:8px; align-items:center; }
+.msg-input {
+  flex:1; background:rgba(255,255,255,0.07); border:1.5px solid rgba(168,85,247,.3);
+  border-radius:14px; padding:13px 14px; color:var(--text);
+  font-family:'Comfortaa',sans-serif; font-size:.88rem; font-weight:600; outline:none;
+  transition:border-color .2s;
+}
+.msg-input:focus { border-color:var(--purple2); }
+.msg-input::placeholder { color:rgba(196,181,253,.35); }
 
-  /* ── Audio ── */
-  .audio-wrap { width:100%; display:none; }
-  .audio-wrap.visible { display:block; }
-  audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
+.btn-dice {
+  background:rgba(255,255,255,0.05); border:1.5px solid rgba(168,85,247,.25);
+  border-radius:12px; width:46px; height:46px; cursor:pointer; font-size:1.1rem;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:all .15s;
+}
+.btn-dice:hover { border-color:var(--purple2); background:rgba(168,85,247,.1); }
 
-  /* ── Server row ── */
-  .server-row { width:100%; display:flex; align-items:center; gap:8px; padding:2px 0; }
-  .conn-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; background:#4ade80; box-shadow:0 0 5px #4ade80; }
-  .conn-dot.offline { background:#f87171; box-shadow:0 0 5px #f87171; }
-  .server-input {
-    flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(168,85,247,0.2);
-    border-radius:8px; padding:6px 10px; color:var(--text2);
-    font-family:'Courier New',monospace; font-size:0.7rem; outline:none;
-  }
-  .server-input:focus { border-color:var(--purple2); color:var(--text); }
+.btn-send {
+  background:linear-gradient(135deg,var(--purple),var(--purple2));
+  border:none; border-radius:14px; width:46px; height:46px; cursor:pointer;
+  font-size:1.1rem; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; box-shadow:0 4px 14px rgba(124,58,237,.5); transition:all .15s;
+}
+.btn-send:hover  { transform:scale(1.08); }
+.btn-send:active { transform:scale(.94); }
+.btn-send:disabled { opacity:.3; cursor:not-allowed; transform:none; box-shadow:none; }
 
-  /* ── Input row ── */
-  .input-row { width:100%; display:flex; gap:8px; align-items:center; }
-  .msg-input {
-    flex:1; background:rgba(255,255,255,0.07); border:1.5px solid rgba(168,85,247,0.3);
-    border-radius:14px; padding:13px 16px; color:var(--text);
-    font-family:'Comfortaa',sans-serif; font-size:.9rem; font-weight:600; outline:none;
-    transition:border-color .2s;
-  }
-  .msg-input:focus { border-color:var(--purple2); }
-  .msg-input::placeholder { color:rgba(196,181,253,0.35); }
-
-  .btn-dice {
-    background:rgba(255,255,255,0.05); border:1.5px solid rgba(168,85,247,0.25);
-    border-radius:12px; padding:0 12px; height:48px; cursor:pointer;
-    color:var(--text2); font-family:'Comfortaa',sans-serif; font-size:.7rem; font-weight:700;
-    display:flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;
-    transition:all .15s;
-  }
-  .btn-dice:hover { border-color:var(--purple2); color:var(--purple3); }
-
-  .btn-mic {
-    background:rgba(255,255,255,0.05); border:1.5px solid rgba(168,85,247,0.25);
-    border-radius:14px; width:48px; height:48px; cursor:pointer; font-size:1.2rem;
-    display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    transition:all .15s;
-  }
-  .btn-mic:hover { border-color:var(--purple2); background:rgba(168,85,247,.1); }
-  .btn-mic.recording {
-    background:rgba(248,113,113,.2); border-color:#f87171;
-    animation:micPulse .6s ease-in-out infinite alternate;
-  }
-  @keyframes micPulse {
-    from { box-shadow:0 0 8px rgba(248,113,113,.4); }
-    to   { box-shadow:0 0 24px rgba(248,113,113,.9); }
-  }
-  .btn-mic:disabled { opacity:.3; cursor:not-allowed; }
-
-  .btn-send {
-    background:linear-gradient(135deg,var(--purple) 0%,var(--purple2) 100%);
-    border:none; border-radius:14px; width:48px; height:48px; cursor:pointer;
-    font-size:1.2rem; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0; box-shadow:0 4px 16px rgba(124,58,237,.5); transition:all .15s;
-  }
-  .btn-send:hover  { transform:scale(1.08); box-shadow:0 6px 20px rgba(168,85,247,.7); }
-  .btn-send:active { transform:scale(.94); }
-  .btn-send:disabled { opacity:.3; cursor:not-allowed; transform:none; box-shadow:none; }
+/* ── Big mic button ── */
+.btn-mic-wrap { display:flex; justify-content:center; }
+.btn-mic {
+  width:64px; height:64px; border-radius:50%; cursor:pointer; font-size:1.6rem;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(168,85,247,.2));
+  border:2px solid rgba(168,85,247,.5);
+  box-shadow:0 0 20px rgba(124,58,237,.3);
+  transition:all .2s;
+}
+.btn-mic:hover { box-shadow:0 0 30px rgba(168,85,247,.5); transform:scale(1.05); }
+.btn-mic:active { transform:scale(.95); }
+.btn-mic:disabled { opacity:.3; cursor:not-allowed; transform:none; }
+.btn-mic.recording {
+  background:linear-gradient(135deg,rgba(239,68,68,.3),rgba(248,113,113,.2));
+  border-color:#f87171;
+  animation:micPulse .6s ease-in-out infinite alternate;
+}
+@keyframes micPulse {
+  from { box-shadow:0 0 12px rgba(248,113,113,.4); }
+  to   { box-shadow:0 0 32px rgba(248,113,113,.9), 0 0 60px rgba(248,113,113,.3); }
+}
 </style>
 </head>
 <body>
 
-<!-- Phone frame -->
-<div class="phone-frame">
-  <div class="stars" id="stars"></div>
-  <div class="moon-glow"></div>
+<!-- Desktop bg stars -->
+<div class="bg-stars" id="bgStars"></div>
 
-  <!-- Scrollable area -->
-  <div class="scroll-area" id="scrollArea">
+<!-- Phone -->
+<div class="phone" id="phone">
+  <!-- Stars inside phone -->
+  <div class="phone-stars" id="phoneStars"></div>
+
+  <!-- Scroll area -->
+  <div class="content" id="content">
 
     <!-- Brand + Title -->
-    <div class="title-wrap">
+    <div style="text-align:center">
       <div class="brand">LUNARA AI</div>
       <div class="title">LUMI</div>
       <div class="title-sub">✦ AI Мишка ✦ Демо</div>
@@ -311,7 +262,7 @@
     <!-- Bubble -->
     <div class="bubble" id="bubble">
       <div class="bubble-inner">
-        <div class="status-dot" id="statusDot"></div>
+        <div class="dot" id="dot"></div>
         <div style="flex:1">
           <div class="bubble-text" id="bubbleText">Привет! Я — Луми! ✨
 Напиши или скажи что-нибудь!</div>
@@ -322,7 +273,6 @@
             <div class="wave-bar" style="--d:.8s;--delay:.05s"></div>
             <div class="wave-bar" style="--d:.6s;--delay:.15s"></div>
             <div class="wave-bar" style="--d:.5s;--delay:.25s"></div>
-            <div class="wave-bar" style="--d:.7s;--delay:.1s"></div>
           </div>
         </div>
       </div>
@@ -333,82 +283,90 @@
       <audio id="audioPlayer" controls></audio>
     </div>
 
-  </div><!-- /scroll-area -->
+  </div><!-- /content -->
 
-  <!-- Fixed bottom bar -->
-  <div class="bottom-bar">
+  <!-- Fixed bottom -->
+  <div class="bottom">
 
-    <!-- Server status -->
-    <div class="server-row">
+    <!-- Status -->
+    <div class="status-row">
       <div class="conn-dot" id="connDot"></div>
-      <span id="connText" style="font-size:.75rem;color:var(--text2);font-weight:600;">Connection OK</span>
+      <span class="conn-label" id="connLabel">Connection OK</span>
       <input id="serverUrl" type="hidden" value="https://lunara-toy-server-production.up.railway.app" />
     </div>
 
-    <!-- Input -->
+    <!-- Text input + dice + send -->
     <div class="input-row">
-      <input class="msg-input" id="msgInput"
-        placeholder="Напиши Луми..." maxlength="200" />
-      <button class="btn-dice" onclick="randomPhrase()">🎲</button>
-      <button class="btn-mic" id="micBtn">🎤</button>
+      <input class="msg-input" id="msgInput" placeholder="Напиши Луми..." maxlength="200" />
+      <button class="btn-dice" onclick="randomPhrase()" title="Случайная фраза">🎲</button>
       <button class="btn-send" id="sendBtn" onclick="sendMessage()">✦</button>
     </div>
 
-  </div><!-- /bottom-bar -->
+    <!-- Big mic button -->
+    <div class="btn-mic-wrap">
+      <button class="btn-mic" id="micBtn">🎤</button>
+    </div>
 
-</div><!-- /phone-frame -->
+  </div><!-- /bottom -->
+
+</div><!-- /phone -->
 
 <script>
-// ── Stars — always show ───────────────────────────────────────────────────────
-const starsEl = document.getElementById('stars');
-for (let i = 0; i < 90; i++) {
-  const s = document.createElement('div');
-  s.className = 'star';
-  const sz = Math.random() * 2 + 0.5;
-  s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*5}s;--delay:${Math.random()*5}s`;
-  starsEl.appendChild(s);
+// ── Stars ─────────────────────────────────────────────────────────────────────
+function makeStars(el, count) {
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random() * 2 + 0.5;
+    s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*5}s;--delay:${Math.random()*5}s`;
+    el.appendChild(s);
+  }
 }
+makeStars(document.getElementById('bgStars'), 60);
+makeStars(document.getElementById('phoneStars'), 70);
 
 // ── Refs ──────────────────────────────────────────────────────────────────────
 const bearWrap   = document.getElementById('bearWrap');
 const bubbleText = document.getElementById('bubbleText');
-const statusDot  = document.getElementById('statusDot');
+const dot        = document.getElementById('dot');
 const waveform   = document.getElementById('waveform');
 const audioWrap  = document.getElementById('audioWrap');
 const audioPlayer= document.getElementById('audioPlayer');
 const sendBtn    = document.getElementById('sendBtn');
 const msgInput   = document.getElementById('msgInput');
 const connDot    = document.getElementById('connDot');
+const connLabel  = document.getElementById('connLabel');
 const serverUrl  = document.getElementById('serverUrl');
-const scrollArea = document.getElementById('scrollArea');
+const content    = document.getElementById('content');
+const micBtn     = document.getElementById('micBtn');
 
 let isProcessing = false;
 
-// ── Bear state ────────────────────────────────────────────────────────────────
+// ── Bear ──────────────────────────────────────────────────────────────────────
 function setBear(state) {
-  bearWrap.className = 'bear-wrap ' + (state || '');
-  statusDot.className = 'status-dot ' + (state || '');
+  bearWrap.className = 'bear-wrap' + (state ? ' '+state : '');
+  dot.className = 'dot' + (state ? ' '+state : '');
   waveform.className = 'waveform' + (state === 'speaking' ? ' active' : '');
 }
 
-// ── Health check ──────────────────────────────────────────────────────────────
+// ── Server health ─────────────────────────────────────────────────────────────
 async function checkServer() {
   const base = serverUrl.value.trim().replace(/\/$/, '');
   try {
     const r = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
-    const ct = document.getElementById('connText');
-    if (r.ok) { connDot.className='conn-dot'; if(ct) ct.textContent='Connection OK'; }
-    else { connDot.className='conn-dot offline'; if(ct) ct.textContent='No connection'; }
+    if (r.ok) {
+      connDot.className = 'conn-dot';
+      connLabel.textContent = 'Connection OK';
+    } else throw new Error();
   } catch {
-    connDot.className = 'conn-dot offline';
-    const ct = document.getElementById('connText');
-    if(ct) ct.textContent = 'No connection';
+    connDot.className = 'conn-dot off';
+    connLabel.textContent = 'No connection';
   }
 }
 checkServer();
 setInterval(checkServer, 15000);
 
-// ── Send ──────────────────────────────────────────────────────────────────────
+// ── Send message ──────────────────────────────────────────────────────────────
 async function sendMessage() {
   const text = msgInput.value.trim();
   if (!text || isProcessing) return;
@@ -420,9 +378,6 @@ async function sendMessage() {
   setBear('thinking');
   bubbleText.textContent = '...';
   audioWrap.className = 'audio-wrap';
-
-  // Scroll to bottom
-  scrollArea.scrollTop = scrollArea.scrollHeight;
 
   try {
     const res = await fetch(`${base}/chat`, {
@@ -441,8 +396,8 @@ async function sendMessage() {
     if (data.audio_url) {
       setBear('speaking');
       audioPlayer.src = data.audio_url;
-      audioWrap.className = 'audio-wrap visible';
-      scrollArea.scrollTop = scrollArea.scrollHeight;
+      audioWrap.className = 'audio-wrap on';
+      content.scrollTop = content.scrollHeight;
       audioPlayer.play().catch(() => {});
       audioPlayer.onended = () => setBear('');
     } else {
@@ -460,6 +415,8 @@ async function sendMessage() {
   }
 }
 
+msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
 // ── Random phrases ────────────────────────────────────────────────────────────
 const PHRASES = [
   'Привет, как тебя зовут?','Мне скучно, давай поиграем!','Загадай мне загадку!',
@@ -468,17 +425,14 @@ const PHRASES = [
   'Расскажи что-нибудь весёлое','Я нашёл жука на улице!','Мама ушла на работу',
   'Покажи как рычит медведь','Я не хочу есть кашу!','Кто живёт в лесу?',
   'Давай придумаем историю про дракона','Спой мне песенку','Почему кошки мурчат?',
-  'Bună ziua! Cum te cheamă?', 'Hello! Tell me a story!',
+  'Bună ziua! Cum te cheamă?','Hello! Tell me a story!',
 ];
 function randomPhrase() {
   msgInput.value = PHRASES[Math.floor(Math.random() * PHRASES.length)];
   msgInput.focus();
 }
 
-msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
-
-// ── Voice input — toggle mode ─────────────────────────────────────────────────
-const micBtn = document.getElementById('micBtn');
+// ── Mic — toggle mode ─────────────────────────────────────────────────────────
 let recognition = null;
 let isRecording = false;
 let finalTranscript = '';
@@ -486,7 +440,7 @@ let finalTranscript = '';
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  function createRecognition() {
+  function createRec() {
     const r = new SR();
     r.continuous = true;
     r.interimResults = true;
@@ -499,7 +453,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       msgInput.placeholder = 'Говори... нажми ⏹ чтобы отправить';
       msgInput.value = '';
       bubbleText.textContent = '🎤 Слушаю...';
-      setBear('');
     };
 
     r.onresult = (e) => {
@@ -518,8 +471,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       msgInput.placeholder = 'Напиши Луми...';
       const text = (finalTranscript || msgInput.value).trim();
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
-      else bubbleText.textContent = 'Привет! Я — Луми! ✨
-Напиши или скажи что-нибудь!';
+      else bubbleText.textContent = 'Привет! Я — Луми! ✨\nНапиши или скажи что-нибудь!';
     };
 
     r.onerror = (e) => {
@@ -527,7 +479,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micBtn.classList.remove('recording');
       micBtn.textContent = '🎤';
       msgInput.placeholder = 'Напиши Луми...';
-      if (e.error === 'not-allowed') bubbleText.textContent = '🎤 Разреши доступ к микрофону';
+      if (e.error === 'not-allowed') bubbleText.textContent = '🎤 Разреши доступ к микрофону в браузере';
       else if (e.error !== 'no-speech' && e.error !== 'aborted') bubbleText.textContent = '🎤 Ошибка: ' + e.error;
     };
     return r;
@@ -536,7 +488,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   function toggleMic() {
     if (isProcessing) return;
     if (!isRecording) {
-      recognition = createRecognition();
+      recognition = createRec();
       try { recognition.start(); } catch(e) {}
     } else {
       try { recognition.stop(); } catch(e) {}
