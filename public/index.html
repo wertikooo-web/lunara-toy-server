@@ -230,30 +230,56 @@
   .btn-send:active { transform:scale(0.94); }
   .btn-send:disabled { opacity:0.35; cursor:not-allowed; transform:none; box-shadow:none; }
 
+  /* ── Mic row ── */
+  .mic-row {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .mic-hint {
+    font-size: 0.72rem;
+    color: var(--text2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    user-select: none;
+  }
+
   .btn-mic {
-    background: rgba(255,255,255,0.05);
-    border: 1.5px solid rgba(168,85,247,0.3);
-    border-radius: 16px;
-    width: 52px; height: 52px;
+    background: linear-gradient(135deg, #1e0a3e 0%, #2d0f5a 100%);
+    border: 2.5px solid rgba(192,132,252,0.5);
+    border-radius: 50%;
+    width: 80px; height: 80px;
     cursor: pointer;
-    font-size: 1.3rem;
+    font-size: 1.8rem;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.15s;
     flex-shrink: 0;
     position: relative;
+    box-shadow: 0 0 24px rgba(168,85,247,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
   }
-  .btn-mic:hover { border-color: var(--purple2); background: rgba(168,85,247,0.1); }
+  .btn-mic:hover {
+    border-color: var(--purple2);
+    box-shadow: 0 0 36px rgba(168,85,247,0.55), inset 0 1px 0 rgba(255,255,255,0.07);
+    transform: scale(1.05);
+  }
   .btn-mic.recording {
-    background: rgba(248,113,113,0.2);
+    background: linear-gradient(135deg, #3b0a0a 0%, #5c1010 100%);
     border-color: #f87171;
-    box-shadow: 0 0 20px rgba(248,113,113,0.4);
-    animation: micPulse 0.6s ease-in-out infinite alternate;
+    box-shadow: 0 0 40px rgba(248,113,113,0.7), 0 0 80px rgba(248,113,113,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+    animation: micPulse 0.55s ease-in-out infinite alternate;
+    transform: scale(1.08);
   }
   @keyframes micPulse {
-    from { box-shadow: 0 0 10px rgba(248,113,113,0.4); }
-    to   { box-shadow: 0 0 30px rgba(248,113,113,0.8); }
+    from { box-shadow: 0 0 24px rgba(248,113,113,0.5), 0 0 60px rgba(248,113,113,0.15); }
+    to   { box-shadow: 0 0 50px rgba(248,113,113,0.9), 0 0 100px rgba(248,113,113,0.35); }
   }
-  .btn-mic:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-mic:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
 
 </style>
 </head>
@@ -314,8 +340,13 @@
     <input class="msg-input" id="msgInput"
       placeholder="Напиши Лунаре..." maxlength="200" />
     <button class="btn-dice" onclick="randomPhrase()">🎲 фраза</button>
-    <button class="btn-mic" id="micBtn">🎤</button>
     <button class="btn-send" id="sendBtn" onclick="sendMessage()">✦</button>
+  </div>
+
+  <!-- Mic row -->
+  <div class="mic-row">
+    <button class="btn-mic" id="micBtn">🎙️</button>
+    <span class="mic-hint" id="micHint">удержи и говори</span>
   </div>
 
 </div>
@@ -442,37 +473,35 @@ function randomPhrase() {
 
 msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
-// ── Voice input (Web Speech API) ─────────────────────────────────────────────
-const micBtn = document.getElementById('micBtn');
+// ── Voice input — Push-to-Talk ───────────────────────────────────────────────
+const micBtn  = document.getElementById('micBtn');
+const micHint = document.getElementById('micHint');
 let recognition = null;
 let isRecording = false;
+let holdActive   = false;   // true while finger/mouse is down
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.continuous = false;
+  recognition.continuous    = true;   // keep recording while held
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-  // No fixed lang — browser auto-detects or uses system lang
-  // This allows switching between RU/RO/EN in same session
 
   recognition.onstart = () => {
     isRecording = true;
     micBtn.classList.add('recording');
     micBtn.textContent = '🔴';
+    micHint.textContent = 'говори...';
     msgInput.placeholder = 'Говори...';
     msgInput.value = '';
   };
 
   recognition.onresult = (e) => {
     let interim = '';
-    let final = '';
+    let final   = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        final += e.results[i][0].transcript;
-      } else {
-        interim += e.results[i][0].transcript;
-      }
+      if (e.results[i].isFinal) final  += e.results[i][0].transcript;
+      else                       interim += e.results[i][0].transcript;
     }
     msgInput.value = final || interim;
   };
@@ -480,49 +509,55 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.onend = () => {
     isRecording = false;
     micBtn.classList.remove('recording');
-    micBtn.textContent = '🎤';
+    micBtn.textContent = '🎙️';
+    micHint.textContent = 'удержи и говори';
     msgInput.placeholder = 'Напиши Лунаре...';
-    // Auto-send if we got text
-    if (msgInput.value.trim()) {
-      setTimeout(() => sendMessage(), 300);
+    // auto-send only if button was released (not an error restart)
+    if (!holdActive && msgInput.value.trim()) {
+      setTimeout(() => sendMessage(), 200);
     }
   };
 
   recognition.onerror = (e) => {
+    holdActive  = false;
     isRecording = false;
     micBtn.classList.remove('recording');
-    micBtn.textContent = '🎤';
+    micBtn.textContent = '🎙️';
+    micHint.textContent = 'удержи и говори';
     msgInput.placeholder = 'Напиши Лунаре...';
     if (e.error !== 'no-speech' && e.error !== 'aborted') {
-      bubbleText.textContent = '🎤 Ошибка микрофона: ' + e.error;
+      bubbleText.textContent = '🎤 ' + e.error;
     }
   };
 
-  // Press and hold OR click to toggle
-  micBtn.addEventListener('mousedown', startMic);
-  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); });
-  micBtn.addEventListener('mouseup', stopMic);
-  micBtn.addEventListener('mouseleave', stopMic);
-  micBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopMic(); });
-
-  function startMic() {
+  // ── Push-to-Talk handlers ─────────────────────────────────────────────────
+  function startMic(e) {
     if (isProcessing) return;
+    holdActive = true;
     if (!isRecording) {
-      try { recognition.start(); } catch(e) {}
+      try { recognition.start(); } catch(_) {}
     }
   }
 
-  function stopMic() {
+  function stopMic(e) {
+    holdActive = false;
     if (isRecording) {
-      try { recognition.stop(); } catch(e) {}
+      try { recognition.stop(); } catch(_) {}
     }
   }
+
+  micBtn.addEventListener('mousedown',  startMic);
+  micBtn.addEventListener('mouseup',    stopMic);
+  micBtn.addEventListener('mouseleave', stopMic);    // left button area while holding
+  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); }, { passive: false });
+  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic();  }, { passive: false });
+  micBtn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopMic();  }, { passive: false });
 
 } else {
-  // Browser doesn't support speech recognition
   micBtn.disabled = true;
-  micBtn.title = 'Голосовой ввод не поддерживается в этом браузере (используй Chrome)';
+  micBtn.title    = 'Голосовой ввод не поддерживается (используй Chrome)';
   micBtn.style.opacity = '0.3';
+  micHint.textContent  = 'только Chrome';
 }
 
 </script>
