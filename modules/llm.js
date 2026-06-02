@@ -83,9 +83,9 @@ async function chat(wsRef, userText, lang = 'ru-RU') {
 
     messages.push({ role: 'user', content: userText });
 
-    // Держим историю ограниченной — последние 20 сообщений (10 обменов)
-    if (messages.length > 20) {
-        messages.splice(0, messages.length - 20);
+    // Держим историю ограниченной — последние 10 сообщений (5 обменов)
+    if (messages.length > 10) {
+        messages.splice(0, messages.length - 10);
     }
 
     // Language instruction
