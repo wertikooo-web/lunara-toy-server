@@ -419,7 +419,7 @@ async function sendMessage() {
     isProcessing = false;
     sendBtn.disabled = false;
     msgInput.disabled = false;
-    msgInput.focus();
+    // Don't focus on mobile — prevents keyboard popup
   }
 }
 
@@ -437,7 +437,6 @@ const PHRASES = [
 ];
 function randomPhrase() {
   msgInput.value = PHRASES[Math.floor(Math.random() * PHRASES.length)];
-  msgInput.focus();
   setTimeout(() => sendMessage(), 100);
 }
 
@@ -479,6 +478,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
       const text = (finalTranscript || msgInput.value).trim();
+      msgInput.blur(); // close keyboard
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
       else bubbleText.textContent = 'Привет! Я — Луми! ✨\nНапиши или скажи что-нибудь!';
     };
@@ -512,7 +512,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   // Mobile: hold touch
   micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); });
-  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic(); });
+  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic(); document.activeElement && document.activeElement.blur(); });
   micBtn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopMic(); });
 
 } else {
