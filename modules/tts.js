@@ -54,7 +54,7 @@ function requestYandexTTS(text) {
         const body = new URLSearchParams({
             text,
             voice:           VOICE,
-            speed:           '0.95',        // чуть медленнее для детей
+            speed:           '0.85',        // чуть медленнее для детей
             format:          FORMAT,
             sampleRateHertz: String(SAMPLE_RATE),
             folderId:        FOLDER_ID,
