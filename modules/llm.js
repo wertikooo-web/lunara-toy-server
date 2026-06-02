@@ -13,7 +13,7 @@ const logger = require('./logger');
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL      = 'gpt-4o-mini';
-const MAX_TOKENS = 150;   // короткие ответы для ребёнка
+const MAX_TOKENS = 80;    // очень короткие ответы для ребёнка
 
 // WeakMap: ws object → messages array
 // Автоматически чистится когда ws удаляется из памяти
