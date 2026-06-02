@@ -274,9 +274,9 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 
   <!-- Language selector -->
   <div class="lang-row">
-    <button class="lang-btn active" onclick="setLang('ru-RU',this)">RU</button>
-    <button class="lang-btn" onclick="setLang('ro-RO',this)">RO</button>
-    <button class="lang-btn" onclick="setLang('en-US',this)">EN</button>
+    <button class="lang-btn active" id="langRU" onclick="setLang('ru-RU',this)">RU</button>
+    <button class="lang-btn" id="langRO" onclick="setLang('ro-RO',this)">RO</button>
+    <button class="lang-btn" id="langEN" onclick="setLang('en-US',this)">EN</button>
   </div>
 
   <!-- Scroll area -->
@@ -554,6 +554,16 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   let micStarted = false; // guard against multiple start calls
   let micHeld = false;    // true while button is physically held
   let currentLang = 'ru-RU'; // current STT language
+
+  function setLang(lang, btn) {
+    currentLang = lang;
+    const ids = ['langRU', 'langRO', 'langEN'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+    btn.classList.add('active');
+  }
   let silenceTimer = null; // auto-stop if no speech for 10s
   let micTimer = null;
   let micWarnTimer = null;
