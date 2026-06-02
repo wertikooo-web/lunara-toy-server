@@ -85,7 +85,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   position: relative;
   z-index: 1;
 }
@@ -97,7 +97,7 @@ body {
   position: relative;
   z-index: 2;
   background: linear-gradient(to top, #0a0618 60%, transparent);
-  padding: 6px 16px 18px;
+  padding: 2px 16px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -211,6 +211,7 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 .btn-mic-wrap { display:flex; justify-content:center; }
 .btn-mic {
   width:64px; height:64px; border-radius:50%; cursor:pointer; font-size:1.6rem;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
   background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(168,85,247,.2));
   border:2px solid rgba(168,85,247,.5);
@@ -304,7 +305,14 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 
     <!-- Big mic button -->
     <div class="btn-mic-wrap">
-      <button class="btn-mic" id="micBtn">🎤</button>
+      <button class="btn-mic" id="micBtn">
+    <svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none">
+      <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+      <path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
     </div>
 
   </div><!-- /bottom -->
@@ -450,7 +458,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.onstart = () => {
       isRecording = true; finalTranscript = '';
       micBtn.classList.add('recording');
-      micBtn.textContent = '⏹';
+      micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="pointer-events:none;user-select:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
       msgInput.placeholder = 'Говори... нажми ⏹ чтобы отправить';
       msgInput.value = '';
       bubbleText.textContent = '🎤 Слушаю...';
@@ -468,7 +476,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.onend = () => {
       isRecording = false;
       micBtn.classList.remove('recording');
-      micBtn.textContent = '🎤';
+      micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
       const text = (finalTranscript || msgInput.value).trim();
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
@@ -478,7 +486,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.onerror = (e) => {
       isRecording = false;
       micBtn.classList.remove('recording');
-      micBtn.textContent = '🎤';
+      micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
       if (e.error === 'not-allowed') bubbleText.textContent = '🎤 Разреши доступ к микрофону в браузере';
       else if (e.error !== 'no-speech' && e.error !== 'aborted') bubbleText.textContent = '🎤 Ошибка: ' + e.error;
