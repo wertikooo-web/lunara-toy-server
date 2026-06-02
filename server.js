@@ -119,7 +119,7 @@ wss.on('connection', (ws, req) => {
     // ── Greeting ─────────────────────────────────────────────────────────────
     send({
         type:      'ready',
-        assistant: { name: 'Lunara', greeting: 'Привет! Я Лунара. Нажми кнопку и говори!' },
+        assistant: { name: 'Lumi', greeting: 'Привет! Я Луми. Нажми кнопку и говори!' },
     });
 
     // ── Message handler ───────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ wss.on('connection', (ws, req) => {
             state.audioBytes  = 0;
             llm.resetHistory(ws);
             logger.info('[WS] dialog reset');
-            send({ type: 'ready', assistant: { name: 'Lunara' } });
+            send({ type: 'ready', assistant: { name: 'Lumi' } });
             break;
 
         default:
