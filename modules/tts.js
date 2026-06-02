@@ -22,7 +22,7 @@ const YANDEX_TTS_URL  = 'https://tts.api.cloud.yandex.net/speech/v1/tts:synthesi
 const FOLDER_ID       = process.env.YANDEX_FOLDER_ID;   // ID каталога в Yandex Cloud
 const API_KEY         = process.env.YANDEX_API_KEY;      // API-ключ сервисного аккаунта
 
-const VOICE           = 'masha';      // голос Маша
+const VOICE           = 'alena';      // голос Маша
 const EMOTION         = 'friendly';   // friendly | neutral | evil
 const SPEED           = '1.0';        // 0.1 – 3.0
 const SAMPLE_RATE     = 16000;        // Hz — должно совпадать с I2S на ESP32
