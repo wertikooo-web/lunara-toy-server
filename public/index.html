@@ -455,7 +455,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.maxAlternatives = 1;
 
     r.onstart = () => {
-      isRecording = true; finalTranscript = '';
+      isRecording = true; micStarted = true; finalTranscript = '';
       micBtn.classList.add('recording');
       micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="pointer-events:none;user-select:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
       msgInput.placeholder = 'Держи кнопку и говори...';
@@ -473,7 +473,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onend = () => {
-      isRecording = false;
+      isRecording = false; micStarted = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
@@ -484,7 +484,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onerror = (e) => {
-      isRecording = false;
+      isRecording = false; micStarted = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
@@ -494,26 +494,29 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     return r;
   }
 
+  let micStarted = false; // guard against multiple start calls
+
   function startMic() {
-    if (isProcessing || isRecording) return;
+    if (isProcessing || isRecording || micStarted) return;
+    micStarted = true;
     recognition = createRec();
-    try { recognition.start(); } catch(e) {}
+    try { recognition.start(); } catch(e) { micStarted = false; }
   }
 
   function stopMic() {
-    if (!isRecording) return;
+    if (!isRecording) { micStarted = false; return; }
     try { recognition.stop(); } catch(e) {}
   }
 
   // Desktop: hold mouse
-  micBtn.addEventListener('mousedown', startMic);
-  micBtn.addEventListener('mouseup', stopMic);
-  micBtn.addEventListener('mouseleave', stopMic);
+  micBtn.addEventListener('mousedown', (e) => { e.preventDefault(); startMic(); });
+  micBtn.addEventListener('mouseup',   (e) => { e.preventDefault(); stopMic(); });
+  micBtn.addEventListener('mouseleave',(e) => { stopMic(); });
 
-  // Mobile: hold touch
-  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); });
-  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic(); document.activeElement && document.activeElement.blur(); });
-  micBtn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopMic(); });
+  // Mobile: hold touch — passive:false to allow preventDefault
+  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); }, { passive: false });
+  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic(); document.activeElement && document.activeElement.blur(); }, { passive: false });
+  micBtn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopMic(); }, { passive: false });
 
 } else {
   micBtn.disabled = true;
