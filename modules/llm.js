@@ -74,7 +74,7 @@ English → reply in English.
  * @param {string} userText — transcribed user message
  * @returns {Promise<string>} — model reply
  */
-async function chat(wsRef, userText) {
+async function chat(wsRef, userText, lang = 'ru-RU') {
     if (!histories.has(wsRef)) {
         histories.set(wsRef, []);
     }
@@ -87,11 +87,22 @@ async function chat(wsRef, userText) {
         messages.splice(0, messages.length - 20);
     }
 
+    // Language instruction
+    const langMap = {
+        'ru-RU': 'ОБЯЗАТЕЛЬНО отвечай ТОЛЬКО на русском языке. Никакого другого языка.',
+        'ro-RO': 'OBLIGATORIU răspunde NUMAI în limba română. Nicio altă limbă.',
+        'en-US': 'MANDATORY reply ONLY in English. No other language whatsoever.',
+    };
+    // 'auto' = ESP32 mode: detect language from child's message and reply in same language
+    const langInstruction = (lang && lang !== 'auto')
+        ? (langMap[lang] || langMap['ru-RU'])
+        : 'Определи язык сообщения ребёнка и отвечай ТОЛЬКО на том же языке.';
+
     const response = await client.chat.completions.create({
         model:      MODEL,
         max_tokens: MAX_TOKENS,
         messages:   [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction },
             ...messages,
         ],
     });

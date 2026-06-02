@@ -131,16 +131,19 @@ function resample24to16(pcm24k) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-async function synthesize(text, outputPath) {
-    const lang = detectLang(text);
-    logger.info(`[TTS] detected lang=${lang}`);
+async function synthesize(text, outputPath, lang = null) {
+    // Use explicit lang from client if provided, otherwise auto-detect
+    const detectedLang = lang
+        ? (lang.startsWith('ru') ? 'ru' : lang.startsWith('ro') ? 'ro' : 'en')
+        : detectLang(text);
+    logger.info(`[TTS] lang=${detectedLang} (${lang ? 'explicit' : 'auto'})`);
 
     let pcmBuffer;
-    if (lang === 'ru') {
+    if (detectedLang === 'ru') {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
         pcmBuffer = await yandexTTS(text);
     } else {
-        pcmBuffer = await openaiTTS(text, lang);
+        pcmBuffer = await openaiTTS(text, detectedLang);
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);

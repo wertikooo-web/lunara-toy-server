@@ -38,6 +38,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use(express.json());
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
+    const lang = req.body?.lang || 'ru-RU';
     if (!text) {
         return res.status(400).json({ error: 'text is required' });
     }
@@ -52,11 +53,11 @@ app.post('/chat', async (req, res) => {
 
     try {
         // LLM
-        const reply = await llm.chat(sessionRef, text);
+        const reply = await llm.chat(sessionRef, text, lang);
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath);
+        const durationMs = await tts.synthesize(reply, outputPath, lang);
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
@@ -235,7 +236,7 @@ async function handlePipeline(ws, state, send, sendAudio, sendError) {
         // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath);
+        const durationMs = await tts.synthesize(reply, outputPath, lang);
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
 
         // 6. Build public URL and notify ESP32
