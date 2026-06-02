@@ -109,7 +109,7 @@ async function openaiTTS(text, lang) {
     const response = await openai.audio.speech.create({
         model: OPENAI_MODEL, voice, input: text,
         response_format: 'pcm',  // PCM16 LE 24kHz
-        speed: 0.9,
+        speed: 0.85,
     });
     const pcm24k = Buffer.from(await response.arrayBuffer());
     return resample24to16(pcm24k);
