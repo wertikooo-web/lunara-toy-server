@@ -230,6 +230,36 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
   from { box-shadow:0 0 12px rgba(248,113,113,.4); }
   to   { box-shadow:0 0 32px rgba(248,113,113,.9), 0 0 60px rgba(248,113,113,.3); }
 }
+
+  /* ── Language selector ── */
+  .lang-row {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    display: flex;
+    gap: 5px;
+    z-index: 20;
+  }
+  .lang-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(168,85,247,0.25);
+    border-radius: 8px;
+    padding: 4px 9px;
+    color: var(--text2);
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .lang-btn:hover { border-color: var(--purple2); color: var(--purple3); }
+  .lang-btn.active {
+    background: rgba(168,85,247,0.25);
+    border-color: var(--purple2);
+    color: var(--text);
+    box-shadow: 0 0 10px rgba(168,85,247,0.3);
+  }
 </style>
 </head>
 <body>
@@ -241,6 +271,13 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 <div class="phone" id="phone">
   <!-- Stars inside phone -->
   <div class="phone-stars" id="phoneStars"></div>
+
+  <!-- Language selector -->
+  <div class="lang-row">
+    <button class="lang-btn active" onclick="setLang('ru-RU',this)">RU</button>
+    <button class="lang-btn" onclick="setLang('ro-RO',this)">RO</button>
+    <button class="lang-btn" onclick="setLang('en-US',this)">EN</button>
+  </div>
 
   <!-- Scroll area -->
   <div class="content" id="content">
@@ -450,9 +487,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   function createRec() {
     const r = new SR();
-    r.continuous = false;      // single session — more stable on mobile
-    r.interimResults = false;  // final result only — no duplicates
+    r.continuous = false;
+    r.interimResults = false;
     r.maxAlternatives = 1;
+    r.lang = currentLang; // set selected language
 
     r.onstart = () => {
       isRecording = true; micStarted = true; finalTranscript = '';
@@ -515,6 +553,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   let micStarted = false; // guard against multiple start calls
   let micHeld = false;    // true while button is physically held
+  let currentLang = 'ru-RU'; // current STT language
   let silenceTimer = null; // auto-stop if no speech for 10s
   let micTimer = null;
   let micWarnTimer = null;
