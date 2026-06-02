@@ -23,7 +23,6 @@ const FOLDER_ID       = process.env.YANDEX_FOLDER_ID;   // ID каталога �
 const API_KEY         = process.env.YANDEX_API_KEY;      // API-ключ сервисного аккаунта
 
 const VOICE           = 'alena';      // голос Маша
-const EMOTION         = 'friendly';   // friendly | neutral | evil
 const SPEED           = '1.0';        // 0.1 – 3.0
 const SAMPLE_RATE     = 16000;        // Hz — должно совпадать с I2S на ESP32
 const FORMAT          = 'lpcm';       // lpcm = raw PCM16 LE без заголовка
@@ -38,7 +37,6 @@ function requestYandexTTS(text) {
         const body = new URLSearchParams({
             text,
             voice:           VOICE,
-            emotion:         EMOTION,
             speed:           SPEED,
             format:          FORMAT,
             sampleRateHertz: String(SAMPLE_RATE),
