@@ -230,13 +230,13 @@ async function handlePipeline(ws, state, send, sendAudio, sendError) {
         // 4. LLM — Claude
         sendStatus('responding');
         logger.info('[Pipeline] LLM start…');
-        const reply = await llm.chat(ws, transcript);
+        const reply = await llm.chat(ws, transcript, 'auto');
         logger.info(`[Pipeline] reply: "${reply}"`);
 
         // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, lang);
+        const durationMs = await tts.synthesize(reply, outputPath, null); // null = auto-detect
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
 
         // 6. Build public URL and notify ESP32
