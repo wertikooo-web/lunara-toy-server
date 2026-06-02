@@ -456,6 +456,14 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
     r.onstart = () => {
       isRecording = true; micStarted = true; finalTranscript = '';
+      // Auto-stop if no speech for 10 seconds
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (micHeld) {
+          micHeld = false; // prevent restart loop
+          stopMic();
+        }
+      }, 10000);
       micBtn.classList.add('recording');
       micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="pointer-events:none;user-select:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
       msgInput.placeholder = 'Держи кнопку и говори...';
@@ -464,7 +472,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onresult = (e) => {
-      // Take only the single final result — no accumulation, no duplicates
+      // Speech detected — reset silence timer
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
       if (e.results.length > 0 && e.results[0].isFinal) {
         finalTranscript = e.results[0][0].transcript;
         msgInput.value = finalTranscript;
@@ -472,12 +481,23 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onend = () => {
+      // Button still held — browser stopped on silence — restart
+      if (micHeld && !isProcessing) {
+        micStarted = false;
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+        try {
+          recognition = createRec();
+          recognition.start();
+          return;
+        } catch(e) {}
+      }
+      // Button released — finalize and send
       isRecording = false; micStarted = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = 'Напиши Луми...';
       const text = (finalTranscript || msgInput.value).trim();
-      msgInput.blur(); // close keyboard
+      msgInput.blur();
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
       else bubbleText.textContent = 'Привет! Я — Луми! ✨\nНапиши или скажи что-нибудь!';
     };
@@ -494,6 +514,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 
   let micStarted = false; // guard against multiple start calls
+  let micHeld = false;    // true while button is physically held
+  let silenceTimer = null; // auto-stop if no speech for 10s
   let micTimer = null;
   let micWarnTimer = null;
   const MAX_REC_MS = 20000;  // 20 seconds before warning
@@ -517,6 +539,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   function startMic() {
     if (isProcessing || isRecording || micStarted) return;
+    micHeld = true;
     micStarted = true;
     recognition = createRec();
     try {
@@ -535,10 +558,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 
   function stopMic() {
+    micHeld = false; // button released
     // Always clear timers
     if (micTimer)     { clearTimeout(micTimer);     micTimer = null; }
     if (micWarnTimer) { clearTimeout(micWarnTimer); micWarnTimer = null; }
-    if (!isRecording) { micStarted = false; return; }
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    if (!isRecording && !micStarted) return;
     try { recognition.stop(); } catch(e) {}
   }
 
