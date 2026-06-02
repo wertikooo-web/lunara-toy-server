@@ -48,26 +48,11 @@ function buildWavHeader(pcmByteLength) {
 }
 
 
-/**
- * Wrap text in SSML with natural pauses.
- * Adds pauses after sentences and before questions.
- */
-function wrapSsml(text) {
-    // Add pause after sentence-ending punctuation
-    let ssml = text
-        .replace(/([.!])\s+/g, '$1 <break time="400ms"/> ')
-        .replace(/([?])\s+/g, '$1 <break time="600ms"/> ')
-        .replace(/,\s+/g, ', <break time="200ms"/> ');
-
-    return `<speak>${ssml}</speak>`;
-}
-
 // ── Yandex TTS request ────────────────────────────────────────────────────────
 function requestYandexTTS(text) {
     return new Promise((resolve, reject) => {
-        const ssmlText = wrapSsml(text);
         const body = new URLSearchParams({
-            ssml:            ssmlText,
+            text,
             voice:           VOICE,
             speed:           '0.95',        // чуть медленнее для детей
             format:          FORMAT,
