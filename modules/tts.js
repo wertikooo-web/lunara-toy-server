@@ -4,34 +4,50 @@
  * TTS — Yandex SpeechKit
  *
  * Input:  text string
- * Output: saves raw PCM16 LE, mono, 16000 Hz to outputPath
- *         returns duration in milliseconds
- *
- * API docs: https://cloud.yandex.ru/docs/speechkit/tts/request
- * Endpoint: https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize
- *
- * Yandex возвращает OggOpus по умолчанию.
- * Мы запрашиваем LPCM (raw PCM, без заголовка) напрямую — ffmpeg не нужен.
+ * Output: saves WAV file (PCM16 LE, mono, 16000 Hz) to outputPath
+ *         ESP32 gets raw PCM (strips WAV header)
+ *         Browser gets full WAV (plays natively)
+ *         Returns duration in milliseconds
  */
 
 const https  = require('https');
 const fs     = require('fs');
+const path   = require('path');
 const logger = require('./logger');
 
 const YANDEX_TTS_URL  = 'https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize';
-const FOLDER_ID       = process.env.YANDEX_FOLDER_ID;   // ID каталога в Yandex Cloud
-const API_KEY         = process.env.YANDEX_API_KEY;      // API-ключ сервисного аккаунта
+const FOLDER_ID       = process.env.YANDEX_FOLDER_ID;
+const API_KEY         = process.env.YANDEX_API_KEY;
 
-const VOICE           = 'alena';      // голос Маша
-const SPEED           = '1.0';        // 0.1 – 3.0
-const SAMPLE_RATE     = 16000;        // Hz — должно совпадать с I2S на ESP32
-const FORMAT          = 'lpcm';       // lpcm = raw PCM16 LE без заголовка
+const VOICE       = 'alena';
+const SPEED       = '1.0';
+const SAMPLE_RATE = 16000;
+const FORMAT      = 'lpcm';   // raw PCM16 LE from Yandex
 
-/**
- * Выполняет HTTP POST запрос к Yandex TTS API.
- * @param {string} text
- * @returns {Promise<Buffer>} — raw PCM16 LE буфер
- */
+// ── WAV header builder ────────────────────────────────────────────────────────
+function buildWavHeader(pcmByteLength) {
+    const header      = Buffer.alloc(44);
+    const byteRate    = SAMPLE_RATE * 1 * 2;  // sampleRate * channels * bytesPerSample
+    const blockAlign  = 1 * 2;
+
+    header.write('RIFF',                   0, 'ascii');
+    header.writeUInt32LE(36 + pcmByteLength, 4);
+    header.write('WAVE',                   8, 'ascii');
+    header.write('fmt ',                  12, 'ascii');
+    header.writeUInt32LE(16,              16);   // PCM chunk size
+    header.writeUInt16LE(1,               20);   // AudioFormat = PCM
+    header.writeUInt16LE(1,               22);   // NumChannels = mono
+    header.writeUInt32LE(SAMPLE_RATE,     24);
+    header.writeUInt32LE(byteRate,        28);
+    header.writeUInt16LE(blockAlign,      32);
+    header.writeUInt16LE(16,              34);   // BitsPerSample
+    header.write('data',                  36, 'ascii');
+    header.writeUInt32LE(pcmByteLength,   40);
+
+    return header;
+}
+
+// ── Yandex TTS request ────────────────────────────────────────────────────────
 function requestYandexTTS(text) {
     return new Promise((resolve, reject) => {
         const body = new URLSearchParams({
@@ -44,7 +60,7 @@ function requestYandexTTS(text) {
         }).toString();
 
         const options = {
-            method:  'POST',
+            method: 'POST',
             headers: {
                 'Authorization':  `Api-Key ${API_KEY}`,
                 'Content-Type':   'application/x-www-form-urlencoded',
@@ -56,14 +72,11 @@ function requestYandexTTS(text) {
             if (res.statusCode !== 200) {
                 let errBody = '';
                 res.on('data', chunk => errBody += chunk);
-                res.on('end', () => {
-                    reject(new Error(
-                        `Yandex TTS error ${res.statusCode}: ${errBody}`
-                    ));
-                });
+                res.on('end', () => reject(new Error(
+                    `Yandex TTS error ${res.statusCode}: ${errBody}`
+                )));
                 return;
             }
-
             const chunks = [];
             res.on('data', chunk => chunks.push(chunk));
             res.on('end', () => resolve(Buffer.concat(chunks)));
@@ -75,28 +88,33 @@ function requestYandexTTS(text) {
     });
 }
 
+// ── Main synthesize function ──────────────────────────────────────────────────
 /**
- * Синтезировать текст → PCM файл.
- * @param {string} text        — текст для синтеза
- * @param {string} outputPath  — путь для записи .pcm файла
- * @returns {Promise<number>}  — длительность в миллисекундах
+ * Synthesize text → save two files:
+ *   outputPath        (.pcm) — raw PCM for ESP32
+ *   outputPath + .wav (.wav) — WAV with header for browser
+ *
+ * @param {string} text
+ * @param {string} outputPath  — path ending in .pcm
+ * @returns {Promise<number>}  — duration in ms
  */
 async function synthesize(text, outputPath) {
     if (!FOLDER_ID || !API_KEY) {
-        throw new Error(
-            'Yandex TTS: YANDEX_FOLDER_ID or YANDEX_API_KEY not set in environment'
-        );
+        throw new Error('Yandex TTS: YANDEX_FOLDER_ID or YANDEX_API_KEY not set');
     }
 
     const pcmBuffer = await requestYandexTTS(text);
+
+    // Save raw PCM for ESP32
     fs.writeFileSync(outputPath, pcmBuffer);
 
-    // Расчёт длительности: bytes / (sample_rate * bytes_per_sample * channels) * 1000
-    const durationMs = Math.ceil(
-        (pcmBuffer.length / (SAMPLE_RATE * 2 * 1)) * 1000
-    );
+    // Save WAV for browser (same base path, .wav extension)
+    const wavPath   = outputPath.replace(/\.pcm$/, '.wav');
+    const wavBuffer = Buffer.concat([buildWavHeader(pcmBuffer.length), pcmBuffer]);
+    fs.writeFileSync(wavPath, wavBuffer);
 
-    logger.info(`[TTS] Yandex masha: ${pcmBuffer.length} bytes, ~${durationMs}ms`);
+    const durationMs = Math.ceil((pcmBuffer.length / (SAMPLE_RATE * 2)) * 1000);
+    logger.info(`[TTS] alena: ${pcmBuffer.length} bytes PCM, ~${durationMs}ms`);
     return durationMs;
 }
 

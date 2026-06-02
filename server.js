@@ -57,7 +57,7 @@ app.post('/chat', async (req, res) => {
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath);
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-        const audioUrl = `${baseUrl}/audio/response_${ts}.pcm`;
+        const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({ reply, audio_url: audioUrl, duration_ms: durationMs });
     } catch (err) {
@@ -239,7 +239,7 @@ async function handlePipeline(ws, state, send, sendAudio, sendError) {
 
         // 6. Build public URL and notify ESP32
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-        const audioUrl = `${baseUrl}/audio/response_${ts}.pcm`;
+        const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
