@@ -97,7 +97,7 @@ body {
   position: relative;
   z-index: 2;
   background: linear-gradient(to top, #0a0618 60%, transparent);
-  padding: 2px 16px 14px;
+  padding: 0px 16px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -464,17 +464,35 @@ async function sendMessage() {
 msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
 // ── Random phrases ────────────────────────────────────────────────────────────
-const PHRASES = [
-  'Привет, как тебя зовут?','Мне скучно, давай поиграем!','Загадай мне загадку!',
-  'Расскажи сказку про мишку','Почему небо синее?','Я боюсь темноты',
-  'Мне грустно сегодня','Сколько лапок у паука?','Давай считать вместе!',
-  'Расскажи что-нибудь весёлое','Я нашёл жука на улице!','Мама ушла на работу',
-  'Покажи как рычит медведь','Я не хочу есть кашу!','Кто живёт в лесу?',
-  'Давай придумаем историю про дракона','Спой мне песенку','Почему кошки мурчат?',
-  'Bună ziua! Cum te cheamă?','Hello! Tell me a story!',
-];
+const PHRASES = {
+  'ru-RU': [
+    'Привет, как тебя зовут?','Мне скучно, давай поиграем!','Загадай мне загадку!',
+    'Расскажи сказку про мишку','Почему небо синее?','Я боюсь темноты',
+    'Мне грустно сегодня','Сколько лапок у паука?','Давай считать вместе!',
+    'Расскажи что-нибудь весёлое','Я нашёл жука на улице!','Мама ушла на работу',
+    'Покажи как рычит медведь','Я не хочу есть кашу!','Кто живёт в лесу?',
+    'Давай придумаем историю про дракона','Спой мне песенку','Почему кошки мурчат?',
+  ],
+  'ro-RO': [
+    'Bună ziua! Cum te cheamă?','Spune-mi o poveste!','Ghicește o ghicitoare!',
+    'De ce e cerul albastru?','Mi-e frică de întuneric','Sunt trist azi',
+    'Câte picioare are un păianjen?','Să numărăm împreună!','Spune-mi ceva amuzant!',
+    'Am găsit un gândac afară!','Mama a plecat la muncă','Cum răcnește un urs?',
+    'Nu vreau să mănânc terci!','Cine trăiește în pădure?','Cântă-mi un cântec!',
+    'De ce torc pisicile?','Hai să inventăm o poveste cu un dragon!',
+  ],
+  'en-US': [
+    'Hello! What is your name?','I am bored, let us play!','Tell me a riddle!',
+    'Tell me a story about a bear!','Why is the sky blue?','I am afraid of the dark',
+    'I am sad today','How many legs does a spider have?','Let us count together!',
+    'Tell me something funny!','I found a bug outside!','Mom went to work',
+    'Show me how a bear roars!','I do not want to eat porridge!','Who lives in the forest?',
+    'Let us make up a story about a dragon!','Sing me a song!','Why do cats purr?',
+  ],
+};
 function randomPhrase() {
-  msgInput.value = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+  const list = PHRASES[currentLang] || PHRASES['ru-RU'];
+  msgInput.value = list[Math.floor(Math.random() * list.length)];
   setTimeout(() => sendMessage(), 100);
 }
 
