@@ -21,8 +21,54 @@ const DIR_UPLOADS = path.join(__dirname, 'uploads');
 
 // ── Express (static audio files) ─────────────────────────────────────────────
 const app = express();
+// CORS — allow browser demo client
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, x-session-id');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+});
+
 app.use('/audio', express.static(DIR_AUDIO));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// ── /chat endpoint — for browser demo client ─────────────────────────────────
+app.use(express.json());
+app.post('/chat', async (req, res) => {
+    const text = (req.body?.text || '').trim();
+    if (!text) {
+        return res.status(400).json({ error: 'text is required' });
+    }
+
+    const ts = Date.now();
+    // Use a fixed key for demo client history (browser session)
+    const sessionKey = req.headers['x-session-id'] || 'demo';
+    if (!demoSessions.has(sessionKey)) {
+        demoSessions.set(sessionKey, {});
+    }
+    const sessionRef = demoSessions.get(sessionKey);
+
+    try {
+        // LLM
+        const reply = await llm.chat(sessionRef, text);
+
+        // TTS
+        const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
+        const durationMs = await tts.synthesize(reply, outputPath);
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const audioUrl = `${baseUrl}/audio/response_${ts}.pcm`;
+
+        res.json({ reply, audio_url: audioUrl, duration_ms: durationMs });
+    } catch (err) {
+        logger.error(`[/chat] error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Demo session storage (in-memory, keyed by x-session-id header)
+const demoSessions = new Map();
+
 
 const server = http.createServer(app);
 
