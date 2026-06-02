@@ -22,14 +22,31 @@ const YANDEX_SPEED     = '0.85';
 const SAMPLE_RATE      = 16000;
 
 const openai       = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const OPENAI_VOICE = 'alloy';
 const OPENAI_MODEL = 'tts-1';
+
+// Language → voice mapping
+const OPENAI_VOICES = {
+    'ro': 'nova',     // Romanian — лёгкий, энергичный
+    'en': 'shimmer',  // English — мягкий, тёплый
+    'default': 'nova' // всё остальное
+};
 
 // ── Language detection ────────────────────────────────────────────────────────
 function isRussian(text) {
     const letters  = (text.match(/\p{L}/gu) || []).length;
     const cyrillic = (text.match(/[\u0400-\u04FF]/g) || []).length;
     return letters > 0 && (cyrillic / letters) > 0.3;
+}
+
+function detectLang(text) {
+    if (isRussian(text)) return 'ru';
+    // Romanian specific chars
+    if (/[ăâîșțĂÂÎȘȚ]/i.test(text)) return 'ro';
+    // Basic English detection — mostly ASCII letters
+    const letters = (text.match(/\p{L}/gu) || []).length;
+    const ascii   = (text.match(/[a-zA-Z]/g) || []).length;
+    if (letters > 0 && ascii / letters > 0.8) return 'en';
+    return 'default';
 }
 
 // ── WAV header ────────────────────────────────────────────────────────────────
@@ -86,9 +103,11 @@ function yandexTTS(text) {
 }
 
 // ── OpenAI TTS → PCM 16kHz ───────────────────────────────────────────────────
-async function openaiTTS(text) {
+async function openaiTTS(text, lang) {
+    const voice = OPENAI_VOICES[lang] || OPENAI_VOICES['default'];
+    logger.info(`[TTS] OpenAI voice: ${voice} (lang=${lang})`);
     const response = await openai.audio.speech.create({
-        model: OPENAI_MODEL, voice: OPENAI_VOICE, input: text,
+        model: OPENAI_MODEL, voice, input: text,
         response_format: 'pcm',  // PCM16 LE 24kHz
         speed: 0.9,
     });
@@ -113,15 +132,15 @@ function resample24to16(pcm24k) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function synthesize(text, outputPath) {
-    const ru = isRussian(text);
-    logger.info(`[TTS] lang=${ru ? 'ru→Yandex' : 'other→OpenAI'}`);
+    const lang = detectLang(text);
+    logger.info(`[TTS] detected lang=${lang}`);
 
     let pcmBuffer;
-    if (ru) {
+    if (lang === 'ru') {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
         pcmBuffer = await yandexTTS(text);
     } else {
-        pcmBuffer = await openaiTTS(text);
+        pcmBuffer = await openaiTTS(text, lang);
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);
