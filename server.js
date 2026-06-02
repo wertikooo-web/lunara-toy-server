@@ -31,6 +31,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/audio', express.static(DIR_AUDIO));
+app.use('/', express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // ── /chat endpoint — for browser demo client ─────────────────────────────────
