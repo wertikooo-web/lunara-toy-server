@@ -121,12 +121,10 @@ wss.on('connection', (ws, req) => {
     {
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const greetingUrl = `${baseUrl}/audio/greeting_ru.pcm`;
-        const greetingExists = fs.existsSync(GREETING_FILE);
         send({
-            type:      'ready',
-            assistant: { name: 'Lumi' },
-            greeting_url: greetingExists ? greetingUrl : null,
-            greeting_text: 'Привет! Я Луми. Нажми кнопку и говори!',
+            type:         'ready',
+            name:         'Lumi',
+            greeting_url: greetingUrl,
         });
     }
 
@@ -190,7 +188,7 @@ wss.on('connection', (ws, req) => {
             state.audioBytes  = 0;
             llm.resetHistory(ws);
             logger.info('[WS] dialog reset');
-            send({ type: 'ready', assistant: { name: 'Lumi' } });
+            send({ type: 'ready', name: 'Lumi' });
             break;
 
         default:
