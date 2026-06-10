@@ -274,6 +274,7 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 
   <!-- Language selector -->
   <div class="lang-row">
+    <button class="lang-btn" id="langAUTO" onclick="setLang('auto',this)">AUTO</button>
     <button class="lang-btn active" id="langRU" onclick="setLang('ru-RU',this)">RU</button>
     <button class="lang-btn" id="langRO" onclick="setLang('ro-RO',this)">RO</button>
     <button class="lang-btn" id="langEN" onclick="setLang('en-US',this)">EN</button>
@@ -493,7 +494,7 @@ const PHRASES = {
 function randomPhrase() {
   const list = PHRASES[currentLang] || PHRASES['ru-RU'];
   msgInput.value = list[Math.floor(Math.random() * list.length)];
-  setTimeout(() => sendMessage(), 100);
+  setTimeout(() => sendMessage(), 300);
 }
 
 // ── Mic — toggle mode ─────────────────────────────────────────────────────────
@@ -509,7 +510,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.continuous = false;
     r.interimResults = false;
     r.maxAlternatives = 1;
-    r.lang = currentLang; // set selected language
+    r.lang = (currentLang === 'auto') ? '' : currentLang;
 
     r.onstart = () => {
       isRecording = true; micStarted = true; finalTranscript = '';
@@ -575,7 +576,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   function setLang(lang, btn) {
     currentLang = lang;
-    const ids = ['langRU', 'langRO', 'langEN'];
+    const ids = ['langAUTO', 'langRU', 'langRO', 'langEN'];
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('active');
