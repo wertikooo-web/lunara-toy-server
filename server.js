@@ -88,6 +88,25 @@ wss.on('connection', (ws, req) => {
         audioBytes:   0,            // total bytes received
     };
 
+    // ── Heartbeat — WebSocket protocol ping (binary, not JSON) ────────────────
+    let isAlive = true;
+    const heartbeatInterval = setInterval(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+            clearInterval(heartbeatInterval);
+            return;
+        }
+        if (!isAlive) {
+            logger.warn('[WS] No pong — terminating dead connection');
+            clearInterval(heartbeatInterval);
+            ws.terminate();
+            return;
+        }
+        isAlive = false;
+        ws.ping(Buffer.alloc(0)); // WebSocket protocol ping — NOT a JSON message
+    }, 30000);
+
+    ws.on('pong', () => { isAlive = true; });
+
     // ── Send helpers ─────────────────────────────────────────────────────────
     function send(obj) {
         if (ws.readyState !== WebSocket.OPEN) return;
@@ -150,6 +169,8 @@ wss.on('connection', (ws, req) => {
             return;
         }
 
+        logger.info(`[WS] received: ${msg.type}`);
+
         switch (msg.type) {
 
         case 'start':
@@ -197,6 +218,7 @@ wss.on('connection', (ws, req) => {
     });
 
     ws.on('close', () => {
+        clearInterval(heartbeatInterval);
         llm.resetHistory(ws);
         logger.info('[WS] ESP32 disconnected');
     });
