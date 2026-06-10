@@ -118,10 +118,17 @@ wss.on('connection', (ws, req) => {
     }
 
     // ── Greeting ─────────────────────────────────────────────────────────────
-    send({
-        type:      'ready',
-        assistant: { name: 'Lumi', greeting: 'Привет! Я Луми. Нажми кнопку и говори!' },
-    });
+    {
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const greetingUrl = `${baseUrl}/audio/greeting_ru.pcm`;
+        const greetingExists = fs.existsSync(GREETING_FILE);
+        send({
+            type:      'ready',
+            assistant: { name: 'Lumi' },
+            greeting_url: greetingExists ? greetingUrl : null,
+            greeting_text: 'Привет! Я Луми. Нажми кнопку и говори!',
+        });
+    }
 
     // ── Message handler ───────────────────────────────────────────────────────
     ws.on('message', async (data, isBinary) => {
@@ -256,9 +263,29 @@ async function handlePipeline(ws, state, send, sendAudio, sendError) {
     }
 }
 
+
+// ── Pre-generate greeting PCM ─────────────────────────────────────────────────
+const GREETING_TEXT = 'Привет! Я Луми. Нажми кнопку и говори!';
+const GREETING_FILE = path.join(DIR_AUDIO, 'greeting_ru.pcm');
+
+async function ensureGreeting() {
+    if (fs.existsSync(GREETING_FILE)) {
+        logger.info('[Greeting] Using cached greeting_ru.pcm');
+        return;
+    }
+    try {
+        logger.info('[Greeting] Generating greeting_ru.pcm...');
+        await tts.synthesize(GREETING_TEXT, GREETING_FILE, 'ru-RU');
+        logger.info('[Greeting] greeting_ru.pcm ready');
+    } catch (err) {
+        logger.error(`[Greeting] Failed to generate: ${err.message}`);
+    }
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
-    cleaner.start(DIR_AUDIO, 10 * 60 * 1000); // clean /audio/ every 10 min
+    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav']); // clean /audio/ every 10 min, keep greeting
+    await ensureGreeting();
 });
