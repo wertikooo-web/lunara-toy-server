@@ -172,7 +172,8 @@ wss.on('connection', (ws, req) => {
         try {
             msg = JSON.parse(data.toString());
         } catch (e) {
-            logger.warn(`[WS] JSON parse error: ${e.message}`);
+            const raw = data.toString('utf8').substring(0, 50);
+            logger.warn(`[WS] JSON parse error: ${e.message} | raw: ${JSON.stringify(raw)}`);
             return;
         }
 
