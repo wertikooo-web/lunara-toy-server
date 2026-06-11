@@ -204,7 +204,14 @@ wss.on('connection', (ws, req) => {
             }
             state.status = 'PROCESSING';
             sendStatus('processing');
-            await handlePipeline(ws, state, send, sendAudio, sendError);
+            await handlePipeline(
+    ws,
+    state,
+    send,
+    sendStatus,
+    sendAudio,
+    sendError
+);
             break;
 
         case 'ping':
@@ -237,7 +244,14 @@ wss.on('connection', (ws, req) => {
 });
 
 // ── AI Pipeline ───────────────────────────────────────────────────────────────
-async function handlePipeline(ws, state, send, sendAudio, sendError) {
+async function handlePipeline(
+    ws,
+    state,
+    send,
+    sendStatus,
+    sendAudio,
+    sendError
+) {
     const ts = Date.now();
 
     // 1. Merge PCM chunks
