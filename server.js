@@ -30,7 +30,14 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/audio', express.static(DIR_AUDIO));
+app.use('/audio', express.static(DIR_AUDIO, {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.pcm')) {
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Content-Disposition', 'attachment');
+        }
+    }
+}));
 app.use('/', express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -139,7 +146,7 @@ wss.on('connection', (ws, req) => {
     // ── Greeting ─────────────────────────────────────────────────────────────
     {
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-        const greetingUrl = `${baseUrl}/audio/greeting_ru.pcm`;
+        const greetingUrl = `${baseUrl}/audio/greeting_ru.wav`;
         send({
             type:         'ready',
             name:         'Lumi',
