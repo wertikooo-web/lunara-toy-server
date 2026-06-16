@@ -93,6 +93,7 @@ wss.on('connection', (ws, req) => {
         status:       'IDLE',       // IDLE | RECORDING | PROCESSING
         audioChunks:  [],           // Buffer[] — incoming PCM chunks
         audioBytes:   0,            // total bytes received
+        generation:   0,            // номер запроса; растёт на каждую новую запись (для перебивания)
     };
 
     // ── Heartbeat — WebSocket protocol ping (binary, not JSON) ────────────────
@@ -182,10 +183,16 @@ wss.on('connection', (ws, req) => {
         switch (msg.type) {
 
         case 'start':
-            if (state.status !== 'IDLE') {
-                logger.warn('[WS] "start" received but not IDLE — ignored');
+            if (state.status === 'RECORDING') {
+                logger.warn('[WS] "start" received but already RECORDING — ignored');
                 return;
             }
+            if (state.status === 'PROCESSING') {
+                // Barge-in: ребёнок перебивает, пока сервер думает над прошлым ответом.
+                // Поднимаем поколение — результат старого пайплайна будет отброшен.
+                logger.info('[WS] "start" during PROCESSING — interrupting previous response');
+            }
+            state.generation += 1;      // новое поколение запроса
             state.status      = 'RECORDING';
             state.audioChunks = [];
             state.audioBytes  = 0;
@@ -209,20 +216,14 @@ wss.on('connection', (ws, req) => {
             }
             state.status = 'PROCESSING';
             sendStatus('processing');
-            // Иногда заполняем паузу обработки «мыслительным» звуком (случайной фразой).
-            // Настоящий ответ Lumi придёт через ~2 сек и естественно прервёт его.
             {
+                const myGen = state.generation;
+                // Иногда заполняем паузу обработки «мыслительным» звуком (случайной фразой).
+                // Настоящий ответ Lumi придёт через ~2 сек и естественно прервёт его.
                 const t = thinkingAudioCommand();
                 if (t) sendAudio(t.url, t.durationMs);
+                await handlePipeline(ws, state, send, sendStatus, sendAudio, sendError, myGen);
             }
-            await handlePipeline(
-    ws,
-    state,
-    send,
-    sendStatus,
-    sendAudio,
-    sendError
-);
             break;
 
         case 'ping':
@@ -261,9 +262,14 @@ async function handlePipeline(
     send,
     sendStatus,
     sendAudio,
-    sendError
+    sendError,
+    myGen
 ) {
     const ts = Date.now();
+
+    // Актуален ли ещё этот пайплайн? Если ребёнок начал новую запись (перебил),
+    // поколение вырастет, и результат этого (устаревшего) пайплайна нужно отбросить.
+    const isCurrent = () => myGen === state.generation;
 
     // 1. Merge PCM chunks
     const pcmBuffer  = Buffer.concat(state.audioChunks);
@@ -282,6 +288,11 @@ async function handlePipeline(
         const transcript = await stt.transcribe(uploadPath);
         logger.info(`[Pipeline] transcript: "${transcript}"`);
 
+        if (!isCurrent()) {
+            logger.info('[Pipeline] superseded after STT — discarding (child interrupted)');
+            return; // finally{} НЕ тронет статус, т.к. нас перебили
+        }
+
         if (!transcript || transcript.trim().length === 0) {
             logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');
             const r = retryAudioCommand();
@@ -295,11 +306,21 @@ async function handlePipeline(
         const reply = await llm.chat(ws, transcript, 'auto');
         logger.info(`[Pipeline] reply: "${reply}"`);
 
+        if (!isCurrent()) {
+            logger.info('[Pipeline] superseded after LLM — discarding (child interrupted)');
+            return;
+        }
+
         // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, null); // null = auto-detect
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
+
+        if (!isCurrent()) {
+            logger.info('[Pipeline] superseded after TTS — discarding (child interrupted)');
+            return;
+        }
 
         // 6. Build public URL and notify ESP32
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
@@ -310,11 +331,13 @@ async function handlePipeline(
 
     } catch (err) {
         logger.error(`[Pipeline] error: ${err.message}`);
-        sendError('Processing error');
+        if (isCurrent()) sendError('Processing error');
     } finally {
         // Clean up upload immediately
         fs.unlink(uploadPath, () => {});
-        state.status = 'IDLE';
+        // Возвращаем в IDLE ТОЛЬКО если нас не перебили — иначе новая запись уже
+        // владеет состоянием (status='RECORDING'), и затирать его нельзя.
+        if (isCurrent()) state.status = 'IDLE';
     }
 }
 
