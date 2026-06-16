@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const logger = require('./logger');
 const tts = require('./tts');
@@ -21,26 +22,82 @@ const SEED_ITEMS = [
     {
         id: 'riddle_seed_001',
         type: 'riddle',
-        title: 'Кто мурлычет',
-        text: 'Загадка. Мягкие лапки, пушистый хвост. Любит молоко и мурлычет. Кто это?',
+        title: 'Пушистый охотник',
+        text: 'Загадка. Днём он дремлет на окошке. Ночью тихо ходит по дому. Если доволен, мурлычет. Кто это?',
         answers: ['кошка', 'кот', 'котёнок', 'котик'],
         tags: ['short', 'animal', 'age_3_8'],
     },
     {
         id: 'riddle_seed_002',
         type: 'riddle',
-        title: 'Что светит ночью',
-        text: 'Загадка. Ночью я свечу в небе. Я круглая и тихая. Кто я?',
+        title: 'Ночной фонарик',
+        text: 'Загадка. Когда становится темно, я появляюсь высоко-высоко. Не грею, как печка, но светить умею. Кто я?',
         answers: ['луна', 'месяц'],
         tags: ['short', 'sky', 'age_3_8'],
     },
     {
         id: 'riddle_seed_003',
         type: 'riddle',
-        title: 'Что греет',
-        text: 'Загадка. Я светлое и тёплое. Утром просыпаюсь, а вечером прячусь. Кто я?',
+        title: 'Тёплый будильник',
+        text: 'Загадка. Я встаю раньше всех. Бужу окна, грею щёки и к вечеру ухожу за горизонт. Кто я?',
         answers: ['солнце', 'солнышко'],
         tags: ['short', 'nature', 'age_3_8'],
+    },
+    {
+        id: 'riddle_seed_004',
+        type: 'riddle',
+        title: 'Карманная крыша',
+        text: 'Загадка. В сухую погоду я сплю. А под дождём раскрываюсь над головой, как маленькая крыша. Что это?',
+        answers: ['зонт', 'зонтик'],
+        tags: ['short', 'object', 'age_3_8'],
+    },
+    {
+        id: 'riddle_seed_005',
+        type: 'riddle',
+        title: 'Дом для историй',
+        text: 'Загадка. Во мне живут принцессы, драконы, космос и смешные звери. Откроешь меня — начнётся история. Что это?',
+        answers: ['книга', 'книжка'],
+        tags: ['short', 'object', 'story', 'age_3_8'],
+    },
+    {
+        id: 'riddle_seed_006',
+        type: 'riddle',
+        title: 'Белая путешественница',
+        text: 'Загадка. Я лёгкая, белая и плыву по небу. Иногда похожа на корабль, иногда на барашка. Кто я?',
+        answers: ['облако', 'облачко'],
+        tags: ['short', 'sky', 'age_3_8'],
+    },
+    {
+        id: 'riddle_seed_007',
+        type: 'riddle',
+        title: 'Зимний художник',
+        text: 'Загадка. Без кисточки рисует узоры на окне. Щиплет нос и любит снежинки. Кто это?',
+        answers: ['мороз'],
+        tags: ['short', 'winter', 'age_4_8'],
+    },
+    {
+        id: 'riddle_seed_008',
+        type: 'riddle',
+        title: 'Хранитель времени',
+        text: 'Загадка. Я не бегаю, но у меня есть стрелки. Я молчу, но показываю, когда пора гулять или спать. Что это?',
+        answers: ['часы', 'часики'],
+        tags: ['short', 'object', 'age_4_8'],
+    },
+    {
+        id: 'riddle_seed_009',
+        type: 'riddle',
+        title: 'Зубастая помощница',
+        text: 'Загадка. У меня много зубчиков, но я никого не кусаю. Я делаю волосы аккуратными. Что это?',
+        answers: ['расчёска', 'расческа', 'гребешок'],
+        tags: ['short', 'object', 'age_3_8'],
+    },
+    {
+        id: 'riddle_seed_010',
+        type: 'riddle',
+        title: 'Пара для прогулки',
+        text: 'Загадка. Их всегда двое. Они ждут у двери и помогают ногам идти гулять. Что это?',
+        answers: ['ботинки', 'обувь', 'сапоги'],
+        tags: ['short', 'object', 'age_3_8'],
     },
     {
         id: 'tongue_twister_seed_001',
@@ -100,6 +157,10 @@ function safeFilePart(value) {
         .replace(/[^a-z0-9_-]+/g, '_')
         .replace(/^_+|_+$/g, '')
         .slice(0, 90) || 'content';
+}
+
+function textHash(value) {
+    return crypto.createHash('sha1').update(String(value || '')).digest('hex').slice(0, 10);
 }
 
 function durationFromPcm(filePath) {
@@ -173,8 +234,14 @@ async function init(options = {}) {
             `INSERT INTO content_items (id, type, title, text, lang, answers, tags, source)
              VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
              ON CONFLICT (id) DO UPDATE SET
+                type = EXCLUDED.type,
+                title = EXCLUDED.title,
+                text = EXCLUDED.text,
+                lang = EXCLUDED.lang,
                 answers = EXCLUDED.answers,
                 tags = EXCLUDED.tags,
+                source = EXCLUDED.source,
+                enabled = true,
                 updated_at = now()`,
             [
                 item.id,
@@ -236,7 +303,7 @@ async function upsertAudioCache(item, fileName, durationMs) {
 async function ensureAudio(item, baseUrl) {
     if (!audioDir) throw new Error('content audioDir is not initialized');
 
-    const fileName = `${safeFilePart(item.id)}_${safeFilePart(CONTENT_VOICE)}.pcm`;
+    const fileName = `${safeFilePart(item.id)}_${safeFilePart(CONTENT_VOICE)}_${textHash(item.text)}.pcm`;
     const pcmPath = path.join(audioDir, fileName);
     const wavPath = pcmPath.replace(/\.pcm$/, '.wav');
 
