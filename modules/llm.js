@@ -15,26 +15,41 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL      = 'gpt-4o-mini';
 const MAX_TOKENS = 180;   // достаточно для короткой сказки
 
-// Часовой пояс рынка — чтобы Lumi знал утро сейчас или вечер.
-// Можно переопределить через переменную окружения TZ_MARKET.
+// Часовой пояс рынка. Можно переопределить через переменную окружения TZ_MARKET.
 const TIMEZONE = process.env.TZ_MARKET || 'Europe/Chisinau';
 
-// Возвращает короткую подсказку модели про время суток (для ощущения «Lumi в моменте»).
-function partOfDay() {
-    let hour;
+// Реальные дата и время (в часовом поясе рынка) + подсказка про время суток.
+// Подмешивается в системное сообщение, чтобы Lumi знал «когда сейчас» и мог
+// ответить ребёнку: который час, какое число, день недели или год.
+function currentContext() {
+    const now = new Date();
+    let dateStr, timeStr, hour;
     try {
+        dateStr = new Intl.DateTimeFormat('ru-RU', {
+            timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        }).format(now);
+        timeStr = new Intl.DateTimeFormat('ru-RU', {
+            timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false,
+        }).format(now);
         hour = Number(new Intl.DateTimeFormat('en-US', {
             timeZone: TIMEZONE, hour: 'numeric', hour12: false,
-        }).format(new Date()));
+        }).format(now));
     } catch (_) {
-        hour = new Date().getHours(); // запасной вариант, если пояс не распознан
+        dateStr = now.toLocaleDateString();
+        timeStr = now.toLocaleTimeString();
+        hour    = now.getHours(); // запасной вариант, если пояс не распознан
     }
     if (hour === 24) hour = 0;
 
-    if (hour >= 5  && hour < 12) return 'Сейчас утро. Можешь по-доброму поприветствовать с добрым утром.';
-    if (hour >= 12 && hour < 18) return 'Сейчас день.';
-    if (hour >= 18 && hour < 22) return 'Сейчас вечер. Можно мягко напомнить, что скоро пора спать.';
-    return 'Сейчас поздний вечер или ночь. Говори тихо и сонно, мягко веди ребёнка ко сну.';
+    let partHint;
+    if (hour >= 5  && hour < 12)      partHint = 'Сейчас утро — можешь по-доброму поприветствовать с добрым утром.';
+    else if (hour >= 12 && hour < 18) partHint = 'Сейчас день.';
+    else if (hour >= 18 && hour < 22) partHint = 'Сейчас вечер — можно мягко напомнить, что скоро пора спать.';
+    else                              partHint = 'Сейчас поздний вечер или ночь — говори тихо и сонно, мягко веди ко сну.';
+
+    return `СЕЙЧАС (настоящие дата и время): ${dateStr}, время ${timeStr}. ${partHint}\n`
+         + `Если ребёнок спросит, который час, какое сегодня число, какой день недели или год — `
+         + `ты это знаешь (см. выше), ответь просто и по-детски, не отказывайся и не говори, что не знаешь.`;
 }
 
 // WeakMap: ws object → messages array
@@ -104,6 +119,15 @@ const SYSTEM_PROMPT = `
 Заведи маленькие общие ритуалы: тёплое прощание на ночь, особое словечко-приветствие
 «только для вас двоих». Дети обожают такие секреты.
 
+ЮМОР (изредка — примерно один ответ из пяти, и только когда подходит по контексту)
+Иногда мягко подурачься. Детям 3-8 смешны нелепицы и преувеличения, а не остроты и ирония:
+— нарочно перепутай: «А давай корова будет мяукать? Мяу-у!»;
+— смешно преувеличь: «Я бы съел гору печенья до самого неба!»;
+— мягко посмейся над собой: «Ой, считал звёзды, сбился и сам засмеялся!».
+НИКОГДА не подшучивай над самим ребёнком и не смейся над ним — друг не дразнит.
+Без «туалетного» юмора. Юмор не отменяет теплоту и безопасность: ты сначала друг, потом шутник.
+Не шути в каждом ответе — редкая шутка ценнее частой.
+
 ПРОТОКОЛ ТРЕВОГИ (КРИТИЧНО)
 Если ребёнок говорит о самовредительстве, опасности, насилии или ненависти к себе —
 НЕМЕДЛЕННО: "Это звучит очень важно. Я так рад, что ты мне сказал. Давай прямо
@@ -152,7 +176,7 @@ async function chat(wsRef, userText, lang = 'ru-RU') {
         model:      MODEL,
         max_tokens: MAX_TOKENS,
         messages:   [
-            { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + partOfDay() },
+            { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + currentContext() },
             ...messages,
         ],
     });
