@@ -14,11 +14,13 @@ const tts      = require('./modules/tts');
 const cleaner  = require('./modules/cleaner');
 const logger   = require('./modules/logger');
 const memory   = require('./modules/memory');
+const content  = require('./modules/content');
 
 // ── Directories ──────────────────────────────────────────────────────────────
 const DIR_AUDIO   = path.join(__dirname, 'audio');
 const DIR_UPLOADS = path.join(__dirname, 'uploads');
-[DIR_AUDIO, DIR_UPLOADS].forEach(d => fs.mkdirSync(d, { recursive: true }));
+const DIR_CONTENT_AUDIO = path.join(DIR_AUDIO, 'content');
+[DIR_AUDIO, DIR_UPLOADS, DIR_CONTENT_AUDIO].forEach(d => fs.mkdirSync(d, { recursive: true }));
 
 // ── Express (static audio files) ─────────────────────────────────────────────
 const app = express();
@@ -41,6 +43,14 @@ app.use('/audio', express.static(DIR_AUDIO, {
 }));
 app.use('/', express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/content/stats', async (_req, res) => {
+    try {
+        res.json(await content.stats());
+    } catch (err) {
+        logger.error(`[Content] stats error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ── /chat endpoint — for browser demo client ─────────────────────────────────
 app.use(express.json());
@@ -59,8 +69,22 @@ app.post('/chat', async (req, res) => {
         demoSessions.set(sessionKey, {});
     }
     const sessionRef = demoSessions.get(sessionKey);
+    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
     try {
+        const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang });
+        if (shortContent) {
+            return res.json({
+                reply: shortContent.reply,
+                audio_url: shortContent.audioUrl,
+                duration_ms: shortContent.durationMs,
+                device_id: deviceId,
+                content_id: shortContent.item.id,
+                content_type: shortContent.item.type,
+                cached_audio: shortContent.cached,
+            });
+        }
+
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
 
@@ -70,7 +94,6 @@ app.post('/chat', async (req, res) => {
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, lang);
-        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({ reply, audio_url: audioUrl, duration_ms: durationMs, device_id: deviceId });
@@ -232,7 +255,7 @@ wss.on('connection', (ws, req) => {
                 // Настоящий ответ Lumi придёт через ~2 сек и естественно прервёт его.
                 const t = thinkingAudioCommand();
                 if (t) sendAudio(t.url, t.durationMs);
-                await handlePipeline(ws, state, send, sendStatus, sendAudio, sendError, myGen);
+                await handlePipeline(ws, state, send, sendStatus, sendAudio, sendError, myGen, deviceId);
             }
             break;
 
@@ -273,7 +296,8 @@ async function handlePipeline(
     sendStatus,
     sendAudio,
     sendError,
-    myGen
+    myGen,
+    deviceId
 ) {
     const ts = Date.now();
 
@@ -312,6 +336,18 @@ async function handlePipeline(
 
         // 4. LLM — Claude
         sendStatus('responding');
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: 'ru-RU' });
+        if (shortContent) {
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after content cache — discarding (child interrupted)');
+                return;
+            }
+            sendAudio(shortContent.audioUrl, shortContent.durationMs);
+            logger.info(`[Pipeline] sent cached content audio: ${shortContent.item.id} cached=${shortContent.cached}`);
+            return;
+        }
+
         logger.info('[Pipeline] LLM start…');
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
@@ -335,7 +371,6 @@ async function handlePipeline(
         }
 
         // 6. Build public URL and notify ESP32
-        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         sendAudio(audioUrl, durationMs);
@@ -455,6 +490,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
     await memory.init();
+    await content.init({ audioDir: DIR_CONTENT_AUDIO });
     cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav', 'thinking_1_ru.pcm', 'thinking_1_ru.wav', 'thinking_2_ru.pcm', 'thinking_2_ru.wav', 'thinking_3_ru.pcm', 'thinking_3_ru.wav', 'thinking_4_ru.pcm', 'thinking_4_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
     await ensureGreeting();
     await ensureRetry();
