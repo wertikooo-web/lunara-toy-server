@@ -606,6 +606,11 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 
   function startMic() {
+    // Перебивание: при нажатии кнопки мгновенно глушим текущий ответ Lumi,
+    // чтобы он не «договаривал» поверх новой записи.
+    try { audioPlayer.pause(); audioPlayer.currentTime = 0; } catch(e) {}
+    audioWrap.className = 'audio-wrap';
+    setBear('');
     if (isProcessing || isRecording || micStarted) return;
     micHeld = true;
     micStarted = true;
