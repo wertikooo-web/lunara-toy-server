@@ -429,7 +429,7 @@ async function sendMessage() {
   try {
     const res = await fetch(`${base}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-device-id': 'demo_lumi_001' },
       body: JSON.stringify({ text, lang: currentLang }),
       signal: AbortSignal.timeout(30000),
     });

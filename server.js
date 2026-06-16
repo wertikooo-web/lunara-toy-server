@@ -13,6 +13,7 @@ const llm      = require('./modules/llm');
 const tts      = require('./modules/tts');
 const cleaner  = require('./modules/cleaner');
 const logger   = require('./modules/logger');
+const memory   = require('./modules/memory');
 
 // ── Directories ──────────────────────────────────────────────────────────────
 const DIR_AUDIO   = path.join(__dirname, 'audio');
@@ -24,7 +25,7 @@ const app = express();
 // CORS — allow browser demo client
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, x-session-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, x-session-id, x-device-id');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -51,16 +52,20 @@ app.post('/chat', async (req, res) => {
     }
 
     const ts = Date.now();
+    const deviceId = memory.normalizeDeviceId(req.headers['x-device-id'] || req.body?.device_id);
     // Use a fixed key for demo client history (browser session)
-    const sessionKey = req.headers['x-session-id'] || 'demo';
+    const sessionKey = req.headers['x-session-id'] || deviceId;
     if (!demoSessions.has(sessionKey)) {
         demoSessions.set(sessionKey, {});
     }
     const sessionRef = demoSessions.get(sessionKey);
 
     try {
+        const profile = await memory.getProfile(deviceId);
+        const memoryContext = memory.formatProfileForPrompt(profile);
+
         // LLM
-        const reply = await llm.chat(sessionRef, text, lang);
+        const reply = await llm.chat(sessionRef, text, lang, { memoryContext });
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
@@ -68,7 +73,7 @@ app.post('/chat', async (req, res) => {
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
-        res.json({ reply, audio_url: audioUrl, duration_ms: durationMs });
+        res.json({ reply, audio_url: audioUrl, duration_ms: durationMs, device_id: deviceId });
     } catch (err) {
         logger.error(`[/chat] error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -86,7 +91,9 @@ const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
     const clientIp = req.socket.remoteAddress;
-    logger.info(`[WS] ESP32 connected from ${clientIp}`);
+    const url = new URL(req.url || '/', 'http://localhost');
+    const deviceId = memory.normalizeDeviceId(url.searchParams.get('device_id'));
+    logger.info(`[WS] ESP32 connected from ${clientIp} device_id=${deviceId}`);
 
     // Per-connection state
     const state = {
@@ -151,6 +158,7 @@ wss.on('connection', (ws, req) => {
         send({
             type:         'ready',
             name:         'Lumi',
+            device_id:    deviceId,
             greeting_url: greetingUrl,
         });
     }
@@ -303,7 +311,9 @@ async function handlePipeline(
         // 4. LLM — Claude
         sendStatus('responding');
         logger.info('[Pipeline] LLM start…');
-        const reply = await llm.chat(ws, transcript, 'auto');
+        const profile = await memory.getProfile(deviceId);
+        const memoryContext = memory.formatProfileForPrompt(profile);
+        const reply = await llm.chat(ws, transcript, 'auto', { memoryContext });
         logger.info(`[Pipeline] reply: "${reply}"`);
 
         if (!isCurrent()) {
@@ -440,6 +450,7 @@ async function ensureGreeting() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
+    await memory.init();
     cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav', 'thinking_1_ru.pcm', 'thinking_1_ru.wav', 'thinking_2_ru.pcm', 'thinking_2_ru.wav', 'thinking_3_ru.pcm', 'thinking_3_ru.wav', 'thinking_4_ru.pcm', 'thinking_4_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
     await ensureGreeting();
     await ensureRetry();

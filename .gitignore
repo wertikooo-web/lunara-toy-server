@@ -1,0 +1,5 @@
+node_modules/
+.env
+audio/
+uploads/
+npm-debug.log*

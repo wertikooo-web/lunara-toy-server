@@ -215,9 +215,10 @@ const SYSTEM_PROMPT = `
  * Send a message to GPT-4o mini and get a reply.
  * @param {object} wsRef    — WebSocket instance (used as history key)
  * @param {string} userText — transcribed user message
+ * @param {object} options  — optional context, such as memoryContext
  * @returns {Promise<string>} — model reply
  */
-async function chat(wsRef, userText, lang = 'ru-RU') {
+async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     if (!histories.has(wsRef)) {
         histories.set(wsRef, []);
     }
@@ -241,11 +242,15 @@ async function chat(wsRef, userText, lang = 'ru-RU') {
         ? (langMap[lang] || langMap['ru-RU'])
         : 'Определи язык сообщения ребёнка и отвечай ТОЛЬКО на том же языке.';
 
+    const extraContext = [currentContext(), options.memoryContext]
+        .filter(Boolean)
+        .join('\n\n');
+
     const response = await client.chat.completions.create({
         model:      MODEL,
         max_tokens: MAX_TOKENS,
         messages:   [
-            { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + currentContext() },
+            { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + extraContext },
             ...messages,
         ],
     });
