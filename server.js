@@ -74,6 +74,8 @@ app.post('/chat', async (req, res) => {
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({ reply, audio_url: audioUrl, duration_ms: durationMs, device_id: deviceId });
+        memory.rememberFromText(deviceId, text, profile)
+            .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
     } catch (err) {
         logger.error(`[/chat] error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -338,6 +340,8 @@ async function handlePipeline(
 
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
+        memory.rememberFromText(deviceId, transcript, profile)
+            .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
 
     } catch (err) {
         logger.error(`[Pipeline] error: ${err.message}`);
