@@ -23,6 +23,7 @@ const SEED_ITEMS = [
         type: 'riddle',
         title: 'Кто мурлычет',
         text: 'Загадка. Мягкие лапки, пушистый хвост. Любит молоко и мурлычет. Кто это?',
+        answers: ['кошка', 'кот', 'котёнок', 'котик'],
         tags: ['short', 'animal', 'age_3_8'],
     },
     {
@@ -30,6 +31,7 @@ const SEED_ITEMS = [
         type: 'riddle',
         title: 'Что светит ночью',
         text: 'Загадка. Ночью я свечу в небе. Я круглая и тихая. Кто я?',
+        answers: ['луна', 'месяц'],
         tags: ['short', 'sky', 'age_3_8'],
     },
     {
@@ -37,6 +39,7 @@ const SEED_ITEMS = [
         type: 'riddle',
         title: 'Что греет',
         text: 'Загадка. Я светлое и тёплое. Утром просыпаюсь, а вечером прячусь. Кто я?',
+        answers: ['солнце', 'солнышко'],
         tags: ['short', 'nature', 'age_3_8'],
     },
     {
@@ -137,12 +140,17 @@ async function init(options = {}) {
             title TEXT NOT NULL DEFAULT '',
             text TEXT NOT NULL,
             lang TEXT NOT NULL DEFAULT 'ru-RU',
+            answers JSONB NOT NULL DEFAULT '[]'::jsonb,
             tags JSONB NOT NULL DEFAULT '[]'::jsonb,
             source TEXT NOT NULL DEFAULT 'seed',
             enabled BOOLEAN NOT NULL DEFAULT true,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
+    `);
+    await pool.query(`
+        ALTER TABLE content_items
+        ADD COLUMN IF NOT EXISTS answers JSONB NOT NULL DEFAULT '[]'::jsonb
     `);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS content_audio_cache (
@@ -162,10 +170,22 @@ async function init(options = {}) {
 
     for (const item of SEED_ITEMS) {
         await pool.query(
-            `INSERT INTO content_items (id, type, title, text, lang, tags, source)
-             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
-             ON CONFLICT (id) DO NOTHING`,
-            [item.id, item.type, item.title, item.text, 'ru-RU', JSON.stringify(item.tags || []), 'seed']
+            `INSERT INTO content_items (id, type, title, text, lang, answers, tags, source)
+             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+             ON CONFLICT (id) DO UPDATE SET
+                answers = EXCLUDED.answers,
+                tags = EXCLUDED.tags,
+                updated_at = now()`,
+            [
+                item.id,
+                item.type,
+                item.title,
+                item.text,
+                'ru-RU',
+                JSON.stringify(item.answers || []),
+                JSON.stringify(item.tags || []),
+                'seed',
+            ]
         );
     }
 
@@ -176,7 +196,7 @@ async function init(options = {}) {
 async function pickItem(type) {
     if (ready && pool) {
         const result = await pool.query(
-            `SELECT id, type, title, text, lang, tags
+            `SELECT id, type, title, text, lang, answers, tags
              FROM content_items
              WHERE type = $1 AND enabled = true
              ORDER BY random()
@@ -265,6 +285,76 @@ async function tryHandleShortRequest(text, options = {}) {
     };
 }
 
+function normalizeAnswer(value) {
+    return String(value || '')
+        .toLocaleLowerCase('ru-RU')
+        .replace(/[ё]/g, 'е')
+        .replace(/[^a-zа-я0-9\s-]+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function answerList(item) {
+    const raw = item?.answers;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    }
+    return [];
+}
+
+function pendingFromItem(item) {
+    if (!item || item.type !== 'riddle') return null;
+    const answers = answerList(item);
+    if (answers.length === 0) return null;
+    return {
+        type: item.type,
+        id: item.id,
+        title: item.title || '',
+        answers,
+    };
+}
+
+function checkPendingAnswer(pending, userText) {
+    if (!pending || pending.type !== 'riddle') return null;
+
+    const answer = normalizeAnswer(userText);
+    if (!answer) return null;
+
+    const answers = answerList(pending);
+    const normalizedAnswers = answers.map(normalizeAnswer).filter(Boolean);
+    const correct = normalizedAnswers.some((value) => (
+        answer === value ||
+        answer.includes(value) ||
+        value.includes(answer)
+    ));
+    const correctAnswer = answers[0] || 'не знаю';
+
+    if (/(не знаю|сдаюсь|подскажи|скажи ответ)/i.test(answer)) {
+        return {
+            correct: false,
+            reply: `Хорошо, подсказываю. Это ${correctAnswer}. Хочешь ещё одну загадку?`,
+        };
+    }
+
+    if (correct) {
+        return {
+            correct: true,
+            reply: 'Да, правильно! Ты здорово отгадал. Хочешь ещё одну загадку?',
+        };
+    }
+
+    return {
+        correct: false,
+        reply: `Почти, но нет. Правильный ответ: ${correctAnswer}. Давай попробуем ещё одну?`,
+    };
+}
+
 async function stats() {
     if (!ready || !pool) {
         const byType = {};
@@ -301,5 +391,7 @@ async function stats() {
 module.exports = {
     init,
     tryHandleShortRequest,
+    pendingFromItem,
+    checkPendingAnswer,
     stats,
 };

@@ -72,8 +72,23 @@ app.post('/chat', async (req, res) => {
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
     try {
+        const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
+        if (pendingAnswer) {
+            sessionRef.pendingContent = null;
+            const audio = await synthesizeReply(pendingAnswer.reply, ts, lang, baseUrl);
+            return res.json({
+                reply: pendingAnswer.reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                content_answer: true,
+                correct: pendingAnswer.correct,
+            });
+        }
+
         const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang });
         if (shortContent) {
+            sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
             return res.json({
                 reply: shortContent.reply,
                 audio_url: shortContent.audioUrl,
@@ -108,6 +123,13 @@ app.post('/chat', async (req, res) => {
 // Demo session storage (in-memory, keyed by x-session-id header)
 const demoSessions = new Map();
 
+async function synthesizeReply(reply, ts, lang, baseUrl) {
+    const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
+    const durationMs = await tts.synthesize(reply, outputPath, lang);
+    const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
+    return { audioUrl, durationMs };
+}
+
 
 const server = http.createServer(app);
 
@@ -126,6 +148,7 @@ wss.on('connection', (ws, req) => {
         audioChunks:  [],           // Buffer[] — incoming PCM chunks
         audioBytes:   0,            // total bytes received
         generation:   0,            // номер запроса; растёт на каждую новую запись (для перебивания)
+        pendingContent: null,
     };
 
     // ── Heartbeat — WebSocket protocol ping (binary, not JSON) ────────────────
@@ -267,6 +290,7 @@ wss.on('connection', (ws, req) => {
             state.status      = 'IDLE';
             state.audioChunks = [];
             state.audioBytes  = 0;
+            state.pendingContent = null;
             llm.resetHistory(ws);
             logger.info('[WS] dialog reset');
             send({ type: 'ready', name: 'Lumi' });
@@ -337,12 +361,28 @@ async function handlePipeline(
         // 4. LLM — Claude
         sendStatus('responding');
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
+        if (pendingAnswer) {
+            state.pendingContent = null;
+            logger.info(`[Pipeline] content answer correct=${pendingAnswer.correct}`);
+            const audio = await synthesizeReply(pendingAnswer.reply, ts, 'ru-RU', baseUrl);
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after content answer — discarding (child interrupted)');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            return;
+        }
+
         const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: 'ru-RU' });
         if (shortContent) {
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content cache — discarding (child interrupted)');
                 return;
             }
+            state.pendingContent = content.pendingFromItem(shortContent.item);
             sendAudio(shortContent.audioUrl, shortContent.durationMs);
             logger.info(`[Pipeline] sent cached content audio: ${shortContent.item.id} cached=${shortContent.cached}`);
             return;
