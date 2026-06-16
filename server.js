@@ -199,7 +199,12 @@ wss.on('connection', (ws, req) => {
                 return;
             }
             if (state.audioBytes < 1600) {
-                sendError('Audio too short');
+                logger.info('[WS] audio too short — Lumi gently asks to repeat');
+                const r = retryAudioCommand();
+                sendAudio(r.url, r.durationMs);
+                state.status      = 'IDLE';
+                state.audioChunks = [];
+                state.audioBytes  = 0;
                 return;
             }
             state.status = 'PROCESSING';
@@ -272,8 +277,10 @@ async function handlePipeline(
         logger.info(`[Pipeline] transcript: "${transcript}"`);
 
         if (!transcript || transcript.trim().length === 0) {
-            sendError('Speech not recognized');
-            return;
+            logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');
+            const r = retryAudioCommand();
+            sendAudio(r.url, r.durationMs);
+            return; // finally{} сбросит state в IDLE и удалит upload
         }
 
         // 4. LLM — Claude
@@ -310,6 +317,37 @@ async function handlePipeline(
 const GREETING_TEXT = 'Привет! Я Луми. Нажми кнопку и говори!';
 const GREETING_FILE = path.join(DIR_AUDIO, 'greeting_ru.pcm');
 
+// Тёплая просьба повторить — играется когда нажатие слишком короткое
+// или речь не распозналась. Lumi не выдаёт сухую ошибку, а ласково просит ещё разок.
+const RETRY_TEXT = 'Ой! Скажи ещё разочек, пожалуйста? Я очень хочу тебя послушать!';
+const RETRY_FILE = path.join(DIR_AUDIO, 'retry_ru.pcm');
+
+// Собирает команду воспроизведения для кешированного retry-аудио.
+function retryAudioCommand() {
+    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    const url = `${baseUrl}/audio/retry_ru.wav`;
+    let durationMs = 1500; // запасное значение, если файл ещё не готов
+    try {
+        const bytes = fs.statSync(RETRY_FILE).size;
+        durationMs = Math.ceil((bytes / (16000 * 2)) * 1000);
+    } catch (_) { /* файл ещё не сгенерирован — отдаём запасную длительность */ }
+    return { url, durationMs };
+}
+
+async function ensureRetry() {
+    if (fs.existsSync(RETRY_FILE)) {
+        logger.info('[Retry] Using cached retry_ru.pcm');
+        return;
+    }
+    try {
+        logger.info('[Retry] Generating retry_ru.pcm...');
+        await tts.synthesize(RETRY_TEXT, RETRY_FILE, 'ru-RU');
+        logger.info('[Retry] retry_ru.pcm ready');
+    } catch (err) {
+        logger.error(`[Retry] Failed to generate: ${err.message}`);
+    }
+}
+
 async function ensureGreeting() {
     if (fs.existsSync(GREETING_FILE)) {
         logger.info('[Greeting] Using cached greeting_ru.pcm');
@@ -328,6 +366,7 @@ async function ensureGreeting() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
-    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav']); // clean /audio/ every 10 min, keep greeting
+    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry
     await ensureGreeting();
+    await ensureRetry();
 });
