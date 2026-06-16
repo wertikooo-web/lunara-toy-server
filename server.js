@@ -209,6 +209,12 @@ wss.on('connection', (ws, req) => {
             }
             state.status = 'PROCESSING';
             sendStatus('processing');
+            // Иногда заполняем паузу обработки «мыслительным» звуком (случайной фразой).
+            // Настоящий ответ Lumi придёт через ~2 сек и естественно прервёт его.
+            {
+                const t = thinkingAudioCommand();
+                if (t) sendAudio(t.url, t.durationMs);
+            }
             await handlePipeline(
     ws,
     state,
@@ -348,6 +354,51 @@ async function ensureRetry() {
     }
 }
 
+// Короткий «мыслительный» звук — иногда играется в момент начала обработки,
+// чтобы заполнить паузу. Настоящий ответ Lumi его прерывает (так устроено устройство).
+// Несколько фраз + случайность, чтобы не звучало как заевшая пластинка.
+const THINKING_CHANCE = 0.35; // как часто вообще играть думалку (0..1)
+const THINKING_PHRASES = [
+    { text: 'Хм, дай-ка подумать...', file: 'thinking_1_ru' },
+    { text: 'Секундочку...',          file: 'thinking_2_ru' },
+    { text: 'Ой, интересно...',       file: 'thinking_3_ru' },
+    { text: 'Так-так, дай подумаю...', file: 'thinking_4_ru' },
+];
+
+// Решает, играть ли думалку, и если да — возвращает случайную фразу.
+// Возвращает null, когда в этот раз думалку играть не надо.
+function thinkingAudioCommand() {
+    if (Math.random() >= THINKING_CHANCE) return null;
+
+    const phrase  = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    const url     = `${baseUrl}/audio/${phrase.file}.wav`;
+
+    let durationMs = 1200;
+    try {
+        const bytes = fs.statSync(path.join(DIR_AUDIO, `${phrase.file}.pcm`)).size;
+        durationMs = Math.ceil((bytes / (16000 * 2)) * 1000);
+    } catch (_) { /* файл ещё не готов — запасная длительность */ }
+    return { url, durationMs };
+}
+
+async function ensureThinking() {
+    for (const phrase of THINKING_PHRASES) {
+        const pcmPath = path.join(DIR_AUDIO, `${phrase.file}.pcm`);
+        if (fs.existsSync(pcmPath)) {
+            logger.info(`[Thinking] Using cached ${phrase.file}.pcm`);
+            continue;
+        }
+        try {
+            logger.info(`[Thinking] Generating ${phrase.file}.pcm...`);
+            await tts.synthesize(phrase.text, pcmPath, 'ru-RU');
+            logger.info(`[Thinking] ${phrase.file}.pcm ready`);
+        } catch (err) {
+            logger.error(`[Thinking] Failed to generate ${phrase.file}: ${err.message}`);
+        }
+    }
+}
+
 async function ensureGreeting() {
     if (fs.existsSync(GREETING_FILE)) {
         logger.info('[Greeting] Using cached greeting_ru.pcm');
@@ -366,7 +417,8 @@ async function ensureGreeting() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
-    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry
+    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav', 'thinking_1_ru.pcm', 'thinking_1_ru.wav', 'thinking_2_ru.pcm', 'thinking_2_ru.wav', 'thinking_3_ru.pcm', 'thinking_3_ru.wav', 'thinking_4_ru.pcm', 'thinking_4_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
     await ensureGreeting();
     await ensureRetry();
+    await ensureThinking();
 });
