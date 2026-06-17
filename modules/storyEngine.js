@@ -24,14 +24,40 @@ const STORY_TYPES = [
 function isStoryRequest(text) {
     const value = String(text || '')
         .toLocaleLowerCase('ru-RU')
-        .replace(/ё/g, 'е');
+        .replace(/ё/g, 'е')
+        .trim();
 
-    return (
+    const hasStoryWord = (
         value.includes('сказк') ||
         value.includes('истори') ||
         value.includes('рассказ') ||
         value.includes('приключени')
     );
+    if (!hasStoryWord) return false;
+
+    if (/(почему|зачем|что ты|что это|какую|какая|классно|нравится|понравилось|не надо|не хочу|хватит|стоп)/i.test(value)) {
+        return false;
+    }
+
+    return (
+        /(расскажи|придумай|сочини|начни|давай|хочу|можно|почитай|рассказывать)/i.test(value) ||
+        /^(сказку|сказка|историю|история|рассказ|приключение)$/i.test(value)
+    );
+}
+
+function buildStoryFollowupContext(userText) {
+    const value = String(userText || '').trim();
+    if (!value) return '';
+
+    return [
+        'PREVIOUS_STORY_CONTEXT:',
+        'Предыдущий ответ Lumi был сказкой или историей.',
+        'Сейчас ребёнок, скорее всего, реагирует на неё, задаёт вопрос или перебивает.',
+        'Не начинай новую сказку и не продолжай сюжет, если ребёнок явно не просит "расскажи/продолжи сказку".',
+        'Если ребёнок просит продолжить, продолжи прежнюю историю по памяти диалога, не начинай новую.',
+        'Если ребёнок говорит, что понравилось, коротко порадуйся и предложи выбрать: продолжить, новую загадку, игру или поговорить.',
+        'Если ребёнок спрашивает "почему ты рассказываешь сказку", мягко объясни: "ты попросил сказку, и я начала; можем остановиться".',
+    ].join('\n');
 }
 
 function itemLine(item) {
@@ -107,5 +133,6 @@ async function buildStoryContext(userText) {
 
 module.exports = {
     isStoryRequest,
+    buildStoryFollowupContext,
     buildStoryContext,
 };

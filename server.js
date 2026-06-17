@@ -104,6 +104,9 @@ app.post('/chat', async (req, res) => {
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
         const story = await storyEngine.buildStoryContext(text);
+        const followupContext = !story && sessionRef.lastContentMode === 'story'
+            ? storyEngine.buildStoryFollowupContext(text)
+            : '';
 
         // LLM
         const reply = story
@@ -111,7 +114,10 @@ app.post('/chat', async (req, res) => {
                 memoryContext,
                 contentContext: story.contentContext,
             })
-            : await llm.chat(sessionRef, text, lang, { memoryContext });
+            : await llm.chat(sessionRef, text, lang, {
+                memoryContext,
+                contentContext: followupContext,
+            });
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
@@ -125,6 +131,7 @@ app.post('/chat', async (req, res) => {
             device_id: deviceId,
             content_type: story ? 'story' : undefined,
         });
+        sessionRef.lastContentMode = story ? 'story' : null;
         memory.rememberFromText(deviceId, text, profile)
             .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
     } catch (err) {
@@ -162,6 +169,7 @@ wss.on('connection', (ws, req) => {
         audioBytes:   0,            // total bytes received
         generation:   0,            // номер запроса; растёт на каждую новую запись (для перебивания)
         pendingContent: null,
+        lastContentMode: null,
     };
 
     // ── Heartbeat — WebSocket protocol ping (binary, not JSON) ────────────────
@@ -304,6 +312,7 @@ wss.on('connection', (ws, req) => {
             state.audioChunks = [];
             state.audioBytes  = 0;
             state.pendingContent = null;
+            state.lastContentMode = null;
             llm.resetHistory(ws);
             logger.info('[WS] dialog reset');
             send({ type: 'ready', name: 'Lumi' });
@@ -405,12 +414,18 @@ async function handlePipeline(
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
         const story = await storyEngine.buildStoryContext(transcript);
+        const followupContext = !story && state.lastContentMode === 'story'
+            ? storyEngine.buildStoryFollowupContext(transcript)
+            : '';
         const reply = story
             ? await llm.chat(ws, story.prompt, 'auto', {
                 memoryContext,
                 contentContext: story.contentContext,
             })
-            : await llm.chat(ws, transcript, 'auto', { memoryContext });
+            : await llm.chat(ws, transcript, 'auto', {
+                memoryContext,
+                contentContext: followupContext,
+            });
         logger.info(`[Pipeline] reply: "${reply}"`);
 
         if (!isCurrent()) {
@@ -434,6 +449,7 @@ async function handlePipeline(
 
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
+        state.lastContentMode = story ? 'story' : null;
         memory.rememberFromText(deviceId, transcript, profile)
             .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
 
