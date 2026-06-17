@@ -152,15 +152,15 @@ const SEED_ITEMS = [
 const REQUEST_PATTERNS = [
     {
         type: 'riddle',
-        re: /(загадай|дай|хочу|давай|можно)\s+(мне\s+)?(загадк|загадку|загадки)|\bзагадк[аиу]\b/i,
+        re: /(?:загадай|дай|хочу|давай|можно|придумай|расскажи).{0,30}загадк/i,
     },
     {
         type: 'tongue_twister',
-        re: /(скажи|дай|хочу|давай|можно)\s+(мне\s+)?(скороговорк|скороговорку)|\bскороговорк[аиу]\b/i,
+        re: /(?:скажи|дай|хочу|давай|можно|придумай|повтори).{0,30}скороговорк/i,
     },
     {
         type: 'mini_game',
-        re: /(давай|хочу|можно|будем)\s+(поигра|играть|игру)|\bпоиграем\b|\bмини-?игр/i,
+        re: /(?:давай\s+поиграем|^поиграем$|^сыграем$|(?:хочу|можно|давай|будем).{0,30}(?:поиграть|играть|игру(?:[^а-яa-z0-9]|$)|мини-?игру))/i,
     },
 ];
 
@@ -191,17 +191,6 @@ function matchRequest(text) {
         .replace(/ё/g, 'е')
         .trim();
     if (!value) return null;
-
-    if (value.includes('загад')) return 'riddle';
-    if (value.includes('скороговор')) return 'tongue_twister';
-    if (
-        value.includes('поигра') ||
-        value.includes('поиграем') ||
-        value.includes('игру') ||
-        value.includes('играть')
-    ) {
-        return 'mini_game';
-    }
 
     const match = REQUEST_PATTERNS.find((pattern) => pattern.re.test(value));
     return match ? match.type : null;
@@ -542,6 +531,7 @@ async function stats() {
 
 module.exports = {
     init,
+    classifyRequest: matchRequest,
     tryHandleShortRequest,
     pickItems,
     pendingFromItem,
