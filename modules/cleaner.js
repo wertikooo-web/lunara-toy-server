@@ -15,8 +15,10 @@ const INTERVAL_MS = 60 * 1000;   // run every 60 seconds
  * Start the cleaner.
  * @param {string} dir   — directory to clean
  * @param {number} ttlMs — max file age in milliseconds (default 10 min)
+ * @param {string[]} keepFiles — file names that should never be deleted
  */
-function start(dir, ttlMs = 10 * 60 * 1000) {
+function start(dir, ttlMs = 10 * 60 * 1000, keepFiles = []) {
+    const keep = new Set(keepFiles);
     logger.info(`[Cleaner] started — watching ${dir}, TTL=${ttlMs / 1000}s`);
 
     setInterval(() => {
@@ -33,6 +35,7 @@ function start(dir, ttlMs = 10 * 60 * 1000) {
         let deleted = 0;
         for (const file of files) {
             if (!file.endsWith('.pcm')) continue;
+            if (keep.has(file)) continue;
 
             const filePath = path.join(dir, file);
             try {

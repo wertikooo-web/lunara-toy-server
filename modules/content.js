@@ -348,6 +348,32 @@ async function upsertAudioCache(item, fileName, durationMs) {
     );
 }
 
+async function upsertContentItem(item) {
+    if (!ready || !pool) return;
+    await pool.query(
+        `INSERT INTO content_items (id, type, title, text, lang, answers, tags, metadata, source)
+         VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, $6::jsonb, $7::jsonb, 'runtime')
+         ON CONFLICT (id) DO UPDATE SET
+            type = EXCLUDED.type,
+            title = EXCLUDED.title,
+            text = EXCLUDED.text,
+            lang = EXCLUDED.lang,
+            tags = EXCLUDED.tags,
+            metadata = EXCLUDED.metadata,
+            source = EXCLUDED.source,
+            updated_at = now()`,
+        [
+            item.id,
+            item.type,
+            item.title || '',
+            item.text,
+            item.lang || 'ru-RU',
+            JSON.stringify(item.tags || []),
+            JSON.stringify(item.metadata || {}),
+        ]
+    );
+}
+
 async function ensureAudio(item, baseUrl) {
     if (!audioDir) throw new Error('content audioDir is not initialized');
 
@@ -378,6 +404,35 @@ async function ensureAudio(item, baseUrl) {
 
     pendingAudio.set(pendingKey, task);
     return task;
+}
+
+async function ensureCachedReply(reply, options = {}) {
+    const baseUrl = options.baseUrl;
+    if (!baseUrl) throw new Error('ensureCachedReply requires baseUrl');
+
+    const text = String(reply || '').trim();
+    if (!text) throw new Error('ensureCachedReply requires reply text');
+
+    const key = safeFilePart(options.key || 'reply');
+    const item = {
+        id: `cached_reply_${key}_${textHash(text)}`,
+        type: 'cached_reply',
+        title: options.title || key,
+        text,
+        lang: options.lang || 'ru-RU',
+        tags: ['cached_reply', key],
+        metadata: {
+            cache_key: key,
+        },
+    };
+
+    await upsertContentItem(item);
+    const audio = await ensureAudio(item, baseUrl);
+    return {
+        audioUrl: audio.url,
+        durationMs: audio.durationMs,
+        cached: audio.cached,
+    };
 }
 
 async function tryHandleShortRequest(text, options = {}) {
@@ -597,6 +652,7 @@ module.exports = {
     init,
     classifyRequest: matchRequest,
     getClarification,
+    ensureCachedReply,
     tryHandleShortRequest,
     pickItems,
     pendingFromItem,

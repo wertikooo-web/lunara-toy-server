@@ -94,7 +94,11 @@ app.post('/chat', async (req, res) => {
             if (!pendingAnswer.keepPending) {
                 sessionRef.pendingContent = null;
             }
-            const audio = await synthesizeReply(pendingAnswer.reply, ts, lang, baseUrl);
+            const audio = await content.ensureCachedReply(pendingAnswer.reply, {
+                baseUrl,
+                lang,
+                key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
+            });
             return res.json({
                 reply: pendingAnswer.reply,
                 audio_url: audio.audioUrl,
@@ -102,18 +106,24 @@ app.post('/chat', async (req, res) => {
                 device_id: deviceId,
                 content_answer: true,
                 correct: pendingAnswer.correct,
+                cached_audio: audio.cached,
             });
         }
 
         const clarification = content.getClarification(text);
         if (clarification) {
-            const audio = await synthesizeReply(clarification.reply, ts, lang, baseUrl);
+            const audio = await content.ensureCachedReply(clarification.reply, {
+                baseUrl,
+                lang,
+                key: 'clarification',
+            });
             return res.json({
                 reply: clarification.reply,
                 audio_url: audio.audioUrl,
                 duration_ms: audio.durationMs,
                 device_id: deviceId,
                 needs_clarification: true,
+                cached_audio: audio.cached,
             });
         }
 
@@ -433,7 +443,11 @@ async function handlePipeline(
                 state.pendingContent = null;
             }
             logger.info(`[Pipeline] content answer correct=${pendingAnswer.correct}`);
-            const audio = await synthesizeReply(pendingAnswer.reply, ts, 'ru-RU', baseUrl);
+            const audio = await content.ensureCachedReply(pendingAnswer.reply, {
+                baseUrl,
+                lang: 'ru-RU',
+                key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
+            });
 
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content answer — discarding (child interrupted)');
@@ -447,7 +461,11 @@ async function handlePipeline(
         const clarification = content.getClarification(transcript);
         if (clarification) {
             logger.info('[Pipeline] content clarification requested');
-            const audio = await synthesizeReply(clarification.reply, ts, 'ru-RU', baseUrl);
+            const audio = await content.ensureCachedReply(clarification.reply, {
+                baseUrl,
+                lang: 'ru-RU',
+                key: 'clarification',
+            });
 
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content clarification — discarding (child interrupted)');
