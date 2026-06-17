@@ -468,8 +468,15 @@ function updateModelStatus(data) {
   }
   const provider = data.provider || '';
   const latency = Number.isFinite(data.latency_ms) ? `${data.latency_ms}ms` : '';
-  const fallback = data.fallback ? ' -> GPT' : '';
-  modelStatus.textContent = `${provider}${fallback} ${latency}`.trim().toUpperCase();
+  if (data.fallback) {
+    const from = data.router_choice || data.requested_model || 'model';
+    modelStatus.textContent = `${from} ERROR -> GPT ${latency}`.trim().toUpperCase();
+    return;
+  }
+  const route = data.requested_model === 'auto' && data.router_choice
+    ? `AUTO -> ${data.router_choice}`
+    : provider;
+  modelStatus.textContent = `${route} ${latency}`.trim().toUpperCase();
 }
 
 // ── Bear ──────────────────────────────────────────────────────────────────────
