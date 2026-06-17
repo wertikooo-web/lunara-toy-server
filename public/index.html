@@ -267,6 +267,39 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
     color: var(--text);
     box-shadow: 0 0 10px rgba(168,85,247,0.3);
   }
+  .model-row {
+    position: absolute;
+    top: 18px;
+    left: 16px;
+    display: flex;
+    gap: 5px;
+    z-index: 20;
+  }
+  .model-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(251,191,36,0.22);
+    border-radius: 8px;
+    padding: 4px 8px;
+    color: rgba(251,191,36,0.72);
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 0.66rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .model-btn:hover { border-color: var(--gold); color: #fde68a; }
+  .model-btn.active {
+    background: rgba(251,191,36,0.16);
+    border-color: rgba(251,191,36,0.65);
+    color: #fde68a;
+    box-shadow: 0 0 10px rgba(251,191,36,0.18);
+  }
+  .model-status {
+    color: rgba(196,181,253,.75);
+    font-size: .72rem;
+    margin-left: 6px;
+  }
 </style>
 </head>
 <body>
@@ -278,6 +311,13 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
 <div class="phone" id="phone">
   <!-- Stars inside phone -->
   <div class="phone-stars" id="phoneStars"></div>
+
+  <!-- Model selector -->
+  <div class="model-row">
+    <button class="model-btn" id="modelGPT" onclick="setModel('gpt',this)">GPT</button>
+    <button class="model-btn" id="modelDS" onclick="setModel('deepseek',this)">DS</button>
+    <button class="model-btn active" id="modelAUTO" onclick="setModel('auto',this)">AUTO</button>
+  </div>
 
   <!-- Language selector -->
   <div class="lang-row">
@@ -338,6 +378,7 @@ audio { width:100%; border-radius:10px; accent-color:var(--purple2); }
     <div class="status-row">
       <div class="conn-dot" id="connDot"></div>
       <span class="conn-label" id="connLabel">Connection OK</span>
+      <span class="model-status" id="modelStatus">AUTO</span>
       <input id="serverUrl" type="hidden" value="https://lunara-toy-server-production.up.railway.app" />
     </div>
 
@@ -392,9 +433,44 @@ const connLabel  = document.getElementById('connLabel');
 const serverUrl  = document.getElementById('serverUrl');
 const content    = document.getElementById('content');
 const micBtn     = document.getElementById('micBtn');
+const modelStatus= document.getElementById('modelStatus');
 
 let isProcessing = false;
 let currentLang = 'ru-RU'; // global — used in sendMessage and mic
+let currentModel = 'auto';
+
+function setLang(lang, btn) {
+  currentLang = lang;
+  const ids = ['langAUTO', 'langRU', 'langRO', 'langEN'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  btn.classList.add('active');
+}
+
+function setModel(model, btn) {
+  currentModel = model;
+  const ids = ['modelGPT', 'modelDS', 'modelAUTO'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  btn.classList.add('active');
+  modelStatus.textContent = model.toUpperCase();
+}
+
+function updateModelStatus(data) {
+  if (!data || !modelStatus) return;
+  if (data.provider === 'content_cache') {
+    modelStatus.textContent = 'CACHE';
+    return;
+  }
+  const provider = data.provider || '';
+  const latency = Number.isFinite(data.latency_ms) ? `${data.latency_ms}ms` : '';
+  const fallback = data.fallback ? ' -> GPT' : '';
+  modelStatus.textContent = `${provider}${fallback} ${latency}`.trim().toUpperCase();
+}
 
 // ── Bear ──────────────────────────────────────────────────────────────────────
 function setBear(state) {
@@ -437,7 +513,7 @@ async function sendMessage() {
     const res = await fetch(`${base}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-device-id': 'demo_lumi_001' },
-      body: JSON.stringify({ text, lang: currentLang }),
+      body: JSON.stringify({ text, lang: currentLang, model: currentModel }),
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) {
@@ -446,6 +522,7 @@ async function sendMessage() {
     }
     const data = await res.json();
     bubbleText.textContent = data.reply || '...';
+    updateModelStatus(data);
 
     if (data.audio_url) {
       setBear('speaking');
@@ -581,15 +658,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   let micStarted = false; // guard against multiple start calls
   let micHeld = false;    // true while button is physically held
 
-  function setLang(lang, btn) {
-    currentLang = lang;
-    const ids = ['langAUTO', 'langRU', 'langRO', 'langEN'];
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('active');
-    });
-    btn.classList.add('active');
-  }
   let silenceTimer = null; // auto-stop if no speech for 10s
   let micTimer = null;
   let micWarnTimer = null;

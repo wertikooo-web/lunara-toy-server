@@ -215,6 +215,63 @@ Prompt Lumi уже сильно доработан:
 
 Если генерация не удалась, сервер падает обратно на обычный готовый кэш.
 
+## LLM Router и переключение моделей в browser demo
+
+Добавлен слой LLM router для быстрого сравнения моделей в браузерном демо.
+
+Важно:
+- WebSocket pipeline для ESP32 не менялся;
+- STT не менялся;
+- TTS не менялся;
+- системный prompt Lumi не менялся;
+- переключение работает через `POST /chat`.
+
+Поддерживаемые режимы:
+- `gpt` -> OpenAI `gpt-4o-mini`;
+- `deepseek` -> DeepSeek `deepseek-v4-flash` через OpenAI-compatible API;
+- `auto` -> быстрый rule-based router.
+
+Auto Router сейчас работает без отдельного LLM-классификатора, чтобы не добавлять задержку.
+
+Правила Auto Router:
+- простые игровые запросы, загадки, сказки, скороговорки, факты, счет -> DeepSeek;
+- эмоции, страхи, ссоры, семья, школа, опасность, память ребенка -> GPT;
+- если `DEEPSEEK_API_KEY` отсутствует или DeepSeek падает -> fallback на GPT.
+
+Browser demo отправляет:
+
+```json
+{
+  "text": "...",
+  "lang": "ru-RU",
+  "model": "auto"
+}
+```
+
+`POST /chat` возвращает:
+
+```json
+{
+  "reply": "...",
+  "model_used": "gpt-4o-mini",
+  "provider": "openai",
+  "latency_ms": 1234
+}
+```
+
+Для ответов из content cache:
+- `provider: "content_cache"`;
+- `model_used: null`;
+- `latency_ms: 0`.
+
+Новые/измененные файлы:
+- `modules/llmRouter.js`;
+- `modules/llm.js`;
+- `server.js`;
+- `public/index.html`;
+- `scripts/check_llm_router.js`;
+- `package.json`.
+
 ## Story Engine
 
 Истории/сказки теперь:
@@ -366,4 +423,3 @@ node scripts/check_language_router.js
 - При неоднозначности Lumi переспрашивает.
 - Сказки должны быть короткими и завершенными.
 - Ответы должны быть короче, с простыми фразами и паузами.
-

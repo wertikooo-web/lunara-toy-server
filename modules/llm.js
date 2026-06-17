@@ -7,12 +7,9 @@
  * History is reset when the connection closes or when ESP32 sends { type: "reset" }.
  */
 
-const OpenAI = require('openai');
 const logger = require('./logger');
+const llmRouter = require('./llmRouter');
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const MODEL      = 'gpt-4o-mini';
 const MAX_TOKENS = 180;
 const MAX_STORY_TOKENS = 230;
 
@@ -221,7 +218,7 @@ const SYSTEM_PROMPT = `
  * @param {object} wsRef    — WebSocket instance (used as history key)
  * @param {string} userText — transcribed user message
  * @param {object} options  — optional context, such as memoryContext
- * @returns {Promise<string>} — model reply
+ * @returns {Promise<string|object>} — model reply, or reply metadata when options.returnMeta is true
  */
 async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     if (!histories.has(wsRef)) {
@@ -255,22 +252,45 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         ? Math.max(80, Math.min(options.maxTokens, MAX_STORY_TOKENS))
         : MAX_TOKENS;
 
-    const response = await client.chat.completions.create({
-        model:      MODEL,
-        max_tokens: maxTokens,
-        messages:   [
+    const llmMessages = [
             { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + extraContext },
             ...messages,
-        ],
+    ];
+
+    const result = await llmRouter.callModel({
+        modelName: options.model || 'gpt',
+        messages: llmMessages,
+        maxTokens,
+        routeInput: {
+            text: options.routingText || userText,
+            memoryContext: options.memoryContext,
+            contentContext: options.contentContext,
+            isStory: Boolean(options.isStory),
+        },
     });
 
-    const reply = response.choices[0]?.message?.content?.trim() ?? '';
+    const reply = result.reply || '';
     messages.push({ role: 'assistant', content: reply });
 
-    if (response.choices[0]?.finish_reason === 'length') {
+    if (result.finish_reason === 'length') {
         logger.warn(`[LLM] reply hit max_tokens=${maxTokens}; output may be truncated`);
     }
-    logger.debug(`[LLM] tokens used: ${response.usage?.total_tokens}`);
+    logger.info(`[LLM] provider=${result.provider} model=${result.model_used} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
+    logger.debug(`[LLM] tokens used: ${result.tokens_used}`);
+
+    if (options.returnMeta) {
+        return {
+            reply,
+            model_used: result.model_used,
+            provider: result.provider,
+            latency_ms: result.latency_ms,
+            requested_model: result.requested_model,
+            router_choice: result.router_choice,
+            fallback: result.fallback,
+            fallback_reason: result.fallback_reason,
+        };
+    }
+
     return reply;
 }
 

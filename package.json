@@ -8,7 +8,8 @@
     "dev": "node --watch server.js",
     "check:intents": "node scripts/check_intents.js",
     "check:content": "node scripts/check_content_seed.js",
-    "check:language": "node scripts/check_language_router.js"
+    "check:language": "node scripts/check_language_router.js",
+    "check:llm-router": "node scripts/check_llm_router.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

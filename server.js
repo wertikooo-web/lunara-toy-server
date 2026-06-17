@@ -58,6 +58,7 @@ app.use(express.json());
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';
+    const requestedModel = req.body?.model || 'gpt';
     if (!text) {
         return res.status(400).json({ error: 'text is required' });
     }
@@ -90,6 +91,7 @@ app.post('/chat', async (req, res) => {
                     content_id: shortContent.item.id,
                     content_type: shortContent.item.type,
                     cached_audio: shortContent.cached,
+                    ...cachedModelMeta(),
                 });
             }
         }
@@ -110,6 +112,7 @@ app.post('/chat', async (req, res) => {
                 content_answer: true,
                 correct: pendingAnswer.correct,
                 cached_audio: audio.cached,
+                ...cachedModelMeta(),
             });
         }
 
@@ -127,6 +130,7 @@ app.post('/chat', async (req, res) => {
                 device_id: deviceId,
                 needs_clarification: true,
                 cached_audio: audio.cached,
+                ...cachedModelMeta(),
             });
         }
 
@@ -141,6 +145,7 @@ app.post('/chat', async (req, res) => {
                 content_id: shortContent.item.id,
                 content_type: shortContent.item.type,
                 cached_audio: shortContent.cached,
+                ...cachedModelMeta(),
             });
         }
 
@@ -152,16 +157,24 @@ app.post('/chat', async (req, res) => {
             : '';
 
         // LLM
-        const reply = story
+        const llmResult = story
             ? await llm.chat(sessionRef, story.prompt, lang, {
                 memoryContext,
                 contentContext: story.contentContext,
                 maxTokens: story.maxTokens,
+                model: requestedModel,
+                routingText: text,
+                isStory: true,
+                returnMeta: true,
             })
             : await llm.chat(sessionRef, text, lang, {
                 memoryContext,
                 contentContext: followupContext,
+                model: requestedModel,
+                routingText: text,
+                returnMeta: true,
             });
+        const reply = llmResult.reply;
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
@@ -174,6 +187,12 @@ app.post('/chat', async (req, res) => {
             duration_ms: durationMs,
             device_id: deviceId,
             content_type: story ? 'story' : undefined,
+            model_used: llmResult.model_used,
+            provider: llmResult.provider,
+            latency_ms: llmResult.latency_ms,
+            requested_model: llmResult.requested_model,
+            router_choice: llmResult.router_choice,
+            fallback: llmResult.fallback,
         });
         sessionRef.lastContentMode = story ? 'story' : null;
         memory.rememberFromText(deviceId, text, profile)
@@ -183,6 +202,14 @@ app.post('/chat', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+function cachedModelMeta() {
+    return {
+        model_used: null,
+        provider: 'content_cache',
+        latency_ms: 0,
+    };
+}
 
 // Demo session storage (in-memory, keyed by x-session-id header)
 const demoSessions = new Map();
