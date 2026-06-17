@@ -24,6 +24,7 @@ let ready = false;
 let audioDir = null;
 
 const pendingAudio = new Map();
+const lastPhraseByKey = new Map();
 
 const BUILTIN_SHORT_ITEMS = [
     {
@@ -428,6 +429,17 @@ function answerList(item) {
     return [];
 }
 
+function pickPhrase(phrases, key = 'default') {
+    if (!Array.isArray(phrases) || phrases.length === 0) return '';
+    if (phrases.length === 1) return phrases[0];
+
+    const last = lastPhraseByKey.get(key);
+    const variants = phrases.filter((phrase) => phrase !== last);
+    const chosen = variants[Math.floor(Math.random() * variants.length)];
+    lastPhraseByKey.set(key, chosen);
+    return chosen;
+}
+
 function pendingFromItem(item) {
     if (!item || item.type !== 'riddle') return null;
     const answers = answerList(item);
@@ -458,20 +470,40 @@ function checkPendingAnswer(pending, userText) {
     if (/(не знаю|сдаюсь|подскажи|скажи ответ)/i.test(answer)) {
         return {
             correct: false,
-            reply: `Хорошо, подсказываю. Это ${correctAnswer}. Хочешь ещё одну загадку?`,
+            reply: pickPhrase([
+                `Хорошо, подсказываю. Это ${correctAnswer}. Хочешь ещё одну загадку?`,
+                `Ладно, открываю маленький секрет. Это ${correctAnswer}. Берём следующую?`,
+                `Сдаёмся красиво. Ответ: ${correctAnswer}. Теперь можно взять реванш!`,
+                `Подсказка превратилась в ответ: это ${correctAnswer}. Попробуем ещё раз?`,
+            ], 'riddle_hint'),
         };
     }
 
     if (correct) {
         return {
             correct: true,
-            reply: 'Да, правильно! Ты здорово отгадал. Хочешь ещё одну загадку?',
+            reply: pickPhrase([
+                'Да, правильно! Ты здорово отгадал. Хочешь ещё одну загадку?',
+                'Точно! Вот это внимательные ушки. Давай следующую?',
+                'Ура, угадал! Я даже чуть подпрыгнул от радости. Ещё одну?',
+                'Верно! Загадка раскрыта. Берём новую?',
+                'Да, это правильный ответ. Ты сегодня настоящий сыщик загадок!',
+            ], 'riddle_correct'),
         };
     }
 
     return {
         correct: false,
-        reply: `Почти, но нет. Правильный ответ: ${correctAnswer}. Давай попробуем ещё одну?`,
+        reply: pickPhrase([
+            `Не угадали, но попытка была смелая. Ответ: ${correctAnswer}. Давай ещё одну?`,
+            `Ой, это был хитрый поворот. Правильный ответ: ${correctAnswer}. Попробуем новую?`,
+            `Хорошая версия, но загадка спрятала другое. Это ${correctAnswer}. Идём дальше?`,
+            `Мимо, но красиво мимо. Ответ: ${correctAnswer}. Хочешь ещё загадку?`,
+            `Почти поймали, но она ускользнула. Это ${correctAnswer}. Давай реванш?`,
+            `Хи-хи, загадка сегодня хитрит. Правильный ответ: ${correctAnswer}. Ещё одну?`,
+            `Нет, но мне нравится твоя идея. Ответ был ${correctAnswer}. Попробуем снова?`,
+            `Не совсем. Загадочный сундук открылся: там ${correctAnswer}. Давай следующую?`,
+        ], 'riddle_wrong'),
     };
 }
 
