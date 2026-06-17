@@ -116,15 +116,74 @@ async function callDeepSeek(messages, maxTokens) {
     };
 }
 
+function looksUnfinished(text, finishReason = '') {
+    const value = String(text || '').trim();
+    if (!value) return false;
+    if (finishReason === 'length') return true;
+    if (/[,:;—-]$/.test(value)) return true;
+    const lower = value.toLocaleLowerCase('ru-RU');
+    const lastWords = lower.split(/\s+/).slice(-2).join(' ');
+    const lastWord = lower.split(/\s+/).pop() || '';
+    const unfinished = new Set([
+        '\u0438', '\u0430', '\u043d\u043e', '\u0438\u043b\u0438',
+        '\u0447\u0442\u043e', '\u0447\u0442\u043e\u0431\u044b',
+        '\u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e',
+        '\u043a\u043e\u0442\u043e\u0440\u044b\u0439',
+        '\u043a\u043e\u0442\u043e\u0440\u0430\u044f',
+        '\u043a\u043e\u0442\u043e\u0440\u043e\u0435',
+        '\u043a\u043e\u0442\u043e\u0440\u044b\u0435',
+        '\u043a\u043e\u0442\u043e\u0440\u044b\u043c',
+        '\u043a\u043e\u0442\u043e\u0440\u044b\u043c\u0438',
+        '\u043a\u0430\u043a', '\u0433\u0434\u0435', '\u0432', '\u043d\u0430',
+        '\u0441', '\u0443', '\u0434\u043b\u044f',
+        'and', 'or', 'but', 'because', 'that', 'which', 'with', 'for', 'in', 'on',
+        'si', 'sau', 'dar', 'pentru', 'care', 'cu',
+    ]);
+    return unfinished.has(lastWord) || unfinished.has(lastWords);
+}
+
+function joinContinuation(reply, continuation) {
+    const first = String(reply || '').trim();
+    const second = String(continuation || '').trim();
+    if (!first) return second;
+    if (!second) return first;
+    return `${first} ${second}`.replace(/\s+/g, ' ').trim();
+}
+
+async function completeDeepSeekIfNeeded(messages, result) {
+    if (!looksUnfinished(result.reply, result.finish_reason)) return result;
+
+    logger.warn('[LLM Router] DeepSeek reply looks unfinished; requesting short continuation');
+    const continuation = await callDeepSeek([
+        ...messages,
+        { role: 'assistant', content: result.reply },
+        {
+            role: 'user',
+            content: 'Finish only the previous assistant sentence in the same language. Return only the missing ending, one short phrase. Do not repeat the previous text.',
+        },
+    ], 90);
+
+    return {
+        ...result,
+        reply: joinContinuation(result.reply, continuation.reply),
+        finish_reason: continuation.finish_reason,
+        tokens_used: (result.tokens_used || 0) + (continuation.tokens_used || 0),
+        continued: true,
+    };
+}
+
 async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = {} }) {
     const started = Date.now();
     const requested = normalizeModelName(modelName);
     const selected = getModelProvider(modelName, routeInput);
 
     try {
-        const result = selected.provider === 'deepseek'
+        let result = selected.provider === 'deepseek'
             ? await callDeepSeek(messages, maxTokens)
             : await callOpenAI(messages, maxTokens);
+        if (selected.provider === 'deepseek') {
+            result = await completeDeepSeekIfNeeded(messages, result);
+        }
         return {
             ...result,
             requested_model: requested,
@@ -156,4 +215,5 @@ module.exports = {
     routeAutoModel,
     callModel,
     normalizeModelName,
+    looksUnfinished,
 };

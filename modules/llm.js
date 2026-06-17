@@ -293,6 +293,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
             router_choice: result.router_choice,
             fallback: result.fallback,
             fallback_reason: result.fallback_reason,
+            continued: result.continued,
         };
     }
 

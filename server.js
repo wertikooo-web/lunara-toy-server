@@ -194,6 +194,7 @@ app.post('/chat', async (req, res) => {
             router_choice: llmResult.router_choice,
             fallback: llmResult.fallback,
             fallback_reason: llmResult.fallback_reason,
+            continued: llmResult.continued,
         });
         sessionRef.lastContentMode = story ? 'story' : null;
         memory.rememberFromText(deviceId, text, profile)
