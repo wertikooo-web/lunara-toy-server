@@ -7,6 +7,13 @@ const { Pool } = require('pg');
 const logger = require('./logger');
 const tts = require('./tts');
 
+let docSeed = { items: [] };
+try {
+    docSeed = require('../data/content_seed.json');
+} catch (_) {
+    docSeed = { items: [] };
+}
+
 const DATABASE_URL = process.env.DATABASE_URL;
 const PGSSL = process.env.PGSSL === 'true';
 const CONTENT_VOICE = process.env.CONTENT_VOICE || 'default';
@@ -18,7 +25,7 @@ let audioDir = null;
 
 const pendingAudio = new Map();
 
-const SEED_ITEMS = [
+const BUILTIN_SHORT_ITEMS = [
     {
         id: 'riddle_seed_001',
         type: 'riddle',
@@ -136,6 +143,11 @@ const SEED_ITEMS = [
     },
 ];
 
+const SEED_ITEMS = [
+    ...BUILTIN_SHORT_ITEMS,
+    ...(Array.isArray(docSeed.items) ? docSeed.items : []),
+];
+
 const REQUEST_PATTERNS = [
     {
         type: 'riddle',
@@ -218,6 +230,7 @@ async function init(options = {}) {
             lang TEXT NOT NULL DEFAULT 'ru-RU',
             answers JSONB NOT NULL DEFAULT '[]'::jsonb,
             tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+            metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
             source TEXT NOT NULL DEFAULT 'seed',
             enabled BOOLEAN NOT NULL DEFAULT true,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -227,6 +240,10 @@ async function init(options = {}) {
     await pool.query(`
         ALTER TABLE content_items
         ADD COLUMN IF NOT EXISTS answers JSONB NOT NULL DEFAULT '[]'::jsonb
+    `);
+    await pool.query(`
+        ALTER TABLE content_items
+        ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb
     `);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS content_audio_cache (
@@ -246,8 +263,8 @@ async function init(options = {}) {
 
     for (const item of SEED_ITEMS) {
         await pool.query(
-            `INSERT INTO content_items (id, type, title, text, lang, answers, tags, source)
-             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+            `INSERT INTO content_items (id, type, title, text, lang, answers, tags, metadata, source)
+             VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9)
              ON CONFLICT (id) DO UPDATE SET
                 type = EXCLUDED.type,
                 title = EXCLUDED.title,
@@ -255,8 +272,8 @@ async function init(options = {}) {
                 lang = EXCLUDED.lang,
                 answers = EXCLUDED.answers,
                 tags = EXCLUDED.tags,
+                metadata = EXCLUDED.metadata,
                 source = EXCLUDED.source,
-                enabled = true,
                 updated_at = now()`,
             [
                 item.id,
@@ -266,19 +283,20 @@ async function init(options = {}) {
                 'ru-RU',
                 JSON.stringify(item.answers || []),
                 JSON.stringify(item.tags || []),
-                'seed',
+                JSON.stringify(item.metadata || {}),
+                item.source || 'seed',
             ]
         );
     }
 
     ready = true;
-    logger.info(`[Content] short content ready; seeded ${SEED_ITEMS.length} item(s)`);
+    logger.info(`[Content] content ready; seeded ${SEED_ITEMS.length} item(s)`);
 }
 
 async function pickItem(type) {
     if (ready && pool) {
         const result = await pool.query(
-            `SELECT id, type, title, text, lang, answers, tags
+            `SELECT id, type, title, text, lang, answers, tags, metadata
              FROM content_items
              WHERE type = $1 AND enabled = true
              ORDER BY random()
@@ -365,6 +383,26 @@ async function tryHandleShortRequest(text, options = {}) {
         durationMs: audio.durationMs,
         cached: audio.cached,
     };
+}
+
+async function pickItems(type, limit = 5) {
+    const safeLimit = Math.max(1, Math.min(Number(limit) || 5, 20));
+    if (ready && pool) {
+        const result = await pool.query(
+            `SELECT id, type, title, text, lang, answers, tags, metadata
+             FROM content_items
+             WHERE type = $1 AND enabled = true
+             ORDER BY random()
+             LIMIT ${safeLimit}`,
+            [type]
+        );
+        return result.rows;
+    }
+
+    return SEED_ITEMS
+        .filter((item) => item.type === type)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, safeLimit);
 }
 
 function normalizeAnswer(value) {
@@ -473,6 +511,7 @@ async function stats() {
 module.exports = {
     init,
     tryHandleShortRequest,
+    pickItems,
     pendingFromItem,
     checkPendingAnswer,
     stats,

@@ -15,6 +15,7 @@ const cleaner  = require('./modules/cleaner');
 const logger   = require('./modules/logger');
 const memory   = require('./modules/memory');
 const content  = require('./modules/content');
+const storyEngine = require('./modules/storyEngine');
 
 // ── Directories ──────────────────────────────────────────────────────────────
 const DIR_AUDIO   = path.join(__dirname, 'audio');
@@ -102,16 +103,28 @@ app.post('/chat', async (req, res) => {
 
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
+        const story = await storyEngine.buildStoryContext(text);
 
         // LLM
-        const reply = await llm.chat(sessionRef, text, lang, { memoryContext });
+        const reply = story
+            ? await llm.chat(sessionRef, story.prompt, lang, {
+                memoryContext,
+                contentContext: story.contentContext,
+            })
+            : await llm.chat(sessionRef, text, lang, { memoryContext });
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, lang);
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
-        res.json({ reply, audio_url: audioUrl, duration_ms: durationMs, device_id: deviceId });
+        res.json({
+            reply,
+            audio_url: audioUrl,
+            duration_ms: durationMs,
+            device_id: deviceId,
+            content_type: story ? 'story' : undefined,
+        });
         memory.rememberFromText(deviceId, text, profile)
             .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
     } catch (err) {
@@ -391,7 +404,13 @@ async function handlePipeline(
         logger.info('[Pipeline] LLM start…');
         const profile = await memory.getProfile(deviceId);
         const memoryContext = memory.formatProfileForPrompt(profile);
-        const reply = await llm.chat(ws, transcript, 'auto', { memoryContext });
+        const story = await storyEngine.buildStoryContext(transcript);
+        const reply = story
+            ? await llm.chat(ws, story.prompt, 'auto', {
+                memoryContext,
+                contentContext: story.contentContext,
+            })
+            : await llm.chat(ws, transcript, 'auto', { memoryContext });
         logger.info(`[Pipeline] reply: "${reply}"`);
 
         if (!isCurrent()) {

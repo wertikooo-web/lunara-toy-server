@@ -246,7 +246,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         ? (langMap[lang] || langMap['ru-RU'])
         : 'Определи язык сообщения ребёнка и отвечай ТОЛЬКО на том же языке.';
 
-    const extraContext = [currentContext(), options.memoryContext]
+    const extraContext = [currentContext(), options.memoryContext, options.contentContext]
         .filter(Boolean)
         .join('\n\n');
 
