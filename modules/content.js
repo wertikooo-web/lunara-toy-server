@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const OpenAI = require('openai');
 const logger = require('./logger');
 const tts = require('./tts');
 
@@ -18,10 +19,12 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const PGSSL = process.env.PGSSL === 'true';
 const CONTENT_VOICE = process.env.CONTENT_VOICE || 'default';
 const SAMPLE_RATE = 16000;
+const LOCALIZATION_MODEL = process.env.CONTENT_LOCALIZATION_MODEL || 'gpt-4o-mini';
 
 let pool = null;
 let ready = false;
 let audioDir = null;
+let openai = null;
 
 const pendingAudio = new Map();
 const lastPhraseByKey = new Map();
@@ -334,6 +337,25 @@ function textHash(value) {
     return crypto.createHash('sha1').update(String(value || '')).digest('hex').slice(0, 10);
 }
 
+function contentLangSuffix(lang) {
+    return normalizeContentLang(lang).toLowerCase().replace(/[^a-z0-9]+/g, '_');
+}
+
+function localizedContentId(item, targetLang) {
+    return `${item.id}__${contentLangSuffix(targetLang)}`.slice(0, 180);
+}
+
+function languageName(lang) {
+    const normalized = normalizeContentLang(lang);
+    if (normalized.startsWith('ro')) return 'Romanian';
+    if (normalized.startsWith('en')) return 'English';
+    return 'Russian';
+}
+
+function isTranslatableShortItem(item) {
+    return ['riddle', 'tongue_twister', 'mini_game', 'reaction'].includes(item?.type);
+}
+
 function durationFromPcm(filePath) {
     const bytes = fs.statSync(filePath).size;
     return Math.ceil((bytes / (SAMPLE_RATE * 2)) * 1000);
@@ -482,16 +504,35 @@ async function pickItem(type, lang = 'ru-RU') {
             `SELECT id, type, title, text, lang, answers, tags, metadata
              FROM content_items
              WHERE type = $1 AND enabled = true AND lang IN ($2, 'ru-RU')
-             ORDER BY CASE WHEN lang = $2 THEN 0 ELSE 1 END, random()
+             ORDER BY random()
              LIMIT 1`,
             [type, preferredLang]
         );
         return result.rows[0] || null;
     }
 
-    const preferred = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === preferredLang);
-    const fallback = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === 'ru-RU');
-    const items = preferred.length ? preferred : fallback;
+    const items = SEED_ITEMS.filter((item) => (
+        item.type === type &&
+        ((item.lang || 'ru-RU') === preferredLang || (item.lang || 'ru-RU') === 'ru-RU')
+    ));
+    return items[Math.floor(Math.random() * items.length)] || null;
+}
+
+async function pickExactLangItem(type, lang) {
+    const exactLang = normalizeContentLang(lang);
+    if (ready && pool) {
+        const result = await pool.query(
+            `SELECT id, type, title, text, lang, answers, tags, metadata
+             FROM content_items
+             WHERE type = $1 AND enabled = true AND lang = $2
+             ORDER BY random()
+             LIMIT 1`,
+            [type, exactLang]
+        );
+        return result.rows[0] || null;
+    }
+
+    const items = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === exactLang);
     return items[Math.floor(Math.random() * items.length)] || null;
 }
 
@@ -522,12 +563,13 @@ async function upsertContentItem(item) {
     if (!ready || !pool) return;
     await pool.query(
         `INSERT INTO content_items (id, type, title, text, lang, answers, tags, metadata, source)
-         VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, $6::jsonb, $7::jsonb, 'runtime')
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9)
          ON CONFLICT (id) DO UPDATE SET
             type = EXCLUDED.type,
             title = EXCLUDED.title,
             text = EXCLUDED.text,
             lang = EXCLUDED.lang,
+            answers = EXCLUDED.answers,
             tags = EXCLUDED.tags,
             metadata = EXCLUDED.metadata,
             source = EXCLUDED.source,
@@ -538,10 +580,136 @@ async function upsertContentItem(item) {
             item.title || '',
             item.text,
             item.lang || 'ru-RU',
+            JSON.stringify(item.answers || []),
             JSON.stringify(item.tags || []),
             JSON.stringify(item.metadata || {}),
+            item.source || 'runtime',
         ]
     );
+}
+
+async function findContentItemById(id) {
+    if (!ready || !pool) return null;
+    const result = await pool.query(
+        `SELECT id, type, title, text, lang, answers, tags, metadata
+         FROM content_items
+         WHERE id = $1 AND enabled = true
+         LIMIT 1`,
+        [id]
+    );
+    return result.rows[0] || null;
+}
+
+function parseLocalizationJson(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return null;
+    try {
+        return JSON.parse(text);
+    } catch (_) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try {
+            return JSON.parse(match[0]);
+        } catch (err) {
+            return null;
+        }
+    }
+}
+
+async function generateLocalizedItem(masterItem, targetLang) {
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'test') {
+        return null;
+    }
+    if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const target = normalizeContentLang(targetLang);
+    const targetName = languageName(target);
+    const sourceAnswers = answerList(masterItem);
+    const prompt = {
+        target_language: targetName,
+        content_type: masterItem.type,
+        source_title: masterItem.title || '',
+        source_text: masterItem.text || '',
+        source_answers: sourceAnswers,
+    };
+
+    const response = await openai.chat.completions.create({
+        model: LOCALIZATION_MODEL,
+        max_tokens: 420,
+        response_format: { type: 'json_object' },
+        messages: [
+            {
+                role: 'system',
+                content: [
+                    'You adapt short children content for Lumi, a warm AI toy for ages 3-8.',
+                    'Return only valid JSON with keys: title, text, answers.',
+                    'Keep the content short, natural, kind, and safe.',
+                    'Do not reveal riddle answers inside the riddle text.',
+                    'For riddles, translate/adapt the answer list into the target language.',
+                    'For tongue twisters, create a natural equivalent in the target language instead of literal translation if needed.',
+                    'Use simple words. No markdown.',
+                ].join(' '),
+            },
+            {
+                role: 'user',
+                content: JSON.stringify(prompt),
+            },
+        ],
+    });
+
+    const parsed = parseLocalizationJson(response.choices[0]?.message?.content);
+    if (!parsed || !String(parsed.text || '').trim()) {
+        throw new Error('localization returned invalid JSON');
+    }
+
+    const localizedAnswers = Array.isArray(parsed.answers)
+        ? parsed.answers.map((answer) => String(answer || '').trim()).filter(Boolean)
+        : [];
+
+    if (masterItem.type === 'riddle' && localizedAnswers.length === 0) {
+        throw new Error('localized riddle has no answers');
+    }
+
+    return {
+        id: localizedContentId(masterItem, target),
+        type: masterItem.type,
+        title: String(parsed.title || masterItem.title || '').trim(),
+        text: String(parsed.text || '').trim(),
+        lang: target,
+        answers: localizedAnswers,
+        tags: [...new Set([...(masterItem.tags || []), 'localized', contentLangSuffix(target)])],
+        metadata: {
+            ...(masterItem.metadata || {}),
+            localized_from: masterItem.id,
+            localized_from_lang: masterItem.lang || 'ru-RU',
+            localization_model: LOCALIZATION_MODEL,
+        },
+        source: 'runtime_localized',
+    };
+}
+
+async function localizeItemForLang(item, targetLang) {
+    const target = normalizeContentLang(targetLang);
+    const itemLang = normalizeContentLang(item.lang || 'ru-RU');
+    if (itemLang === target || target === 'ru-RU' || !isTranslatableShortItem(item)) {
+        return item;
+    }
+
+    const localizedId = localizedContentId(item, target);
+    const existing = await findContentItemById(localizedId);
+    if (existing) return existing;
+
+    try {
+        logger.info(`[Content] Localizing ${item.id} -> ${target}`);
+        const localized = await generateLocalizedItem(item, target);
+        if (!localized) return item;
+        await upsertContentItem(localized);
+        logger.info(`[Content] Localized content ready: ${localized.id}`);
+        return localized;
+    } catch (err) {
+        logger.warn(`[Content] Localization failed for ${item.id} -> ${target}: ${err.message}`);
+        return item;
+    }
 }
 
 async function ensureAudio(item, baseUrl) {
@@ -615,15 +783,19 @@ async function tryHandleShortRequest(text, options = {}) {
     const contentLang = normalizeContentLang(options.lang, text);
     const item = await pickItem(type, contentLang);
     if (!item) return null;
+    let localizedItem = await localizeItemForLang(item, contentLang);
+    if (contentLang !== 'ru-RU' && normalizeContentLang(localizedItem.lang || 'ru-RU') !== contentLang) {
+        localizedItem = await pickExactLangItem(type, contentLang) || localizedItem;
+    }
 
-    const audio = await ensureAudio(item, baseUrl);
+    const audio = await ensureAudio(localizedItem, baseUrl);
     return {
-        item,
-        reply: item.text,
+        item: localizedItem,
+        reply: localizedItem.text,
         audioUrl: audio.url,
         durationMs: audio.durationMs,
         cached: audio.cached,
-        lang: item.lang || contentLang,
+        lang: localizedItem.lang || contentLang,
     };
 }
 
@@ -882,6 +1054,20 @@ async function stats() {
         GROUP BY type
         ORDER BY type
     `);
+    const langs = await pool.query(`
+        SELECT lang, count(*)::int AS count
+        FROM content_items
+        WHERE enabled = true
+        GROUP BY lang
+        ORDER BY lang
+    `);
+    const sources = await pool.query(`
+        SELECT source, count(*)::int AS count
+        FROM content_items
+        WHERE enabled = true
+        GROUP BY source
+        ORDER BY source
+    `);
     const audio = await pool.query(`
         SELECT count(*)::int AS count
         FROM content_audio_cache
@@ -890,6 +1076,8 @@ async function stats() {
     return {
         db_ready: true,
         by_type: Object.fromEntries(items.rows.map((row) => [row.type, row.count])),
+        by_lang: Object.fromEntries(langs.rows.map((row) => [row.lang, row.count])),
+        by_source: Object.fromEntries(sources.rows.map((row) => [row.source, row.count])),
         cached_audio: audio.rows[0]?.count || 0,
     };
 }
