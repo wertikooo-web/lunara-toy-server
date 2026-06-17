@@ -117,6 +117,7 @@ async function callDeepSeek(messages, maxTokens) {
 
 async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = {} }) {
     const started = Date.now();
+    const requested = normalizeModelName(modelName);
     const selected = getModelProvider(modelName, routeInput);
 
     try {
@@ -125,18 +126,22 @@ async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = 
             : await callOpenAI(messages, maxTokens);
         return {
             ...result,
-            requested_model: normalizeModelName(modelName),
+            requested_model: requested,
             router_choice: selected.key,
             latency_ms: Date.now() - started,
             fallback: false,
         };
     } catch (err) {
         if (selected.provider !== 'deepseek') throw err;
+        if (requested !== 'auto') {
+            err.message = `DeepSeek failed: ${err.message}`;
+            throw err;
+        }
         logger.warn(`[LLM Router] DeepSeek unavailable, falling back to GPT: ${err.message}`);
         const fallback = await callOpenAI(messages, maxTokens);
         return {
             ...fallback,
-            requested_model: normalizeModelName(modelName),
+            requested_model: requested,
             router_choice: selected.key,
             latency_ms: Date.now() - started,
             fallback: true,
