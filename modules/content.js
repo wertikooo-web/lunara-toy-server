@@ -345,6 +345,10 @@ function localizedContentId(item, targetLang) {
     return `${item.id}__${contentLangSuffix(targetLang)}`.slice(0, 180);
 }
 
+function themedContentId(type, topic, targetLang) {
+    return `themed_${type}_${contentLangSuffix(targetLang)}_${textHash(topic)}`;
+}
+
 function languageName(lang) {
     const normalized = normalizeContentLang(lang);
     if (normalized.startsWith('ro')) return 'Romanian';
@@ -371,6 +375,35 @@ function matchRequest(text) {
 
     const match = REQUEST_PATTERNS.find((pattern) => pattern.re.test(value));
     return match ? match.type : null;
+}
+
+function cleanTopic(raw) {
+    let topic = String(raw || '')
+        .replace(/[.!?…,:;]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    topic = topic.replace(/^(такое|этом|это|the|a|an|un|o)\s+/i, '').trim();
+    const words = topic.split(/\s+/).filter(Boolean).slice(0, 5);
+    return words.join(' ').slice(0, 80).trim();
+}
+
+function extractContentTopic(text) {
+    const value = normalizeRequest(text);
+    if (!value) return '';
+
+    const patterns = [
+        /(?:^|\s)про\s+(.+)$/i,
+        /(?:^|\s)о\s+(.+)$/i,
+        /(?:^|\s)об\s+(.+)$/i,
+        /\babout\s+(.+)$/i,
+        /\bdespre\s+(.+)$/i,
+    ];
+    for (const pattern of patterns) {
+        const match = value.match(pattern);
+        const topic = cleanTopic(match?.[1]);
+        if (topic) return topic;
+    }
+    return '';
 }
 
 function getClarification(text) {
@@ -712,6 +745,94 @@ async function localizeItemForLang(item, targetLang) {
     }
 }
 
+async function generateThemedItem(type, topic, targetLang) {
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'test') {
+        return null;
+    }
+    if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const target = normalizeContentLang(targetLang);
+    const targetName = languageName(target);
+    const prompt = {
+        target_language: targetName,
+        content_type: type,
+        topic,
+    };
+
+    const response = await openai.chat.completions.create({
+        model: LOCALIZATION_MODEL,
+        max_tokens: 360,
+        response_format: { type: 'json_object' },
+        messages: [
+            {
+                role: 'system',
+                content: [
+                    'You create short children content for Lumi, a warm AI toy for ages 3-8.',
+                    'Return only valid JSON with keys: title, text, answers.',
+                    'The content must be in the target language.',
+                    'For riddle: make a simple riddle about the topic. Do not say the answer in the riddle text. Put 1-4 accepted answers in answers.',
+                    'For tongue_twister: create a short natural tongue twister about the topic. Put answers as an empty array.',
+                    'Keep it safe, kind, short, and easy to pronounce by TTS. No markdown.',
+                ].join(' '),
+            },
+            {
+                role: 'user',
+                content: JSON.stringify(prompt),
+            },
+        ],
+    });
+
+    const parsed = parseLocalizationJson(response.choices[0]?.message?.content);
+    if (!parsed || !String(parsed.text || '').trim()) {
+        throw new Error('themed content returned invalid JSON');
+    }
+
+    const answers = Array.isArray(parsed.answers)
+        ? parsed.answers.map((answer) => String(answer || '').trim()).filter(Boolean)
+        : [];
+
+    if (type === 'riddle' && answers.length === 0) {
+        throw new Error('themed riddle has no answers');
+    }
+
+    const targetSuffix = contentLangSuffix(target);
+    return {
+        id: themedContentId(type, topic, target),
+        type,
+        title: String(parsed.title || topic).trim(),
+        text: String(parsed.text || '').trim(),
+        lang: target,
+        answers,
+        tags: ['short', 'themed', targetSuffix, safeFilePart(topic)],
+        metadata: {
+            topic,
+            generated_for_topic: true,
+            generation_model: LOCALIZATION_MODEL,
+        },
+        source: 'runtime_themed',
+    };
+}
+
+async function getThemedItem(type, topic, targetLang) {
+    if (!['riddle', 'tongue_twister'].includes(type) || !topic) return null;
+    const target = normalizeContentLang(targetLang);
+    const id = themedContentId(type, topic, target);
+    const existing = await findContentItemById(id);
+    if (existing) return existing;
+
+    try {
+        logger.info(`[Content] Generating themed ${type}: ${topic} -> ${target}`);
+        const generated = await generateThemedItem(type, topic, target);
+        if (!generated) return null;
+        await upsertContentItem(generated);
+        logger.info(`[Content] Themed content ready: ${generated.id}`);
+        return generated;
+    } catch (err) {
+        logger.warn(`[Content] Themed content failed for ${type}/${topic}: ${err.message}`);
+        return null;
+    }
+}
+
 async function ensureAudio(item, baseUrl) {
     if (!audioDir) throw new Error('content audioDir is not initialized');
 
@@ -781,7 +902,8 @@ async function tryHandleShortRequest(text, options = {}) {
     if (!baseUrl) throw new Error('tryHandleShortRequest requires baseUrl');
 
     const contentLang = normalizeContentLang(options.lang, text);
-    const item = await pickItem(type, contentLang);
+    const topic = extractContentTopic(text);
+    const item = await getThemedItem(type, topic, contentLang) || await pickItem(type, contentLang);
     if (!item) return null;
     let localizedItem = await localizeItemForLang(item, contentLang);
     if (contentLang !== 'ru-RU' && normalizeContentLang(localizedItem.lang || 'ru-RU') !== contentLang) {
@@ -1085,6 +1207,7 @@ async function stats() {
 module.exports = {
     init,
     classifyRequest: matchRequest,
+    extractContentTopic,
     getClarification,
     ensureCachedReply,
     tryHandleShortRequest,

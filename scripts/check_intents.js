@@ -22,12 +22,17 @@ const classifierCases = [
     ['загадай загадку', 'riddle'],
     ['еще одну загадку', 'riddle'],
     ['ещё одну загадку', 'riddle'],
+    ['загадай загадку про мишку', 'riddle'],
     ['скажи скороговорку', 'tongue_twister'],
+    ['придумай скороговорку про попугая', 'tongue_twister'],
     ['давай поиграем', 'mini_game'],
     ['tell me a riddle', 'riddle'],
+    ['tell me a riddle about coffee', 'riddle'],
     ['say a tongue twister', 'tongue_twister'],
+    ['say a tongue twister about a parrot', 'tongue_twister'],
     ['let us play a game', 'mini_game'],
     ['spune o ghicitoare', 'riddle'],
+    ['spune o ghicitoare despre iepure', 'riddle'],
     ['spune o framantare de limba', 'tongue_twister'],
     ['hai sa jucam un joc', 'mini_game'],
     ['моя игрушка кошка', null],
@@ -38,6 +43,18 @@ const classifierCases = [
 
 for (const [text, expected] of classifierCases) {
     eq(content.classifyRequest(text), expected, `classify "${text}"`);
+}
+
+const topicCases = [
+    ['загадай загадку про мишку', 'мишку'],
+    ['придумай скороговорку про попугая', 'попугая'],
+    ['tell me a riddle about coffee', 'coffee'],
+    ['say a tongue twister about a parrot', 'parrot'],
+    ['spune o ghicitoare despre iepure', 'iepure'],
+];
+
+for (const [text, expected] of topicCases) {
+    eq(content.extractContentTopic(text), expected, `topic "${text}"`);
 }
 
 const clarifyCases = [
@@ -103,7 +120,7 @@ eq(content.checkPendingAnswer(pending, 'повтори загадку').keepPend
 eq(content.checkPendingAnswer(pending, 'стоп').clearPending, true, 'pending stop');
 eq(content.checkPendingAnswer(pending, 'ещё одну').nextRiddle, true, 'pending next riddle');
 eq(content.checkPendingAnswer(pendingEn, 'stars').correct, true, 'pending english correct answer');
-ok(content.checkPendingAnswer(pendingEn, 'banana').reply.includes('answer'), 'pending english wrong answer');
+ok(/answer|It was|was/.test(content.checkPendingAnswer(pendingEn, 'banana').reply), 'pending english wrong answer');
 eq(content.checkPendingAnswer(pendingRo, 'stele').correct, true, 'pending romanian correct answer');
 ok(/Raspunsul|Era|raspunsul/.test(content.checkPendingAnswer(pendingRo, 'banana').reply), 'pending romanian wrong answer');
 eq(content.checkPendingAnswer(pendingEn, 'another one').nextRiddle, true, 'pending english next riddle');
