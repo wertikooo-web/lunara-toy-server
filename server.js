@@ -76,7 +76,10 @@ app.post('/chat', async (req, res) => {
         const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
         if (pendingAnswer?.nextRiddle) {
             sessionRef.pendingContent = null;
-            const shortContent = await content.tryHandleShortRequest('загадай загадку', { baseUrl, lang });
+            const shortContent = await content.tryHandleShortRequest('загадай загадку', {
+                baseUrl,
+                lang: pendingAnswer.lang || lang,
+            });
             if (shortContent) {
                 sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
                 return res.json({
@@ -96,7 +99,7 @@ app.post('/chat', async (req, res) => {
             }
             const audio = await content.ensureCachedReply(pendingAnswer.reply, {
                 baseUrl,
-                lang,
+                lang: pendingAnswer.lang || lang,
                 key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
             });
             return res.json({
@@ -114,7 +117,7 @@ app.post('/chat', async (req, res) => {
         if (clarification) {
             const audio = await content.ensureCachedReply(clarification.reply, {
                 baseUrl,
-                lang,
+                lang: clarification.lang || lang,
                 key: 'clarification',
             });
             return res.json({
@@ -427,7 +430,10 @@ async function handlePipeline(
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
         if (pendingAnswer?.nextRiddle) {
             state.pendingContent = null;
-            const shortContent = await content.tryHandleShortRequest('загадай загадку', { baseUrl, lang: 'ru-RU' });
+            const shortContent = await content.tryHandleShortRequest('загадай загадку', {
+                baseUrl,
+                lang: pendingAnswer.lang || 'auto',
+            });
             if (shortContent) {
                 if (!isCurrent()) {
                     logger.info('[Pipeline] superseded after next riddle — discarding (child interrupted)');
@@ -446,7 +452,7 @@ async function handlePipeline(
             logger.info(`[Pipeline] content answer correct=${pendingAnswer.correct}`);
             const audio = await content.ensureCachedReply(pendingAnswer.reply, {
                 baseUrl,
-                lang: 'ru-RU',
+                lang: pendingAnswer.lang || 'auto',
                 key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
             });
 
@@ -464,7 +470,7 @@ async function handlePipeline(
             logger.info('[Pipeline] content clarification requested');
             const audio = await content.ensureCachedReply(clarification.reply, {
                 baseUrl,
-                lang: 'ru-RU',
+                lang: clarification.lang || 'auto',
                 key: 'clarification',
             });
 
@@ -477,7 +483,7 @@ async function handlePipeline(
             return;
         }
 
-        const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: 'ru-RU' });
+        const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: 'auto' });
         if (shortContent) {
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content cache — discarding (child interrupted)');

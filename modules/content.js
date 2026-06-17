@@ -144,23 +144,145 @@ const BUILTIN_SHORT_ITEMS = [
     },
 ];
 
+const MULTILINGUAL_SHORT_ITEMS = [
+    {
+        id: 'riddle_ro_seed_001',
+        type: 'riddle',
+        title: 'Lumina diminetii',
+        text: 'Ghicitoare. Sunt cald si luminos. Dimineata trezesc lumea, iar seara ma ascund dupa deal. Cine sunt?',
+        answers: ['soare', 'soarele'],
+        tags: ['short', 'nature', 'age_3_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'riddle_ro_seed_002',
+        type: 'riddle',
+        title: 'Paznicul noptii',
+        text: 'Ghicitoare. Apar pe cer cand se face intuneric. Nu incalzesc, dar stralucesc bland. Cine sunt?',
+        answers: ['stele', 'stelele'],
+        tags: ['short', 'sky', 'age_3_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'riddle_ro_seed_003',
+        type: 'riddle',
+        title: 'Perechea de plimbare',
+        text: 'Ghicitoare. Suntem mereu doi si stam langa usa. Ajutam picioarele sa mearga la plimbare. Ce suntem?',
+        answers: ['pantofi', 'incaltari', 'încălțări', 'ghete'],
+        tags: ['short', 'object', 'age_3_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'tongue_twister_ro_seed_001',
+        type: 'tongue_twister',
+        title: 'Capra si piatra',
+        text: 'Framantare de limba. Capra calca piatra, piatra crapa-n patru. Spune rar, apoi mai repede.',
+        tags: ['short', 'speech', 'age_4_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'tongue_twister_ro_seed_002',
+        type: 'tongue_twister',
+        title: 'Sase sasi',
+        text: 'Framantare de limba. Sase sasi in sase saci. Hai incet, cu zambet.',
+        tags: ['short', 'speech', 'age_5_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'mini_game_ro_seed_001',
+        type: 'mini_game',
+        title: 'Numeste trei',
+        text: 'Joc. Numeste trei lucruri rotunde. Eu astept, apoi le verificam impreuna.',
+        tags: ['short', 'thinking', 'age_3_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'mini_game_ro_seed_002',
+        type: 'mini_game',
+        title: 'Animalul dupa sunet',
+        text: 'Joc. Eu spun un sunet, iar tu ghicesti animalul. Miau-miau. Cine este?',
+        tags: ['short', 'animal', 'age_3_8'],
+        lang: 'ro-RO',
+    },
+    {
+        id: 'riddle_en_seed_001',
+        type: 'riddle',
+        title: 'Morning light',
+        text: 'Riddle. I am warm and bright. In the morning I wake the world, and in the evening I hide away. What am I?',
+        answers: ['sun', 'the sun'],
+        tags: ['short', 'nature', 'age_3_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'riddle_en_seed_002',
+        type: 'riddle',
+        title: 'Night lights',
+        text: 'Riddle. I come out when the sky gets dark. I do not warm you, but I sparkle softly. What am I?',
+        answers: ['star', 'stars', 'a star'],
+        tags: ['short', 'sky', 'age_3_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'riddle_en_seed_003',
+        type: 'riddle',
+        title: 'Walking pair',
+        text: 'Riddle. We are always two. We wait by the door and help your feet go outside. What are we?',
+        answers: ['shoes', 'boots'],
+        tags: ['short', 'object', 'age_3_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'tongue_twister_en_seed_001',
+        type: 'tongue_twister',
+        title: 'Tiny turtle',
+        text: 'Tongue twister. Tiny turtle tiptoes to the tall tree. Say it slowly, then a little faster.',
+        tags: ['short', 'speech', 'age_4_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'tongue_twister_en_seed_002',
+        type: 'tongue_twister',
+        title: 'Blue balloon',
+        text: 'Tongue twister. Blue balloon bounces by the big bed. Try it with a smile.',
+        tags: ['short', 'speech', 'age_4_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'mini_game_en_seed_001',
+        type: 'mini_game',
+        title: 'Name three',
+        text: 'Game. Name three round things. I will wait, then we will check them together.',
+        tags: ['short', 'thinking', 'age_3_8'],
+        lang: 'en-US',
+    },
+    {
+        id: 'mini_game_en_seed_002',
+        type: 'mini_game',
+        title: 'Animal sound',
+        text: 'Game. I will make a sound, and you guess the animal. Meow-meow. Who is it?',
+        tags: ['short', 'animal', 'age_3_8'],
+        lang: 'en-US',
+    },
+];
+
 const SEED_ITEMS = [
     ...BUILTIN_SHORT_ITEMS,
+    ...MULTILINGUAL_SHORT_ITEMS,
     ...(Array.isArray(docSeed.items) ? docSeed.items : []),
 ];
 
 const REQUEST_PATTERNS = [
     {
         type: 'riddle',
-        re: /(?:(?:загадай|дай|хочу|давай|можно|придумай|расскажи).{0,30}загадк|(?:ещ[её]|другую|следующую|новую).{0,20}загадк|игр[ауеы]?\s+в\s+загадк)/i,
+        re: /(?:(?:загадай|дай|хочу|давай|можно|придумай|расскажи).{0,30}загадк|(?:ещ[её]|другую|следующую|новую).{0,20}загадк|игр[ауеы]?\s+в\s+загадк|(?:tell|give|ask|say|want|another|new).{0,30}riddle|play.{0,20}riddles?|(?:spune|zi|vreau|hai|da|dă|ghiceste|ghicește).{0,35}ghicitoare|(?:alta|altă|noua|nouă).{0,20}ghicitoare|joc.{0,20}ghicitori)/i,
     },
     {
         type: 'tongue_twister',
-        re: /(?:скажи|дай|хочу|давай|можно|придумай|повтори).{0,30}скороговорк/i,
+        re: /(?:скажи|дай|хочу|давай|можно|придумай|повтори).{0,30}скороговорк|(?:say|tell|give|want|try).{0,30}tongue\s+twister|(?:spune|zi|vreau|hai).{0,35}(?:framantare|frământare|limba|limbă|dictie|dicție)/i,
     },
     {
         type: 'mini_game',
-        re: /(?:давай\s+поиграем|^поиграем$|^сыграем$|(?:хочу|можно|давай|будем).{0,30}(?:поиграть|играть|игру(?:[^а-яa-z0-9]|$)|мини-?игру))/i,
+        re: /(?:давай\s+поиграем|^поиграем$|^сыграем$|(?:хочу|можно|давай|будем).{0,30}(?:поиграть|играть|игру(?:[^\p{L}0-9]|$)|мини-?игру)|(?:let'?s|lets|can we|want to|play).{0,30}(?:play|game)|^(?:play|game)$|(?:hai|vreau|putem|sa|să).{0,30}(?:jucam|jucăm|joc|joaca|joacă))/iu,
     },
 ];
 
@@ -169,6 +291,35 @@ function normalizeRequest(value) {
         .toLocaleLowerCase('ru-RU')
         .replace(/ё/g, 'е')
         .trim();
+}
+
+function detectRequestLang(text) {
+    const value = normalizeRequest(text);
+    if (!value) return 'ru-RU';
+    const letters = (value.match(/\p{L}/gu) || []).length;
+    const cyrillic = (value.match(/[\u0400-\u04FF]/g) || []).length;
+    if (letters > 0 && cyrillic / letters > 0.3) return 'ru-RU';
+    if (/[ăâîșțĂÂÎȘȚ]/.test(text) || /\b(ghicitoare|ghicitori|spune|joc|jucam|jucăm|limba|limbă|framantare|frământare)\b/i.test(value)) {
+        return 'ro-RO';
+    }
+    if (/[a-z]/i.test(value)) return 'en-US';
+    return 'ru-RU';
+}
+
+function normalizeContentLang(lang, text = '') {
+    if (lang && lang !== 'auto') {
+        if (lang.startsWith('ru')) return 'ru-RU';
+        if (lang.startsWith('ro')) return 'ro-RO';
+        if (lang.startsWith('en')) return 'en-US';
+    }
+    return detectRequestLang(text);
+}
+
+function langKey(lang) {
+    const normalized = normalizeContentLang(lang);
+    if (normalized.startsWith('ro')) return 'ro';
+    if (normalized.startsWith('en')) return 'en';
+    return 'ru';
 }
 
 function safeFilePart(value) {
@@ -204,20 +355,36 @@ function getClarification(text) {
     const value = normalizeRequest(text);
     if (!value) return null;
 
-    const hasRiddle = /загадк/i.test(value);
-    const hasTongueTwister = /скороговорк/i.test(value);
-    const hasGame = /(поигра|сыгра|игр[ауеы]?)/i.test(value);
+    const hasRiddle = /загадк|riddle|ghicitoare|ghicitori/i.test(value);
+    const hasTongueTwister = /скороговорк|tongue\s+twister|framantare|frământare|dictie|dicție|limba|limbă/i.test(value);
+    const hasGame = /(поигра|сыгра|игр[ауеы]?|play|game|joc|jucam|jucăm|joaca|joacă)/i.test(value);
     const topics = [hasRiddle, hasTongueTwister, hasGame].filter(Boolean).length;
     if (topics < 2) return null;
 
-    return {
-        reply: pickPhrase([
+    const language = langKey(detectRequestLang(text));
+    const phrases = {
+        ru: [
             'Я чуть запуталась. Ты хочешь загадку, скороговорку или игру?',
             'Давай уточним. Мне загадать загадку, сказать скороговорку или начать игру?',
             'Кажется, тут сразу несколько идей. Что выбираем: загадку, скороговорку или игру?',
             'Повтори, пожалуйста, что именно хочешь: загадку, игру или скороговорку?',
             'Я не до конца поняла. Скажи коротко: загадка, игра или скороговорка?',
-        ], 'content_clarify'),
+        ],
+        ro: [
+            'M-am incurcat putin. Vrei o ghicitoare, o framantare de limba sau un joc?',
+            'Hai sa lamurim. Sa spun o ghicitoare, o framantare de limba sau sa incepem un joc?',
+            'Parca sunt mai multe idei aici. Alegem ghicitoare, joc sau framantare de limba?',
+        ],
+        en: [
+            'I got a little mixed up. Do you want a riddle, a tongue twister, or a game?',
+            'Let us choose clearly. Should I tell a riddle, say a tongue twister, or start a game?',
+            'I hear a few ideas at once. What do we pick: riddle, tongue twister, or game?',
+        ],
+    };
+
+    return {
+        lang: normalizeContentLang(detectRequestLang(text)),
+        reply: pickPhrase(phrases[language], `content_clarify_${language}`),
     };
 }
 
@@ -295,7 +462,7 @@ async function init(options = {}) {
                 item.type,
                 item.title,
                 item.text,
-                'ru-RU',
+                item.lang || 'ru-RU',
                 JSON.stringify(item.answers || []),
                 JSON.stringify(item.tags || []),
                 JSON.stringify(item.metadata || {}),
@@ -308,20 +475,23 @@ async function init(options = {}) {
     logger.info(`[Content] content ready; seeded ${SEED_ITEMS.length} item(s)`);
 }
 
-async function pickItem(type) {
+async function pickItem(type, lang = 'ru-RU') {
+    const preferredLang = normalizeContentLang(lang);
     if (ready && pool) {
         const result = await pool.query(
             `SELECT id, type, title, text, lang, answers, tags, metadata
              FROM content_items
-             WHERE type = $1 AND enabled = true
-             ORDER BY random()
+             WHERE type = $1 AND enabled = true AND lang IN ($2, 'ru-RU')
+             ORDER BY CASE WHEN lang = $2 THEN 0 ELSE 1 END, random()
              LIMIT 1`,
-            [type]
+            [type, preferredLang]
         );
         return result.rows[0] || null;
     }
 
-    const items = SEED_ITEMS.filter((item) => item.type === type);
+    const preferred = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === preferredLang);
+    const fallback = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === 'ru-RU');
+    const items = preferred.length ? preferred : fallback;
     return items[Math.floor(Math.random() * items.length)] || null;
 }
 
@@ -419,7 +589,7 @@ async function ensureCachedReply(reply, options = {}) {
         type: 'cached_reply',
         title: options.title || key,
         text,
-        lang: options.lang || 'ru-RU',
+        lang: normalizeContentLang(options.lang, text),
         tags: ['cached_reply', key],
         metadata: {
             cache_key: key,
@@ -442,7 +612,8 @@ async function tryHandleShortRequest(text, options = {}) {
     const baseUrl = options.baseUrl;
     if (!baseUrl) throw new Error('tryHandleShortRequest requires baseUrl');
 
-    const item = await pickItem(type);
+    const contentLang = normalizeContentLang(options.lang, text);
+    const item = await pickItem(type, contentLang);
     if (!item) return null;
 
     const audio = await ensureAudio(item, baseUrl);
@@ -452,6 +623,7 @@ async function tryHandleShortRequest(text, options = {}) {
         audioUrl: audio.url,
         durationMs: audio.durationMs,
         cached: audio.cached,
+        lang: item.lang || contentLang,
     };
 }
 
@@ -478,8 +650,10 @@ async function pickItems(type, limit = 5) {
 function normalizeAnswer(value) {
     return String(value || '')
         .toLocaleLowerCase('ru-RU')
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
         .replace(/[ё]/g, 'е')
-        .replace(/[^a-zа-я0-9\s-]+/gi, ' ')
+        .replace(/[^\p{L}0-9\s-]+/gu, ' ')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -518,39 +692,66 @@ function pendingFromItem(item) {
         id: item.id,
         title: item.title || '',
         text: item.text || '',
+        lang: item.lang || 'ru-RU',
         answers,
     };
 }
 
 function checkPendingCommand(pending, answer) {
     if (!pending || pending.type !== 'riddle') return null;
+    const language = langKey(pending.lang);
+    const stopPhrases = {
+        ru: [
+            'Хорошо, остановимся с загадками. Можем просто поговорить.',
+            'Ладно, загадки убираю в сторону. Что хочешь сделать теперь?',
+            'Договорились, без загадок. Я рядом и слушаю.',
+        ],
+        ro: [
+            'Bine, oprim ghicitorile. Putem doar sa povestim.',
+            'De acord, pun ghicitorile deoparte. Ce vrei sa facem acum?',
+            'Gata cu ghicitorile pentru moment. Sunt aici si te ascult.',
+        ],
+        en: [
+            'Okay, we will stop the riddles. We can just talk.',
+            'Sure, I will put the riddles aside. What would you like now?',
+            'No more riddles for now. I am here and listening.',
+        ],
+    };
 
-    if (/(стоп|хватит|не хочу|не надо|закончим|отмена)/i.test(answer)) {
+    if (/(стоп|хватит|не хочу|не надо|закончим|отмена|stop|enough|no more|cancel|nu vreau|gata|opreste|oprește)/i.test(answer)) {
         return {
             correct: null,
             clearPending: true,
-            reply: pickPhrase([
-                'Хорошо, остановимся с загадками. Можем просто поговорить.',
-                'Ладно, загадки убираю в сторону. Что хочешь сделать теперь?',
-                'Договорились, без загадок. Я рядом и слушаю.',
-            ], 'riddle_stop'),
+            lang: pending.lang,
+            reply: pickPhrase(stopPhrases[language], `riddle_stop_${language}`),
         };
     }
 
-    if (/(повтори|еще раз|ещё раз|сначала)/i.test(answer)) {
+    if (/(повтори|еще раз|ещё раз|сначала|repeat|again|say it again|repeta|repetă|inca o data|încă o dată)/i.test(answer)) {
+        const repeatPrefix = {
+            ru: 'Повторяю.',
+            ro: 'Repet.',
+            en: 'I will repeat it.',
+        };
         return {
             correct: null,
             keepPending: true,
+            lang: pending.lang,
             reply: pending.text
-                ? `Повторяю. ${pending.text}`
-                : 'Повторю загадку. Слушай внимательно.',
+                ? `${repeatPrefix[language]} ${pending.text}`
+                : {
+                    ru: 'Повторю загадку. Слушай внимательно.',
+                    ro: 'Repet ghicitoarea. Asculta cu atentie.',
+                    en: 'I will repeat the riddle. Listen carefully.',
+                }[language],
         };
     }
 
-    if (/(ещ[её]|другую|следующую|новую|давай еще|давай ещё)/i.test(answer) && !/(ответ|подскажи)/i.test(answer)) {
+    if (/(ещ[её]|другую|следующую|новую|давай еще|давай ещё|another|new one|next|alta|altă|urmatoarea|următoarea|noua|nouă)/i.test(answer) && !/(ответ|подскажи|answer|hint|raspuns|răspuns|indiciu)/i.test(answer)) {
         return {
             correct: null,
             nextRiddle: true,
+            lang: pending.lang,
         };
     }
 
@@ -574,44 +775,89 @@ function checkPendingAnswer(pending, userText) {
         value.includes(answer)
     ));
     const correctAnswer = answers[0] || 'не знаю';
-
-    if (/(не знаю|сдаюсь|подскажи|скажи ответ)/i.test(answer)) {
-        return {
-            correct: false,
-            reply: pickPhrase([
+    const language = langKey(pending.lang);
+    const phraseSets = {
+        ru: {
+            hint: [
                 `Хорошо, подсказываю. Это ${correctAnswer}. Хочешь ещё одну загадку?`,
                 `Ладно, открываю маленький секрет. Это ${correctAnswer}. Берём следующую?`,
                 `Сдаёмся красиво. Ответ: ${correctAnswer}. Теперь можно взять реванш!`,
                 `Подсказка превратилась в ответ: это ${correctAnswer}. Попробуем ещё раз?`,
-            ], 'riddle_hint'),
+            ],
+            correct: [
+                'Да, правильно! Ты здорово отгадал. Хочешь ещё одну загадку?',
+                'Точно! Вот это внимательные ушки. Давай следующую?',
+                'Ура, угадал! Я даже чуть подпрыгнул от радости. Ещё одну?',
+                'Верно! Загадка раскрыта. Берём новую?',
+                'Да, это правильный ответ. Ты сегодня настоящий сыщик загадок!',
+            ],
+            wrong: [
+                `Не угадали, но попытка была смелая. Ответ: ${correctAnswer}. Давай ещё одну?`,
+                `Ой, это был хитрый поворот. Правильный ответ: ${correctAnswer}. Попробуем новую?`,
+                `Хорошая версия, но загадка спрятала другое. Это ${correctAnswer}. Идём дальше?`,
+                `Мимо, но красиво мимо. Ответ: ${correctAnswer}. Хочешь ещё загадку?`,
+                `Почти поймали, но она ускользнула. Это ${correctAnswer}. Давай реванш?`,
+                `Хи-хи, загадка сегодня хитрит. Правильный ответ: ${correctAnswer}. Ещё одну?`,
+                `Нет, но мне нравится твоя идея. Ответ был ${correctAnswer}. Попробуем снова?`,
+                `Не совсем. Загадочный сундук открылся: там ${correctAnswer}. Давай следующую?`,
+            ],
+        },
+        ro: {
+            hint: [
+                `Bine, iti spun un indiciu mare. Raspunsul este ${correctAnswer}. Mai vrei o ghicitoare?`,
+                `Deschidem secretul micut. Este ${correctAnswer}. Incercam inca una?`,
+                `Raspunsul era ${correctAnswer}. Putem lua revansa!`,
+            ],
+            correct: [
+                'Da, corect! Ai ghicit foarte bine. Mai vrei o ghicitoare?',
+                'Exact! Ce urechi atente. Trecem la urmatoarea?',
+                'Bravo, ai gasit raspunsul! Mai incercam una?',
+            ],
+            wrong: [
+                `Nu chiar, dar a fost o idee curajoasa. Raspunsul este ${correctAnswer}. Mai incercam una?`,
+                `Aproape, dar ghicitoarea ascundea altceva. Era ${correctAnswer}. Vrei alta?`,
+                `Nu este acesta raspunsul. Raspunsul era ${correctAnswer}. Luam revansa?`,
+            ],
+        },
+        en: {
+            hint: [
+                `Okay, here is the answer. It is ${correctAnswer}. Would you like another riddle?`,
+                `Tiny secret unlocked. The answer is ${correctAnswer}. Shall we try one more?`,
+                `The answer was ${correctAnswer}. We can take a rematch!`,
+            ],
+            correct: [
+                'Yes, correct! You solved it beautifully. Would you like another riddle?',
+                'Exactly! Those are very careful ears. Shall we try the next one?',
+                'Bravo, you found the answer! One more?',
+            ],
+            wrong: [
+                `Not quite, but that was a brave try. The answer is ${correctAnswer}. Want another one?`,
+                `Almost, but the riddle hid something else. It was ${correctAnswer}. Shall we try a new one?`,
+                `No, but I like your idea. The answer was ${correctAnswer}. Want a rematch?`,
+            ],
+        },
+    };
+
+    if (/(не знаю|сдаюсь|подскажи|скажи ответ|i dont know|i do not know|hint|tell me|answer|nu stiu|nu știu|indiciu|raspuns|răspuns)/i.test(answer)) {
+        return {
+            correct: false,
+            lang: pending.lang,
+            reply: pickPhrase(phraseSets[language].hint, `riddle_hint_${language}`),
         };
     }
 
     if (correct) {
         return {
             correct: true,
-            reply: pickPhrase([
-                'Да, правильно! Ты здорово отгадал. Хочешь ещё одну загадку?',
-                'Точно! Вот это внимательные ушки. Давай следующую?',
-                'Ура, угадал! Я даже чуть подпрыгнул от радости. Ещё одну?',
-                'Верно! Загадка раскрыта. Берём новую?',
-                'Да, это правильный ответ. Ты сегодня настоящий сыщик загадок!',
-            ], 'riddle_correct'),
+            lang: pending.lang,
+            reply: pickPhrase(phraseSets[language].correct, `riddle_correct_${language}`),
         };
     }
 
     return {
         correct: false,
-        reply: pickPhrase([
-            `Не угадали, но попытка была смелая. Ответ: ${correctAnswer}. Давай ещё одну?`,
-            `Ой, это был хитрый поворот. Правильный ответ: ${correctAnswer}. Попробуем новую?`,
-            `Хорошая версия, но загадка спрятала другое. Это ${correctAnswer}. Идём дальше?`,
-            `Мимо, но красиво мимо. Ответ: ${correctAnswer}. Хочешь ещё загадку?`,
-            `Почти поймали, но она ускользнула. Это ${correctAnswer}. Давай реванш?`,
-            `Хи-хи, загадка сегодня хитрит. Правильный ответ: ${correctAnswer}. Ещё одну?`,
-            `Нет, но мне нравится твоя идея. Ответ был ${correctAnswer}. Попробуем снова?`,
-            `Не совсем. Загадочный сундук открылся: там ${correctAnswer}. Давай следующую?`,
-        ], 'riddle_wrong'),
+        lang: pending.lang,
+        reply: pickPhrase(phraseSets[language].wrong, `riddle_wrong_${language}`),
     };
 }
 

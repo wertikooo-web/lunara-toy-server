@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lumi">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="22%" r="78%">
+      <stop offset="0%" stop-color="#3b1678"/>
+      <stop offset="48%" stop-color="#160934"/>
+      <stop offset="100%" stop-color="#080414"/>
+    </radialGradient>
+    <linearGradient id="moon" x1="130" y1="94" x2="360" y2="376" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff7ad"/>
+      <stop offset="45%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="letter" x1="180" y1="166" x2="344" y2="352" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff7ad"/>
+      <stop offset="56%" stop-color="#f0abfc"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.66 0 0 0 0 0.33 0 0 0 0 0.97 0 0 0 0.8 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g opacity=".75">
+    <circle cx="104" cy="126" r="4" fill="#fff7ad"/>
+    <circle cx="398" cy="120" r="3" fill="#f0abfc"/>
+    <circle cx="426" cy="302" r="4" fill="#c4b5fd"/>
+    <circle cx="88" cy="358" r="3" fill="#ffffff"/>
+    <circle cx="164" cy="78" r="2" fill="#ffffff"/>
+    <circle cx="356" cy="424" r="2" fill="#fff7ad"/>
+  </g>
+  <circle cx="256" cy="256" r="144" fill="#220b49" stroke="#7c3aed" stroke-width="10" opacity=".92"/>
+  <path d="M308 107c-76 23-131 94-131 178 0 46 17 89 45 121-70-17-122-80-122-155 0-88 71-159 159-159 17 0 33 3 49 8z" fill="url(#moon)" filter="url(#glow)"/>
+  <circle cx="295" cy="214" r="50" fill="#2c0d5d" opacity=".8"/>
+  <circle cx="300" cy="212" r="35" fill="#fbbf24" opacity=".18"/>
+  <path d="M216 162h54v158h86v48H216V162z" fill="url(#letter)" filter="url(#glow)"/>
+  <circle cx="334" cy="330" r="18" fill="#fff7ad"/>
+  <circle cx="334" cy="330" r="34" fill="none" stroke="#c084fc" stroke-width="6" opacity=".48"/>
+</svg>
