@@ -173,8 +173,23 @@ function publicUrl(baseUrl, fileName) {
 }
 
 function matchRequest(text) {
-    const value = String(text || '').trim();
+    const value = String(text || '')
+        .toLocaleLowerCase('ru-RU')
+        .replace(/ё/g, 'е')
+        .trim();
     if (!value) return null;
+
+    if (value.includes('загад')) return 'riddle';
+    if (value.includes('скороговор')) return 'tongue_twister';
+    if (
+        value.includes('поигра') ||
+        value.includes('поиграем') ||
+        value.includes('игру') ||
+        value.includes('играть')
+    ) {
+        return 'mini_game';
+    }
+
     const match = REQUEST_PATTERNS.find((pattern) => pattern.re.test(value));
     return match ? match.type : null;
 }
