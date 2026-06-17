@@ -9,6 +9,7 @@
 
 const logger = require('./logger');
 const llmRouter = require('./llmRouter');
+const { sanitizeVoiceReply } = require('./voiceSanitizer');
 
 const MAX_TOKENS = 180;
 const MAX_STORY_TOKENS = 230;
@@ -269,7 +270,11 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         },
     });
 
-    const reply = result.reply || '';
+    const rawReply = result.reply || '';
+    const reply = sanitizeVoiceReply(rawReply);
+    if (reply !== rawReply) {
+        logger.info('[LLM] sanitized non-spoken markup/actions from reply');
+    }
     messages.push({ role: 'assistant', content: reply });
 
     if (result.finish_reason === 'length') {
