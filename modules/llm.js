@@ -13,6 +13,7 @@ const { sanitizeVoiceReply } = require('./voiceSanitizer');
 
 const MAX_TOKENS = 180;
 const MAX_STORY_TOKENS = 230;
+const DEFAULT_MODEL = 'auto';
 
 // Часовой пояс рынка. Можно переопределить через переменную окружения TZ_MARKET.
 const TIMEZONE = process.env.TZ_MARKET || 'Europe/Chisinau';
@@ -259,7 +260,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     ];
 
     const result = await llmRouter.callModel({
-        modelName: options.model || 'gpt',
+        modelName: options.model || DEFAULT_MODEL,
         messages: llmMessages,
         maxTokens,
         routeInput: {

@@ -58,7 +58,7 @@ app.use(express.json());
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';
-    const requestedModel = req.body?.model || 'gpt';
+    const requestedModel = req.body?.model || 'auto';
     if (!text) {
         return res.status(400).json({ error: 'text is required' });
     }
@@ -536,10 +536,15 @@ async function handlePipeline(
                 memoryContext,
                 contentContext: story.contentContext,
                 maxTokens: story.maxTokens,
+                model: 'auto',
+                routingText: transcript,
+                isStory: true,
             })
             : await llm.chat(ws, transcript, 'auto', {
                 memoryContext,
                 contentContext: followupContext,
+                model: 'auto',
+                routingText: transcript,
             });
         logger.info(`[Pipeline] reply: "${reply}"`);
 
