@@ -103,8 +103,9 @@ async function callDeepSeek(messages, maxTokens) {
     }
     const response = await getDeepSeekClient().chat.completions.create({
         model: DEEPSEEK_MODEL,
-        max_tokens: maxTokens,
+        max_tokens: Math.max(maxTokens, 260),
         messages,
+        thinking: { type: 'disabled' },
     });
     return {
         reply: response.choices[0]?.message?.content?.trim() || '',
