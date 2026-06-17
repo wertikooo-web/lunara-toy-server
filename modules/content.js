@@ -152,7 +152,7 @@ const SEED_ITEMS = [
 const REQUEST_PATTERNS = [
     {
         type: 'riddle',
-        re: /(?:загадай|дай|хочу|давай|можно|придумай|расскажи).{0,30}загадк/i,
+        re: /(?:(?:загадай|дай|хочу|давай|можно|придумай|расскажи).{0,30}загадк|(?:ещ[её]|другую|следующую|новую).{0,20}загадк|игр[ауеы]?\s+в\s+загадк)/i,
     },
     {
         type: 'tongue_twister',
@@ -163,6 +163,13 @@ const REQUEST_PATTERNS = [
         re: /(?:давай\s+поиграем|^поиграем$|^сыграем$|(?:хочу|можно|давай|будем).{0,30}(?:поиграть|играть|игру(?:[^а-яa-z0-9]|$)|мини-?игру))/i,
     },
 ];
+
+function normalizeRequest(value) {
+    return String(value || '')
+        .toLocaleLowerCase('ru-RU')
+        .replace(/ё/g, 'е')
+        .trim();
+}
 
 function safeFilePart(value) {
     return String(value || '')
@@ -186,14 +193,32 @@ function publicUrl(baseUrl, fileName) {
 }
 
 function matchRequest(text) {
-    const value = String(text || '')
-        .toLocaleLowerCase('ru-RU')
-        .replace(/ё/g, 'е')
-        .trim();
+    const value = normalizeRequest(text);
     if (!value) return null;
 
     const match = REQUEST_PATTERNS.find((pattern) => pattern.re.test(value));
     return match ? match.type : null;
+}
+
+function getClarification(text) {
+    const value = normalizeRequest(text);
+    if (!value) return null;
+
+    const hasRiddle = /загадк/i.test(value);
+    const hasTongueTwister = /скороговорк/i.test(value);
+    const hasGame = /(поигра|сыгра|игр[ауеы]?)/i.test(value);
+    const topics = [hasRiddle, hasTongueTwister, hasGame].filter(Boolean).length;
+    if (topics < 2) return null;
+
+    return {
+        reply: pickPhrase([
+            'Я чуть запуталась. Ты хочешь загадку, скороговорку или игру?',
+            'Давай уточним. Мне загадать загадку, сказать скороговорку или начать игру?',
+            'Кажется, тут сразу несколько идей. Что выбираем: загадку, скороговорку или игру?',
+            'Повтори, пожалуйста, что именно хочешь: загадку, игру или скороговорку?',
+            'Я не до конца поняла. Скажи коротко: загадка, игра или скороговорка?',
+        ], 'content_clarify'),
+    };
 }
 
 async function init(options = {}) {
@@ -437,8 +462,44 @@ function pendingFromItem(item) {
         type: item.type,
         id: item.id,
         title: item.title || '',
+        text: item.text || '',
         answers,
     };
+}
+
+function checkPendingCommand(pending, answer) {
+    if (!pending || pending.type !== 'riddle') return null;
+
+    if (/(стоп|хватит|не хочу|не надо|закончим|отмена)/i.test(answer)) {
+        return {
+            correct: null,
+            clearPending: true,
+            reply: pickPhrase([
+                'Хорошо, остановимся с загадками. Можем просто поговорить.',
+                'Ладно, загадки убираю в сторону. Что хочешь сделать теперь?',
+                'Договорились, без загадок. Я рядом и слушаю.',
+            ], 'riddle_stop'),
+        };
+    }
+
+    if (/(повтори|еще раз|ещё раз|сначала)/i.test(answer)) {
+        return {
+            correct: null,
+            keepPending: true,
+            reply: pending.text
+                ? `Повторяю. ${pending.text}`
+                : 'Повторю загадку. Слушай внимательно.',
+        };
+    }
+
+    if (/(ещ[её]|другую|следующую|новую|давай еще|давай ещё)/i.test(answer) && !/(ответ|подскажи)/i.test(answer)) {
+        return {
+            correct: null,
+            nextRiddle: true,
+        };
+    }
+
+    return null;
 }
 
 function checkPendingAnswer(pending, userText) {
@@ -446,6 +507,9 @@ function checkPendingAnswer(pending, userText) {
 
     const answer = normalizeAnswer(userText);
     if (!answer) return null;
+
+    const command = checkPendingCommand(pending, answer);
+    if (command) return command;
 
     const answers = answerList(pending);
     const normalizedAnswers = answers.map(normalizeAnswer).filter(Boolean);
@@ -532,6 +596,7 @@ async function stats() {
 module.exports = {
     init,
     classifyRequest: matchRequest,
+    getClarification,
     tryHandleShortRequest,
     pickItems,
     pendingFromItem,

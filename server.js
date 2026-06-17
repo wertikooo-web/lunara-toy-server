@@ -74,8 +74,26 @@ app.post('/chat', async (req, res) => {
 
     try {
         const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
-        if (pendingAnswer) {
+        if (pendingAnswer?.nextRiddle) {
             sessionRef.pendingContent = null;
+            const shortContent = await content.tryHandleShortRequest('загадай загадку', { baseUrl, lang });
+            if (shortContent) {
+                sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
+                return res.json({
+                    reply: shortContent.reply,
+                    audio_url: shortContent.audioUrl,
+                    duration_ms: shortContent.durationMs,
+                    device_id: deviceId,
+                    content_id: shortContent.item.id,
+                    content_type: shortContent.item.type,
+                    cached_audio: shortContent.cached,
+                });
+            }
+        }
+        if (pendingAnswer) {
+            if (!pendingAnswer.keepPending) {
+                sessionRef.pendingContent = null;
+            }
             const audio = await synthesizeReply(pendingAnswer.reply, ts, lang, baseUrl);
             return res.json({
                 reply: pendingAnswer.reply,
@@ -84,6 +102,18 @@ app.post('/chat', async (req, res) => {
                 device_id: deviceId,
                 content_answer: true,
                 correct: pendingAnswer.correct,
+            });
+        }
+
+        const clarification = content.getClarification(text);
+        if (clarification) {
+            const audio = await synthesizeReply(clarification.reply, ts, lang, baseUrl);
+            return res.json({
+                reply: clarification.reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                needs_clarification: true,
             });
         }
 
@@ -384,13 +414,43 @@ async function handlePipeline(
         sendStatus('responding');
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
-        if (pendingAnswer) {
+        if (pendingAnswer?.nextRiddle) {
             state.pendingContent = null;
+            const shortContent = await content.tryHandleShortRequest('загадай загадку', { baseUrl, lang: 'ru-RU' });
+            if (shortContent) {
+                if (!isCurrent()) {
+                    logger.info('[Pipeline] superseded after next riddle — discarding (child interrupted)');
+                    return;
+                }
+                state.pendingContent = content.pendingFromItem(shortContent.item);
+                sendAudio(shortContent.audioUrl, shortContent.durationMs);
+                logger.info(`[Pipeline] sent next riddle content: ${shortContent.item.id} cached=${shortContent.cached}`);
+                return;
+            }
+        }
+        if (pendingAnswer) {
+            if (!pendingAnswer.keepPending) {
+                state.pendingContent = null;
+            }
             logger.info(`[Pipeline] content answer correct=${pendingAnswer.correct}`);
             const audio = await synthesizeReply(pendingAnswer.reply, ts, 'ru-RU', baseUrl);
 
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content answer — discarding (child interrupted)');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            return;
+        }
+
+        const clarification = content.getClarification(transcript);
+        if (clarification) {
+            logger.info('[Pipeline] content clarification requested');
+            const audio = await synthesizeReply(clarification.reply, ts, 'ru-RU', baseUrl);
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after content clarification — discarding (child interrupted)');
                 return;
             }
 
