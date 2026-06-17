@@ -966,6 +966,22 @@ function answerList(item) {
     return [];
 }
 
+function hasWholeAnswer(answer, expected) {
+    if (!answer || !expected) return false;
+    if (answer === expected) return true;
+
+    const answerTokens = answer.split(/\s+/).filter(Boolean);
+    const expectedTokens = expected.split(/\s+/).filter(Boolean);
+    if (expectedTokens.length === 0) return false;
+
+    for (let i = 0; i <= answerTokens.length - expectedTokens.length; i++) {
+        const slice = answerTokens.slice(i, i + expectedTokens.length).join(' ');
+        if (slice === expected) return true;
+    }
+
+    return false;
+}
+
 function pickPhrase(phrases, key = 'default') {
     if (!Array.isArray(phrases) || phrases.length === 0) return '';
     if (phrases.length === 1) return phrases[0];
@@ -1063,11 +1079,7 @@ function checkPendingAnswer(pending, userText) {
 
     const answers = answerList(pending);
     const normalizedAnswers = answers.map(normalizeAnswer).filter(Boolean);
-    const correct = normalizedAnswers.some((value) => (
-        answer === value ||
-        answer.includes(value) ||
-        value.includes(answer)
-    ));
+    const correct = normalizedAnswers.some((value) => hasWholeAnswer(answer, value));
     const correctAnswer = answers[0] || 'не знаю';
     const language = langKey(pending.lang);
     const phraseSets = {
@@ -1214,5 +1226,6 @@ module.exports = {
     pickItems,
     pendingFromItem,
     checkPendingAnswer,
+    normalizeAnswer,
     stats,
 };
