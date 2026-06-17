@@ -13,7 +13,8 @@ const logger = require('./logger');
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL      = 'gpt-4o-mini';
-const MAX_TOKENS = 180;   // достаточно для короткой сказки
+const MAX_TOKENS = 180;
+const MAX_STORY_TOKENS = 230;
 
 // Часовой пояс рынка. Можно переопределить через переменную окружения TZ_MARKET.
 const TIMEZONE = process.env.TZ_MARKET || 'Europe/Chisinau';
@@ -111,8 +112,8 @@ const SYSTEM_PROMPT = `
 Изредка — не каждый раз — можешь к месту вспомнить свой мир (Река Снов, друзья-пуговицы).
 Но не втискивай его силой: лучше простой тёплый понятный ответ, чем красивый, но непонятный.
 
-Если рассказываешь сказку — она короткая и законченная, максимум 4-5 коротких предложений,
-никогда не обрывай на середине.
+Если рассказываешь сказку — она короткая и законченная: 4-5 коротких предложений.
+Не начинай длинный сюжет. Обязательно дай финал в последнем предложении.
 
 ЖИВОЙ ДРУГ (а не бот «вопрос-ответ»)
 Помни ребёнка в разговоре. Если он назвал имя или рассказал что-то о себе
@@ -250,9 +251,13 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         .filter(Boolean)
         .join('\n\n');
 
+    const maxTokens = Number.isFinite(options.maxTokens)
+        ? Math.max(80, Math.min(options.maxTokens, MAX_STORY_TOKENS))
+        : MAX_TOKENS;
+
     const response = await client.chat.completions.create({
         model:      MODEL,
-        max_tokens: MAX_TOKENS,
+        max_tokens: maxTokens,
         messages:   [
             { role: 'system', content: SYSTEM_PROMPT + '\n\n' + langInstruction + '\n' + extraContext },
             ...messages,
@@ -262,6 +267,9 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     const reply = response.choices[0]?.message?.content?.trim() ?? '';
     messages.push({ role: 'assistant', content: reply });
 
+    if (response.choices[0]?.finish_reason === 'length') {
+        logger.warn(`[LLM] reply hit max_tokens=${maxTokens}; output may be truncated`);
+    }
     logger.debug(`[LLM] tokens used: ${response.usage?.total_tokens}`);
     return reply;
 }

@@ -400,18 +400,39 @@ def parse_doc(path: Path, item_type: str) -> list[dict]:
     return parse_rule_doc(lines, item_type, path.name)
 
 
+def dedupe_items(items: list[dict]) -> list[dict]:
+    by_id: dict[str, dict] = {}
+    for item in items:
+        existing = by_id.get(item["id"])
+        if not existing:
+            by_id[item["id"]] = item
+            continue
+        if (
+            existing.get("type") != item.get("type") or
+            existing.get("text") != item.get("text")
+        ):
+            raise ValueError(
+                f"Conflicting content id {item['id']}: "
+                f"{existing.get('source')} vs {item.get('source')}"
+            )
+    return list(by_id.values())
+
+
 def main() -> None:
     all_items: list[dict] = []
-    counts: dict[str, int] = {}
     for file_name, item_type in DOCS.items():
         path = SOURCE_DIR / file_name
         if not path.exists():
             raise FileNotFoundError(path)
         items = parse_doc(path, item_type)
         all_items.extend(items)
-        counts[item_type] = counts.get(item_type, 0) + len(items)
 
+    all_items = dedupe_items(all_items)
     all_items.sort(key=lambda item: (item["type"], item["id"]))
+    counts: dict[str, int] = {}
+    for item in all_items:
+        counts[item["type"]] = counts.get(item["type"], 0) + 1
+
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(
         json.dumps(

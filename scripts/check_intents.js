@@ -77,4 +77,16 @@ eq(content.checkPendingAnswer(pending, 'повтори загадку').keepPend
 eq(content.checkPendingAnswer(pending, 'стоп').clearPending, true, 'pending stop');
 eq(content.checkPendingAnswer(pending, 'ещё одну').nextRiddle, true, 'pending next riddle');
 
-console.log('intent checks ok');
+(async () => {
+    for (let i = 0; i < 20; i += 1) {
+        const story = await storyEngine.buildStoryContext('расскажи историю про луну');
+        ok(story, 'story context exists');
+        ok(story.contentContext.length <= 7000, `story context too long: ${story.contentContext.length}`);
+        ok(story.prompt.includes('4-5 коротких предложений'), 'story prompt length rule missing');
+        eq(story.maxTokens, 230, 'story max tokens');
+    }
+    console.log('intent checks ok');
+})().catch((err) => {
+    console.error(err);
+    process.exit(1);
+});

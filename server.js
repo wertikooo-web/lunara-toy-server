@@ -153,6 +153,7 @@ app.post('/chat', async (req, res) => {
             ? await llm.chat(sessionRef, story.prompt, lang, {
                 memoryContext,
                 contentContext: story.contentContext,
+                maxTokens: story.maxTokens,
             })
             : await llm.chat(sessionRef, text, lang, {
                 memoryContext,
@@ -499,6 +500,7 @@ async function handlePipeline(
             ? await llm.chat(ws, story.prompt, 'auto', {
                 memoryContext,
                 contentContext: story.contentContext,
+                maxTokens: story.maxTokens,
             })
             : await llm.chat(ws, transcript, 'auto', {
                 memoryContext,

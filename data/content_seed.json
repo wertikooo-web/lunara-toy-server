@@ -2,32 +2,32 @@
   "version": 1,
   "source_dir": "D:\\BIZ\\TOYS AI\\LUNARA TOY - SERVER\\LUMI_CONTENT_FACTORY",
   "counts": {
-    "riddle_template": 100,
-    "story_template": 14,
-    "fairytale_template": 10,
-    "word_animal": 100,
-    "word_place": 107,
-    "word_action": 210,
-    "word_object": 209,
-    "helper": 108,
-    "emotion": 160,
-    "goal": 157,
-    "problem": 158,
-    "reward": 158,
-    "lore_character": 110,
-    "lore_place": 110,
-    "lore_object": 158,
-    "character_trait": 158,
+    "character_trait": 151,
     "child_archetype": 20,
-    "dialog_template": 500,
-    "memory_fact": 150,
+    "content_pipeline": 46,
     "content_tag": 200,
+    "dialog_template": 500,
+    "emotion": 158,
+    "fairytale_template": 10,
     "generation_prompt": 50,
-    "content_pipeline": 48,
-    "system_rule": 24,
-    "memory_rule": 22,
+    "goal": 157,
+    "helper": 107,
+    "lore_character": 110,
+    "lore_object": 158,
+    "lore_place": 108,
     "lumi_mode": 48,
+    "memory_fact": 149,
+    "memory_rule": 22,
+    "problem": 156,
+    "reward": 156,
+    "riddle_template": 100,
     "schema_rule": 19,
+    "story_template": 14,
+    "system_rule": 24,
+    "word_action": 198,
+    "word_animal": 100,
+    "word_object": 208,
+    "word_place": 107,
     "world_rule": 24
   },
   "items": [
@@ -497,21 +497,6 @@
       }
     },
     {
-      "id": "character_trait_дружелюбный",
-      "type": "character_trait",
-      "title": "Дружелюбный",
-      "text": "Дружелюбный",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "character_trait_душевный",
       "type": "character_trait",
       "title": "Душевный",
@@ -576,21 +561,6 @@
       "type": "character_trait",
       "title": "Изобретатель",
       "text": "Изобретатель",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "character_trait_изобретательный",
-      "type": "character_trait",
-      "title": "Изобретательный",
-      "text": "Изобретательный",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -1041,36 +1011,6 @@
       "type": "character_trait",
       "title": "Наблюдательный",
       "text": "Наблюдательный",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "character_trait_надежный",
-      "type": "character_trait",
-      "title": "Надёжный",
-      "text": "Надёжный",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "character_trait_надежный",
-      "type": "character_trait",
-      "title": "Надёжный",
-      "text": "Надёжный",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -1862,21 +1802,6 @@
       }
     },
     {
-      "id": "character_trait_тактичный",
-      "type": "character_trait",
-      "title": "Тактичный",
-      "text": "Тактичный",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "character_trait_творческий",
       "type": "character_trait",
       "title": "Творческий",
@@ -1922,40 +1847,10 @@
       }
     },
     {
-      "id": "character_trait_терпеливый",
-      "type": "character_trait",
-      "title": "Терпеливый",
-      "text": "Терпеливый",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "character_trait_терпеливый_наставник",
       "type": "character_trait",
       "title": "Терпеливый наставник",
       "text": "Терпеливый наставник",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "character_trait"
-      ],
-      "source": "16_CHARACTER_TRAITS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "character_trait_терпимый",
-      "type": "character_trait",
-      "title": "Терпимый",
-      "text": "Терпимый",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -2697,36 +2592,6 @@
         "child_archetype"
       ],
       "source": "17_CHILD_ARCHETYPES.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "content_pipeline_item",
-      "type": "content_pipeline",
-      "title": "+",
-      "text": "+",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "content_pipeline"
-      ],
-      "source": "23_CONTENT_PIPELINES.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "content_pipeline_item",
-      "type": "content_pipeline",
-      "title": "+",
-      "text": "+",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "content_pipeline"
-      ],
-      "source": "23_CONTENT_PIPELINES.docx",
       "metadata": {
         "section": ""
       }
@@ -15422,21 +15287,6 @@
       }
     },
     {
-      "id": "emotion_внимательность",
-      "type": "emotion",
-      "title": "Внимательность",
-      "text": "Внимательность",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "emotion"
-      ],
-      "source": "09_EMOTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "emotion_внутренний_свет",
       "type": "emotion",
       "title": "Внутренний свет",
@@ -16836,21 +16686,6 @@
       "type": "emotion",
       "title": "Свет в сердце",
       "text": "Свет в сердце",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "emotion"
-      ],
-      "source": "09_EMOTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "emotion_светлая_мечта",
-      "type": "emotion",
-      "title": "Светлая мечта",
-      "text": "Светлая мечта",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -22262,21 +22097,6 @@
       }
     },
     {
-      "id": "helper_сонный_кит",
-      "type": "helper",
-      "title": "Сонный Кит",
-      "text": "Сонный Кит",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "helper"
-      ],
-      "source": "08_HELPERS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "helper_старый_олень",
       "type": "helper",
       "title": "Старый Олень",
@@ -27317,21 +27137,6 @@
       }
     },
     {
-      "id": "lore_place_море_шепотов",
-      "type": "lore_place",
-      "title": "Море Шёпотов",
-      "text": "Море Шёпотов",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "lore_place"
-      ],
-      "source": "14_LORE_PLACES.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "lore_place_мост_созвездий",
       "type": "lore_place",
       "title": "Мост Созвездий",
@@ -27576,21 +27381,6 @@
       "type": "lore_place",
       "title": "Пляж Светлячков",
       "text": "Пляж Светлячков",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "lore_place"
-      ],
-      "source": "14_LORE_PLACES.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "lore_place_подушечные_горы",
-      "type": "lore_place",
-      "title": "Подушечные Горы",
-      "text": "Подушечные Горы",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -30510,22 +30300,6 @@
       "source": "20_MEMORY_FACTS.docx",
       "metadata": {
         "section": "ИНТЕРЕСЫ"
-      }
-    },
-    {
-      "id": "memory_fact_любит_ли_сказки_перед_сном",
-      "type": "memory_fact",
-      "title": "Любит ли сказки перед сном",
-      "text": "Любит ли сказки перед сном",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "memory_fact",
-        "сон_и_вечерние_ритуалы"
-      ],
-      "source": "20_MEMORY_FACTS.docx",
-      "metadata": {
-        "section": "СОН И ВЕЧЕРНИЕ РИТУАЛЫ"
       }
     },
     {
@@ -33540,21 +33314,6 @@
       }
     },
     {
-      "id": "problem_появился_густой_туман",
-      "type": "problem",
-      "title": "Появился густой туман",
-      "text": "Появился густой туман",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "problem"
-      ],
-      "source": "11_PROBLEMS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "problem_появился_холод",
       "type": "problem",
       "title": "Появился холод",
@@ -33964,21 +33723,6 @@
       "type": "problem",
       "title": "Сломался транспорт",
       "text": "Сломался транспорт",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "problem"
-      ],
-      "source": "11_PROBLEMS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "problem_сломался_фонарь",
-      "type": "problem",
-      "title": "Сломался фонарь",
-      "text": "Сломался фонарь",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -34579,21 +34323,6 @@
       "type": "reward",
       "title": "Добрые воспоминания",
       "text": "Добрые воспоминания",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "reward"
-      ],
-      "source": "12_REWARDS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "reward_добрые_слова",
-      "type": "reward",
-      "title": "Добрые слова",
-      "text": "Добрые слова",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -35374,21 +35103,6 @@
       "type": "reward",
       "title": "Новые открытия",
       "text": "Новые открытия",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "reward"
-      ],
-      "source": "12_REWARDS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "reward_новый_друг",
-      "type": "reward",
-      "title": "Новый друг",
-      "text": "Новый друг",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -39249,21 +38963,6 @@
       }
     },
     {
-      "id": "word_action_благодарить",
-      "type": "word_action",
-      "title": "Благодарить",
-      "text": "Благодарить",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "word_action_болтать",
       "type": "word_action",
       "title": "Болтать",
@@ -39313,21 +39012,6 @@
       "type": "word_action",
       "title": "Верить",
       "text": "Верить",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_веселиться",
-      "type": "word_action",
-      "title": "Веселиться",
-      "text": "Веселиться",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -39939,36 +39623,6 @@
       }
     },
     {
-      "id": "word_action_изучать",
-      "type": "word_action",
-      "title": "Изучать",
-      "text": "Изучать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_искать",
-      "type": "word_action",
-      "title": "Искать",
-      "text": "Искать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "word_action_искать",
       "type": "word_action",
       "title": "Искать",
@@ -40108,36 +39762,6 @@
       "type": "word_action",
       "title": "Искать чудеса",
       "text": "Искать чудеса",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_исследовать",
-      "type": "word_action",
-      "title": "Исследовать",
-      "text": "Исследовать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_исследовать",
-      "type": "word_action",
-      "title": "Исследовать",
-      "text": "Исследовать",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -40378,21 +40002,6 @@
       "type": "word_action",
       "title": "Мечтать",
       "text": "Мечтать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_наблюдать",
-      "type": "word_action",
-      "title": "Наблюдать",
-      "text": "Наблюдать",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -40734,21 +40343,6 @@
       }
     },
     {
-      "id": "word_action_отгадывать",
-      "type": "word_action",
-      "title": "Отгадывать",
-      "text": "Отгадывать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "word_action_открывать",
       "type": "word_action",
       "title": "Открывать",
@@ -40914,21 +40508,6 @@
       }
     },
     {
-      "id": "word_action_петь",
-      "type": "word_action",
-      "title": "Петь",
-      "text": "Петь",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
       "id": "word_action_плавать",
       "type": "word_action",
       "title": "Плавать",
@@ -40978,36 +40557,6 @@
       "type": "word_action",
       "title": "Подбадривать",
       "text": "Подбадривать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_поддерживать",
-      "type": "word_action",
-      "title": "Поддерживать",
-      "text": "Поддерживать",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_поддерживать",
-      "type": "word_action",
-      "title": "Поддерживать",
-      "text": "Поддерживать",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -41953,21 +41502,6 @@
       "type": "word_action",
       "title": "Спускаться",
       "text": "Спускаться",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_action"
-      ],
-      "source": "06_ACTIONS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_action_сравнивать",
-      "type": "word_action",
-      "title": "Сравнивать",
-      "text": "Сравнивать",
       "lang": "ru-RU",
       "answers": [],
       "tags": [
@@ -46123,21 +45657,6 @@
       "type": "word_object",
       "title": "Радужный кристалл",
       "text": "Радужный кристалл",
-      "lang": "ru-RU",
-      "answers": [],
-      "tags": [
-        "word_object"
-      ],
-      "source": "07_OBJECTS.docx",
-      "metadata": {
-        "section": ""
-      }
-    },
-    {
-      "id": "word_object_ракета",
-      "type": "word_object",
-      "title": "Ракета",
-      "text": "Ракета",
       "lang": "ru-RU",
       "answers": [],
       "tags": [

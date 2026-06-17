@@ -60,10 +60,16 @@ function buildStoryFollowupContext(userText) {
     ].join('\n');
 }
 
+function trimForPrompt(value, maxLength = 260) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (text.length <= maxLength) return text;
+    return `${text.slice(0, maxLength).trim()}...`;
+}
+
 function itemLine(item) {
     if (!item) return '';
-    const title = String(item.title || '').trim();
-    const text = String(item.text || '').trim();
+    const title = trimForPrompt(item.title, 80);
+    const text = trimForPrompt(item.text);
     if (!text) return '';
     if (title && title !== text) return `${title}: ${text}`;
     return text;
@@ -81,7 +87,7 @@ async function buildStoryContext(userText) {
 
     const picked = {};
     await Promise.all(STORY_TYPES.map(async (type) => {
-        const limit = type.endsWith('_template') ? 1 : type === 'world_rule' ? 2 : 4;
+        const limit = type.endsWith('_template') ? 1 : 2;
         picked[type] = await content.pickItems(type, limit);
     }));
 
@@ -91,7 +97,8 @@ async function buildStoryContext(userText) {
         'Не перечисляй элементы и не говори, что используешь базу данных.',
         'Не раскрывай ответ заранее, если история похожа на загадку.',
         'Стиль: добрый, безопасный, мягкий, с ясным хорошим финалом.',
-        'Длина: 5-8 коротких предложений. Для сказки на ночь можно спокойнее и медленнее.',
+        'Длина: 4-5 коротких предложений. Примерно 55-85 слов.',
+        'Последнее предложение обязательно завершает историю. Не заканчивай вопросом.',
         'Мир Lumi: нет настоящего зла; есть трудность, помощь, маленькое чудо и добрый финал.',
         '',
     ];
@@ -99,17 +106,17 @@ async function buildStoryContext(userText) {
     const sections = [
         ['Шаблон истории', compact(picked.story_template, 1)],
         ['Шаблон сказки', compact(picked.fairytale_template, 1)],
-        ['Герои/lore', compact([...(picked.lore_character || []), ...(picked.helper || [])], 5)],
-        ['Места', compact([...(picked.lore_place || []), ...(picked.word_place || [])], 5)],
-        ['Предметы', compact([...(picked.lore_object || []), ...(picked.word_object || [])], 5)],
-        ['Цели', compact(picked.goal, 4)],
-        ['Проблемы', compact(picked.problem, 4)],
-        ['Эмоции', compact(picked.emotion, 4)],
-        ['Награды/финалы', compact(picked.reward, 4)],
-        ['Действия', compact(picked.word_action, 4)],
-        ['Животные', compact(picked.word_animal, 4)],
-        ['Черты персонажей', compact(picked.character_trait, 4)],
-        ['Правила мира', compact(picked.world_rule, 2)],
+        ['Герои/lore', compact([...(picked.lore_character || []), ...(picked.helper || [])], 3)],
+        ['Места', compact([...(picked.lore_place || []), ...(picked.word_place || [])], 3)],
+        ['Предметы', compact([...(picked.lore_object || []), ...(picked.word_object || [])], 3)],
+        ['Цели', compact(picked.goal, 2)],
+        ['Проблемы', compact(picked.problem, 2)],
+        ['Эмоции', compact(picked.emotion, 2)],
+        ['Награды/финалы', compact(picked.reward, 2)],
+        ['Действия', compact(picked.word_action, 2)],
+        ['Животные', compact(picked.word_animal, 2)],
+        ['Черты персонажей', compact(picked.character_trait, 2)],
+        ['Правила мира', compact(picked.world_rule, 1)],
     ];
 
     for (const [label, values] of sections) {
@@ -126,8 +133,9 @@ async function buildStoryContext(userText) {
             'Ребёнок попросил:',
             String(userText || '').trim(),
             '',
-            'Ответь как Lumi. Сразу расскажи историю, без служебного вступления.',
+            'Ответь как Lumi. Сразу расскажи историю, без вступления. 4-5 коротких предложений. Заверши историю полностью.',
         ].join('\n'),
+        maxTokens: 230,
     };
 }
 

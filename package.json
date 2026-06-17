@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check:intents": "node scripts/check_intents.js"
+    "check:intents": "node scripts/check_intents.js",
+    "check:content": "node scripts/check_content_seed.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
