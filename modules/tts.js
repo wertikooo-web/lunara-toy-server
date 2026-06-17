@@ -49,6 +49,14 @@ function detectLang(text) {
     return 'default';
 }
 
+function normalizeExplicitLang(lang) {
+    if (!lang || lang === 'auto') return null;
+    if (lang.startsWith('ru')) return 'ru';
+    if (lang.startsWith('ro')) return 'ro';
+    if (lang.startsWith('en')) return 'en';
+    return null;
+}
+
 // ── WAV header ────────────────────────────────────────────────────────────────
 function buildWavHeader(pcmLen) {
     const h = Buffer.alloc(44);
@@ -133,10 +141,9 @@ function resample24to16(pcm24k) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function synthesize(text, outputPath, lang = null) {
     // Use explicit lang from client if provided, otherwise auto-detect
-    const detectedLang = lang
-        ? (lang.startsWith('ru') ? 'ru' : lang.startsWith('ro') ? 'ro' : 'en')
-        : detectLang(text);
-    logger.info(`[TTS] lang=${detectedLang} (${lang ? 'explicit' : 'auto'})`);
+    const explicitLang = normalizeExplicitLang(lang);
+    const detectedLang = explicitLang || detectLang(text);
+    logger.info(`[TTS] lang=${detectedLang} (${explicitLang ? 'explicit' : 'auto'})`);
 
     let pcmBuffer;
     if (detectedLang === 'ru') {
@@ -151,4 +158,4 @@ async function synthesize(text, outputPath, lang = null) {
     return durationMs;
 }
 
-module.exports = { synthesize };
+module.exports = { synthesize, detectLang, normalizeExplicitLang };
