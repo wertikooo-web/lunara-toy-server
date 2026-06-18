@@ -152,17 +152,16 @@
         </div>
         <div>
           <label>Тип персонажа</label>
-          <select id="toy_type">
-            <option value="bear">Мишка</option>
-            <option value="bunny">Зайчик</option>
-            <option value="cat">Котик</option>
-            <option value="dragon">Дракончик</option>
-            <option value="custom">Свой персонаж</option>
-          </select>
-        </div>
-        <div>
-          <label>Свой тип игрушки</label>
-          <input id="custom_toy_type" maxlength="40" placeholder="Например: Чебурашка, единорог, робот">
+          <input id="toy_type" maxlength="40" list="toyTypeOptions" placeholder="Мишка, зайчик, котик или свой вариант">
+          <datalist id="toyTypeOptions">
+            <option value="Мишка"></option>
+            <option value="Зайчик"></option>
+            <option value="Котик"></option>
+            <option value="Дракончик"></option>
+            <option value="Робот"></option>
+            <option value="Единорог"></option>
+            <option value="Чебурашка"></option>
+          </datalist>
         </div>
         <div>
           <label>Язык</label>
@@ -393,6 +392,20 @@ const KNOWN_TOPIC_PRESETS = Object.values(TOPIC_PRESETS)
   .flatMap(preset => [preset.allowed, preset.blocked])
   .map(values => values.map(value => value.toLowerCase()).join('|'));
 
+const TOY_TYPE_PRESETS = {
+  'ru-RU': ['Мишка', 'Зайчик', 'Котик', 'Дракончик', 'Робот', 'Единорог', 'Чебурашка'],
+  'ro-RO': ['Ursulet', 'Iepuras', 'Pisica', 'Dragonas', 'Robot', 'Unicorn'],
+  'en-US': ['Bear', 'Bunny', 'Cat', 'Little dragon', 'Robot', 'Unicorn'],
+};
+
+const LEGACY_TOY_TYPES = {
+  bear: 'Мишка',
+  bunny: 'Зайчик',
+  cat: 'Котик',
+  dragon: 'Дракончик',
+  custom: '',
+};
+
 let consoleLanguage = localStorage.getItem('lumi_parent_console_lang') || 'ru-RU';
 
 const UI_TEXT = {
@@ -426,8 +439,7 @@ const UI_TEXT = {
     toy: 'Игрушка',
     toyName: 'Имя игрушки',
     toyType: 'Тип персонажа',
-    customToyType: 'Свой тип игрушки',
-    customToyPlaceholder: 'Например: Чебурашка, единорог, робот',
+    toyTypePlaceholder: 'Мишка, зайчик, котик или свой вариант',
     language: 'Язык',
     modelMode: 'Режим модели',
     child: 'Ребёнок',
@@ -523,8 +535,7 @@ const UI_TEXT = {
     toy: 'Jucarie',
     toyName: 'Numele jucariei',
     toyType: 'Tip personaj',
-    customToyType: 'Tip personalizat',
-    customToyPlaceholder: 'De exemplu: ursulet, unicorn, robot',
+    toyTypePlaceholder: 'Ursulet, iepuras, pisica sau varianta proprie',
     language: 'Limba',
     modelMode: 'Mod model',
     child: 'Copil',
@@ -620,8 +631,7 @@ const UI_TEXT = {
     toy: 'Toy',
     toyName: 'Toy name',
     toyType: 'Character type',
-    customToyType: 'Custom toy type',
-    customToyPlaceholder: 'For example: Cheburashka, unicorn, robot',
+    toyTypePlaceholder: 'Bear, bunny, cat, or your own option',
     language: 'Language',
     modelMode: 'Model mode',
     child: 'Child',
@@ -716,6 +726,22 @@ function setPlaceholder(selector, value) {
   if (el) el.placeholder = value;
 }
 
+function setToyTypeOptions(lang) {
+  const list = document.getElementById('toyTypeOptions');
+  if (!list) return;
+  list.innerHTML = '';
+  (TOY_TYPE_PRESETS[lang] || TOY_TYPE_PRESETS['ru-RU']).forEach(value => {
+    const option = document.createElement('option');
+    option.value = value;
+    list.appendChild(option);
+  });
+}
+
+function normalizeToyTypeForDisplay(value) {
+  const text = String(value || '').trim();
+  return LEGACY_TOY_TYPES[text] !== undefined ? LEGACY_TOY_TYPES[text] || '' : text;
+}
+
 function applyConsoleLocale(lang) {
   consoleLanguage = lang;
   localStorage.setItem('lumi_parent_console_lang', lang);
@@ -749,10 +775,11 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(2) button', t.savePassword);
   setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(2)', t.forgotPassword);
 
-  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language, t.modelMode];
+  const toyLabels = [t.toyName, t.toyType, t.language, t.modelMode];
   setText('#consoleBox > section:nth-of-type(3) h2', t.toy);
   document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
-  setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
+  setPlaceholder('#toy_type', t.toyTypePlaceholder);
+  setToyTypeOptions(lang);
 
   const childLabels = [t.childName, t.age, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
   setText('#consoleBox > section:nth-of-type(4) h2', t.child);
@@ -977,9 +1004,9 @@ async function loadState() {
   [
     'toy_name', 'toy_type', 'language', 'model_mode', 'personality_preset',
     'answer_length', 'humor_level', 'activity_level', 'question_frequency',
-    'voice_speed', 'story_length', 'custom_toy_type', 'custom_personality',
+    'voice_speed', 'story_length', 'custom_personality',
     'daily_limit_minutes', 'quiet_hours_start', 'quiet_hours_end'
-  ].forEach(id => setValue(id, s[id]));
+  ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   syncDailyLimitPreset(s.daily_limit_minutes);
   setValue('quiet_hours_enabled', s.quiet_hours_enabled === true);
   window.lastRuntime = data.runtime || {};
@@ -1028,7 +1055,7 @@ async function saveSettings() {
         question_frequency: document.getElementById('question_frequency').value,
         voice_speed: document.getElementById('voice_speed').value,
         story_length: document.getElementById('story_length').value,
-        custom_toy_type: document.getElementById('custom_toy_type').value,
+        custom_toy_type: '',
         custom_personality: document.getElementById('custom_personality').value,
         daily_limit_minutes: document.getElementById('daily_limit_minutes').value,
         quiet_hours_enabled: document.getElementById('quiet_hours_enabled').checked,
@@ -1065,7 +1092,7 @@ async function saveProfile() {
         current_interest: document.getElementById('current_interest').value,
       }),
     });
-    status.textContent = 'Профиль ребёнка сохранён. История демо-сессии очищена.';
+    status.textContent = 'Профиль ребёнка сохранён.';
     await loadState();
   } catch (err) {
     status.textContent = err.message;

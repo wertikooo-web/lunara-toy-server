@@ -345,7 +345,7 @@ async function updateSettings(deviceId, rawPatch = {}) {
                  active_profile_id = NULL,
                  updated_at = now()
              WHERE device_id = $1`,
-            [id, safeText(rawPatch.toy_name, 40), safeText(rawPatch.toy_type, 24)]
+            [id, safeText(rawPatch.toy_name, 40), safeText(rawPatch.toy_type, 40)]
         );
     }
 
@@ -700,14 +700,11 @@ const QUESTION_PROMPTS = {
 function formatSettingsForPrompt(settings = {}) {
     const s = { ...DEFAULT_SETTINGS, ...settings };
     const personality = PERSONALITY_PRESETS[s.personality_preset] || PERSONALITY_PRESETS.gentle;
-    const toyType = s.toy_type === 'custom' && s.custom_toy_type
-        ? safeText(s.custom_toy_type, 40)
-        : safeText(s.toy_type || 'bear', 24);
+    const toyType = safeText(s.toy_type || 'bear', 40);
     const lines = [
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
         `- Toy character type: ${toyType}`,
-        s.custom_toy_type && s.toy_type !== 'custom' ? `- Parent custom toy type: ${safeText(s.custom_toy_type, 40)}` : '',
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
