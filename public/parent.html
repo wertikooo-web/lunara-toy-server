@@ -11,8 +11,10 @@
     h1 { font-size: 28px; }
     h2 { font-size: 20px; margin-top: 26px; }
     section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
-    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
-    .topbar select { width: auto; min-width: 150px; }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
+    .console-lang { display: inline-flex; gap: 6px; }
+    .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
+    .console-lang button.active { background: #8b5cf6; border-color: #c4a7ff; }
     label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
     input, select, textarea {
       width: 100%; box-sizing: border-box; border: 1px solid #57408f; border-radius: 8px;
@@ -48,18 +50,15 @@
 <main>
   <div class="topbar">
     <h1>Родительская консоль Lumi</h1>
-    <select id="quickLanguage" onchange="setLanguageFromTop()">
-      <option value="ru-RU">Русский</option>
-      <option value="ro-RO">Română</option>
-      <option value="en-US">English</option>
-    </select>
+    <div class="console-lang" aria-label="Язык консоли">
+      <button id="langRu" type="button" onclick="setLanguageFromTop('ru-RU')">RU</button>
+      <button id="langRo" type="button" onclick="setLanguageFromTop('ro-RO')">RO</button>
+      <button id="langEn" type="button" onclick="setLanguageFromTop('en-US')">ENG</button>
+    </div>
   </div>
-  <p>Функциональная версия v1. Настройки сохраняются на сервере и применяются к игрушке по device_id.</p>
 
   <section id="loginBox">
     <h2>Вход</h2>
-    <p>Для первого тестового устройства можно просто нажать кнопку.</p>
-    <button onclick="quickLogin()">Войти в первый Lumi</button>
     <div class="grid">
       <div>
         <label>Device ID</label>
@@ -70,7 +69,7 @@
         <input id="loginPin" value="12345" type="password">
       </div>
     </div>
-    <button class="secondary" onclick="login()">Войти вручную</button>
+    <button onclick="login()">ВОЙТИ</button>
     <div id="loginStatus" class="status"></div>
   </section>
 
@@ -294,10 +293,10 @@ function api(path, options = {}) {
   });
 }
 
-function quickLogin() {
-  document.getElementById('loginDevice').value = 'lumi_001';
-  document.getElementById('loginPin').value = '12345';
-  login();
+function setConsoleLanguageButtons(lang) {
+  document.getElementById('langRu').classList.toggle('active', lang === 'ru-RU');
+  document.getElementById('langRo').classList.toggle('active', lang === 'ro-RO');
+  document.getElementById('langEn').classList.toggle('active', lang === 'en-US');
 }
 
 async function login() {
@@ -432,7 +431,7 @@ async function loadState() {
     'answer_length', 'humor_level', 'activity_level', 'question_frequency',
     'voice_speed', 'story_length', 'custom_toy_type', 'custom_personality'
   ].forEach(id => setValue(id, s[id]));
-  setValue('quickLanguage', s.language || 'ru-RU');
+  setConsoleLanguageButtons(s.language || 'ru-RU');
   renderSavedProfiles(data.saved_profiles || []);
   setValue('memory_enabled', s.memory_enabled !== false);
   setCheckedValues('contentChecks', s.content_enabled || []);
@@ -445,16 +444,16 @@ async function loadState() {
   renderMemoryView(p);
 }
 
-async function setLanguageFromTop() {
-  const quickLanguage = document.getElementById('quickLanguage').value;
-  setValue('language', quickLanguage);
-  applyLanguageTopicDefaults(quickLanguage);
+async function setLanguageFromTop(language) {
+  setValue('language', language);
+  setConsoleLanguageButtons(language);
+  applyLanguageTopicDefaults(language);
   await saveSettings();
 }
 
 function setLanguageFromMain() {
   const language = document.getElementById('language').value;
-  setValue('quickLanguage', language);
+  setConsoleLanguageButtons(language);
   applyLanguageTopicDefaults(language);
 }
 
