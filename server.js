@@ -16,6 +16,7 @@ const logger   = require('./modules/logger');
 const memory   = require('./modules/memory');
 const content  = require('./modules/content');
 const storyEngine = require('./modules/storyEngine');
+const parentConfig = require('./modules/parentConfig');
 
 // ── Directories ──────────────────────────────────────────────────────────────
 const DIR_AUDIO   = path.join(__dirname, 'audio');
@@ -43,6 +44,9 @@ app.use('/audio', express.static(DIR_AUDIO, {
     }
 }));
 app.use('/', express.static(path.join(__dirname, 'public')));
+app.get('/parent', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'parent.html'));
+});
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/api/content/stats', async (_req, res) => {
     try {
@@ -55,10 +59,100 @@ app.get('/api/content/stats', async (_req, res) => {
 
 // ── /chat endpoint — for browser demo client ─────────────────────────────────
 app.use(express.json());
+
+const parentSessions = new Map();
+
+function createParentToken(deviceId) {
+    const token = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+    parentSessions.set(token, {
+        device_id: memory.normalizeDeviceId(deviceId),
+        created_at: Date.now(),
+    });
+    return token;
+}
+
+function getParentSession(req) {
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : String(req.headers['x-parent-token'] || '');
+    if (!token || !parentSessions.has(token)) return null;
+    const session = parentSessions.get(token);
+    if (Date.now() - session.created_at > 7 * 24 * 60 * 60 * 1000) {
+        parentSessions.delete(token);
+        return null;
+    }
+    return session;
+}
+
+function requireParent(req, res) {
+    const session = getParentSession(req);
+    if (!session) {
+        res.status(401).json({ error: 'parent auth required' });
+        return null;
+    }
+    return session;
+}
+
+app.post('/api/parent/login', async (req, res) => {
+    try {
+        const deviceId = req.body?.device_id || 'lumi_001';
+        const pin = req.body?.pin || '12345';
+        const login = await parentConfig.login(deviceId, pin);
+        const token = createParentToken(login.device_id);
+        res.json({ ok: true, token, device_id: login.device_id });
+    } catch (err) {
+        logger.warn(`[Parent] login failed: ${err.message}`);
+        res.status(401).json({ error: err.message });
+    }
+});
+
+app.get('/api/parent/state', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.getParentState(session.device_id));
+    } catch (err) {
+        logger.error(`[Parent] state error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/settings', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const settings = await parentConfig.updateSettings(session.device_id, req.body || {});
+        res.json({ ok: true, settings });
+    } catch (err) {
+        logger.error(`[Parent] settings error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/profile', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.updateChildProfile(session.device_id, req.body || {}));
+    } catch (err) {
+        logger.error(`[Parent] profile error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/memory/clear', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.clearMemory(session.device_id));
+    } catch (err) {
+        logger.error(`[Parent] memory clear error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';
-    const requestedModel = req.body?.model || 'auto';
     if (!text) {
         return res.status(400).json({ error: 'text is required' });
     }
@@ -74,14 +168,16 @@ app.post('/chat', async (req, res) => {
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
     try {
+        const settings = await parentConfig.getSettings(deviceId);
+        const effectiveLang = settings.language || lang;
         const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
         if (pendingAnswer?.nextRiddle) {
             sessionRef.pendingContent = null;
             const shortContent = await content.tryHandleShortRequest('загадай загадку', {
                 baseUrl,
-                lang: pendingAnswer.lang || lang,
+                lang: pendingAnswer.lang || effectiveLang,
             });
-            if (shortContent) {
+            if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
                 sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
                 return res.json({
                     reply: shortContent.reply,
@@ -120,7 +216,7 @@ app.post('/chat', async (req, res) => {
         if (clarification) {
             const audio = await content.ensureCachedReply(clarification.reply, {
                 baseUrl,
-                lang: clarification.lang || lang,
+                lang: clarification.lang || effectiveLang,
                 key: 'clarification',
             });
             return res.json({
@@ -134,8 +230,8 @@ app.post('/chat', async (req, res) => {
             });
         }
 
-        const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang });
-        if (shortContent) {
+        const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang: effectiveLang });
+        if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
             return res.json({
                 reply: shortContent.reply,
@@ -149,8 +245,10 @@ app.post('/chat', async (req, res) => {
             });
         }
 
+        const settingsContext = parentConfig.formatSettingsForPrompt(settings);
         const profile = await memory.getProfile(deviceId);
-        const memoryContext = memory.formatProfileForPrompt(profile);
+        const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
+        const modelName = req.body?.model || parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(text);
         const followupContext = !story && sessionRef.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(text)
@@ -158,19 +256,19 @@ app.post('/chat', async (req, res) => {
 
         // LLM
         const llmResult = story
-            ? await llm.chat(sessionRef, story.prompt, lang, {
+            ? await llm.chat(sessionRef, story.prompt, effectiveLang, {
                 memoryContext,
-                contentContext: story.contentContext,
+                contentContext: [settingsContext, story.contentContext].filter(Boolean).join('\n\n'),
                 maxTokens: story.maxTokens,
-                model: requestedModel,
+                model: modelName,
                 routingText: text,
                 isStory: true,
                 returnMeta: true,
             })
-            : await llm.chat(sessionRef, text, lang, {
+            : await llm.chat(sessionRef, text, effectiveLang, {
                 memoryContext,
-                contentContext: followupContext,
-                model: requestedModel,
+                contentContext: [settingsContext, followupContext].filter(Boolean).join('\n\n'),
+                model: modelName,
                 routingText: text,
                 returnMeta: true,
             });
@@ -178,7 +276,7 @@ app.post('/chat', async (req, res) => {
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, lang);
+        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang);
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({
@@ -197,8 +295,10 @@ app.post('/chat', async (req, res) => {
             continued: llmResult.continued,
         });
         sessionRef.lastContentMode = story ? 'story' : null;
-        memory.rememberFromText(deviceId, text, profile)
-            .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
+        if (settings.memory_enabled !== false) {
+            memory.rememberFromText(deviceId, text, profile)
+                .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
+        }
     } catch (err) {
         logger.error(`[/chat] error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -211,6 +311,17 @@ function cachedModelMeta() {
         provider: 'content_cache',
         latency_ms: 0,
     };
+}
+
+function isContentTypeAllowed(settings, type) {
+    if (!type) return true;
+    const enabled = Array.isArray(settings?.content_enabled) ? settings.content_enabled : [];
+    if (enabled.length === 0) return false;
+    if (type === 'riddle') return enabled.includes('riddle');
+    if (type === 'tongue_twister') return enabled.includes('tongue_twister');
+    if (type === 'mini_game') return enabled.includes('mini_game');
+    if (type === 'story' || type === 'story_template' || type === 'fairytale_template') return enabled.includes('story');
+    return true;
 }
 
 // Demo session storage (in-memory, keyed by x-session-id header)
@@ -234,6 +345,7 @@ wss.on('connection', (ws, req) => {
     const url = new URL(req.url || '/', 'http://localhost');
     const deviceId = memory.normalizeDeviceId(url.searchParams.get('device_id'));
     logger.info(`[WS] ESP32 connected from ${clientIp} device_id=${deviceId}`);
+    parentConfig.touchDevice(deviceId).catch(err => logger.warn(`[Parent] touch failed: ${err.message}`));
 
     // Per-connection state
     const state = {
@@ -456,14 +568,16 @@ async function handlePipeline(
         // 4. LLM — Claude
         sendStatus('responding');
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const settings = await parentConfig.getSettings(deviceId);
+        const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
         if (pendingAnswer?.nextRiddle) {
             state.pendingContent = null;
             const shortContent = await content.tryHandleShortRequest('загадай загадку', {
                 baseUrl,
-                lang: pendingAnswer.lang || 'auto',
+                lang: pendingAnswer.lang || effectiveLang,
             });
-            if (shortContent) {
+            if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
                 if (!isCurrent()) {
                     logger.info('[Pipeline] superseded after next riddle — discarding (child interrupted)');
                     return;
@@ -499,7 +613,7 @@ async function handlePipeline(
             logger.info('[Pipeline] content clarification requested');
             const audio = await content.ensureCachedReply(clarification.reply, {
                 baseUrl,
-                lang: clarification.lang || 'auto',
+                lang: clarification.lang || effectiveLang,
                 key: 'clarification',
             });
 
@@ -512,8 +626,8 @@ async function handlePipeline(
             return;
         }
 
-        const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: 'auto' });
-        if (shortContent) {
+        const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: effectiveLang });
+        if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             if (!isCurrent()) {
                 logger.info('[Pipeline] superseded after content cache — discarding (child interrupted)');
                 return;
@@ -525,25 +639,27 @@ async function handlePipeline(
         }
 
         logger.info('[Pipeline] LLM start…');
+        const settingsContext = parentConfig.formatSettingsForPrompt(settings);
         const profile = await memory.getProfile(deviceId);
-        const memoryContext = memory.formatProfileForPrompt(profile);
+        const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
+        const modelName = parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(transcript);
         const followupContext = !story && state.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(transcript)
             : '';
         const reply = story
-            ? await llm.chat(ws, story.prompt, 'auto', {
+            ? await llm.chat(ws, story.prompt, effectiveLang, {
                 memoryContext,
-                contentContext: story.contentContext,
+                contentContext: [settingsContext, story.contentContext].filter(Boolean).join('\n\n'),
                 maxTokens: story.maxTokens,
-                model: 'auto',
+                model: modelName,
                 routingText: transcript,
                 isStory: true,
             })
-            : await llm.chat(ws, transcript, 'auto', {
+            : await llm.chat(ws, transcript, effectiveLang, {
                 memoryContext,
-                contentContext: followupContext,
-                model: 'auto',
+                contentContext: [settingsContext, followupContext].filter(Boolean).join('\n\n'),
+                model: modelName,
                 routingText: transcript,
             });
         logger.info(`[Pipeline] reply: "${reply}"`);
@@ -556,7 +672,7 @@ async function handlePipeline(
         // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, null); // null = auto-detect
+        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang);
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
 
         if (!isCurrent()) {
@@ -570,8 +686,10 @@ async function handlePipeline(
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
         state.lastContentMode = story ? 'story' : null;
-        memory.rememberFromText(deviceId, transcript, profile)
-            .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
+        if (settings.memory_enabled !== false) {
+            memory.rememberFromText(deviceId, transcript, profile)
+                .catch(err => logger.warn(`[Memory] auto-update failed: ${err.message}`));
+        }
 
     } catch (err) {
         logger.error(`[Pipeline] error: ${err.message}`);
@@ -685,6 +803,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
     await memory.init();
+    await parentConfig.init();
     await content.init({ audioDir: DIR_CONTENT_AUDIO });
     cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav', 'thinking_1_ru.pcm', 'thinking_1_ru.wav', 'thinking_2_ru.pcm', 'thinking_2_ru.wav', 'thinking_3_ru.pcm', 'thinking_3_ru.wav', 'thinking_4_ru.pcm', 'thinking_4_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
     await ensureGreeting();

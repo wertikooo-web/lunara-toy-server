@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumi Parent Console</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #0f1020; color: #f7f3ff; }
+    main { max-width: 920px; margin: 0 auto; padding: 24px 16px 56px; }
+    h1, h2 { margin: 0 0 14px; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 20px; margin-top: 26px; }
+    section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
+    label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
+    input, select, textarea {
+      width: 100%; box-sizing: border-box; border: 1px solid #57408f; border-radius: 8px;
+      background: #100c20; color: #fff; padding: 10px; font-size: 15px;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    button {
+      border: 0; border-radius: 8px; padding: 11px 14px; background: #8b5cf6;
+      color: #fff; font-weight: 700; cursor: pointer; margin: 10px 8px 0 0;
+    }
+    button.secondary { background: #374151; }
+    button.danger { background: #dc2626; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+    .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+    .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: #f7f3ff; }
+    .checks input { width: auto; }
+    .status { color: #86efac; margin-top: 10px; min-height: 20px; }
+    .error { color: #fecaca; }
+    .hidden { display: none; }
+    pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
+    @media (max-width: 700px) { .grid, .checks { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Родительская консоль Lumi</h1>
+  <p>Функциональная версия v1. Настройки сохраняются на сервере и применяются к игрушке по device_id.</p>
+
+  <section id="loginBox">
+    <h2>Вход</h2>
+    <p>Для первого тестового устройства можно просто нажать кнопку.</p>
+    <button onclick="quickLogin()">Войти в первый Lumi</button>
+    <div class="grid">
+      <div>
+        <label>Device ID</label>
+        <input id="loginDevice" value="lumi_001">
+      </div>
+      <div>
+        <label>PIN</label>
+        <input id="loginPin" value="12345" type="password">
+      </div>
+    </div>
+    <button class="secondary" onclick="login()">Войти вручную</button>
+    <div id="loginStatus" class="status"></div>
+  </section>
+
+  <div id="consoleBox" class="hidden">
+    <section>
+      <h2>Игрушка</h2>
+      <div class="grid">
+        <div>
+          <label>Имя игрушки</label>
+          <input id="toy_name" maxlength="40">
+        </div>
+        <div>
+          <label>Тип персонажа</label>
+          <select id="toy_type">
+            <option value="bear">Мишка</option>
+            <option value="bunny">Зайчик</option>
+            <option value="cat">Котик</option>
+            <option value="dragon">Дракончик</option>
+          </select>
+        </div>
+        <div>
+          <label>Язык</label>
+          <select id="language">
+            <option value="ru-RU">Русский</option>
+            <option value="ro-RO">Румынский</option>
+            <option value="en-US">English</option>
+          </select>
+        </div>
+        <div>
+          <label>Режим модели</label>
+          <select id="model_mode">
+            <option value="auto">Авто</option>
+            <option value="economy">Экономный</option>
+            <option value="smart">Умный</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Ребёнок</h2>
+      <div class="grid">
+        <div>
+          <label>Имя ребёнка</label>
+          <input id="child_name" maxlength="40">
+        </div>
+        <div>
+          <label>Возраст</label>
+          <input id="age" maxlength="12">
+        </div>
+        <div>
+          <label>Любимый цвет</label>
+          <input id="favorite_color">
+        </div>
+        <div>
+          <label>Любимое животное</label>
+          <input id="favorite_animal">
+        </div>
+        <div>
+          <label>Любимая игрушка</label>
+          <input id="favorite_toy">
+        </div>
+        <div>
+          <label>Любимая еда</label>
+          <input id="favorite_food">
+        </div>
+      </div>
+      <label>Текущий интерес</label>
+      <input id="current_interest">
+      <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
+    </section>
+
+    <section>
+      <h2>Характер и голос</h2>
+      <div class="grid">
+        <div>
+          <label>Характер</label>
+          <select id="personality_preset">
+            <option value="gentle">Заботливая</option>
+            <option value="playful">Весёлая</option>
+            <option value="calm">Спокойная</option>
+            <option value="curious">Любознательная</option>
+            <option value="fairy">Сказочная</option>
+            <option value="teacher">Учитель-помощник</option>
+          </select>
+        </div>
+        <div>
+          <label>Длина ответов</label>
+          <select id="answer_length">
+            <option value="very_short">Очень коротко</option>
+            <option value="short">Коротко</option>
+            <option value="normal">Обычно</option>
+          </select>
+        </div>
+        <div>
+          <label>Юмор</label>
+          <select id="humor_level">
+            <option value="low">Мало</option>
+            <option value="normal">Нормально</option>
+            <option value="high">Много</option>
+          </select>
+        </div>
+        <div>
+          <label>Активность</label>
+          <select id="activity_level">
+            <option value="calm">Спокойная</option>
+            <option value="normal">Обычная</option>
+            <option value="active">Энергичная</option>
+          </select>
+        </div>
+        <div>
+          <label>Вопросы ребёнку</label>
+          <select id="question_frequency">
+            <option value="rare">Редко</option>
+            <option value="sometimes">Иногда</option>
+            <option value="often">Часто</option>
+          </select>
+        </div>
+        <div>
+          <label>Скорость голоса</label>
+          <select id="voice_speed">
+            <option value="slow">Медленно</option>
+            <option value="normal">Нормально</option>
+            <option value="fast">Быстро</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Контент</h2>
+      <label>Что разрешено</label>
+      <div class="checks" id="contentChecks">
+        <label><input type="checkbox" value="riddle"> Загадки</label>
+        <label><input type="checkbox" value="story"> Сказки</label>
+        <label><input type="checkbox" value="tongue_twister"> Скороговорки</label>
+        <label><input type="checkbox" value="mini_game"> Мини-игры</label>
+        <label><input type="checkbox" value="learning"> Обучающие вопросы</label>
+        <label><input type="checkbox" value="roleplay"> Ролевые игры</label>
+      </div>
+      <label>Длина сказки</label>
+      <select id="story_length">
+        <option value="3">3 предложения</option>
+        <option value="5">5 предложений</option>
+        <option value="8">8 предложений</option>
+      </select>
+      <label>Любимые темы через запятую</label>
+      <input id="allowed_topics" placeholder="animals, space, friendship">
+      <label>Не предлагать темы через запятую</label>
+      <input id="blocked_topics" placeholder="monsters, sad stories">
+      <label><input id="memory_enabled" type="checkbox"> Память включена</label>
+      <button onclick="saveSettings()">Сохранить настройки</button>
+      <div id="saveStatus" class="status"></div>
+    </section>
+
+    <section>
+      <h2>Память</h2>
+      <button class="secondary" onclick="loadState()">Обновить</button>
+      <button class="danger" onclick="clearMemory()">Очистить память</button>
+      <pre id="memoryView">Память ещё не загружена.</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+let token = localStorage.getItem('lumi_parent_token') || '';
+
+function api(path, options = {}) {
+  options.headers = options.headers || {};
+  options.headers['Content-Type'] = 'application/json';
+  if (token) options.headers.Authorization = 'Bearer ' + token;
+  return fetch(path, options).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    return data;
+  });
+}
+
+function quickLogin() {
+  document.getElementById('loginDevice').value = 'lumi_001';
+  document.getElementById('loginPin').value = '12345';
+  login();
+}
+
+async function login() {
+  const status = document.getElementById('loginStatus');
+  status.textContent = 'Входим...';
+  status.className = 'status';
+  try {
+    const data = await api('/api/parent/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        device_id: document.getElementById('loginDevice').value,
+        pin: document.getElementById('loginPin').value,
+      }),
+    });
+    token = data.token;
+    localStorage.setItem('lumi_parent_token', token);
+    status.textContent = 'Вход выполнен: ' + data.device_id;
+    document.getElementById('consoleBox').classList.remove('hidden');
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+function setValue(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.type === 'checkbox') el.checked = Boolean(value);
+  else el.value = value == null ? '' : value;
+}
+
+function getCheckedValues(containerId) {
+  return [...document.querySelectorAll('#' + containerId + ' input[type=checkbox]:checked')].map(el => el.value);
+}
+
+function setCheckedValues(containerId, values) {
+  const set = new Set(values || []);
+  document.querySelectorAll('#' + containerId + ' input[type=checkbox]').forEach(el => {
+    el.checked = set.has(el.value);
+  });
+}
+
+async function loadState() {
+  const data = await api('/api/parent/state');
+  const s = data.settings || {};
+  const p = data.profile || {};
+  [
+    'toy_name', 'toy_type', 'language', 'model_mode', 'personality_preset',
+    'answer_length', 'humor_level', 'activity_level', 'question_frequency',
+    'voice_speed', 'story_length'
+  ].forEach(id => setValue(id, s[id]));
+  setValue('memory_enabled', s.memory_enabled !== false);
+  setCheckedValues('contentChecks', s.content_enabled || []);
+  setValue('allowed_topics', (s.allowed_topics || []).join(', '));
+  setValue('blocked_topics', (s.blocked_topics || []).join(', '));
+  ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest']
+    .forEach(id => setValue(id, p[id]));
+  document.getElementById('memoryView').textContent = JSON.stringify({
+    child_profile: p,
+    memory_json: p.memory_json || {},
+  }, null, 2);
+}
+
+async function saveSettings() {
+  const status = document.getElementById('saveStatus');
+  status.textContent = 'Сохраняю...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        toy_name: document.getElementById('toy_name').value,
+        toy_type: document.getElementById('toy_type').value,
+        language: document.getElementById('language').value,
+        model_mode: document.getElementById('model_mode').value,
+        personality_preset: document.getElementById('personality_preset').value,
+        answer_length: document.getElementById('answer_length').value,
+        humor_level: document.getElementById('humor_level').value,
+        activity_level: document.getElementById('activity_level').value,
+        question_frequency: document.getElementById('question_frequency').value,
+        voice_speed: document.getElementById('voice_speed').value,
+        story_length: document.getElementById('story_length').value,
+        content_enabled: getCheckedValues('contentChecks'),
+        allowed_topics: document.getElementById('allowed_topics').value,
+        blocked_topics: document.getElementById('blocked_topics').value,
+        memory_enabled: document.getElementById('memory_enabled').checked,
+      }),
+    });
+    status.textContent = 'Настройки сохранены.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function saveProfile() {
+  await api('/api/parent/profile', {
+    method: 'POST',
+    body: JSON.stringify({
+      child_name: document.getElementById('child_name').value,
+      age: document.getElementById('age').value,
+      favorite_color: document.getElementById('favorite_color').value,
+      favorite_animal: document.getElementById('favorite_animal').value,
+      favorite_toy: document.getElementById('favorite_toy').value,
+      favorite_food: document.getElementById('favorite_food').value,
+      current_interest: document.getElementById('current_interest').value,
+    }),
+  });
+  await loadState();
+}
+
+async function clearMemory() {
+  if (!confirm('Очистить память этой игрушки?')) return;
+  await api('/api/parent/memory/clear', { method: 'POST', body: '{}' });
+  await loadState();
+}
+
+if (token) {
+  document.getElementById('consoleBox').classList.remove('hidden');
+  loadState().catch(() => {
+    localStorage.removeItem('lumi_parent_token');
+    token = '';
+    document.getElementById('consoleBox').classList.add('hidden');
+  });
+}
+</script>
+</body>
+</html>

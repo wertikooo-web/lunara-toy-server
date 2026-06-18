@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const logger = require('./logger');
 
 const DATABASE_URL = process.env.DATABASE_URL;
-const DEFAULT_DEVICE_ID = process.env.DEFAULT_DEVICE_ID || 'demo_lumi_001';
+const DEFAULT_DEVICE_ID = process.env.DEFAULT_DEVICE_ID || 'lumi_001';
 const AUTO_UPDATE = process.env.MEMORY_AUTO_UPDATE !== 'false';
 const EXTRACT_MODEL = process.env.MEMORY_EXTRACT_MODEL || 'gpt-4o-mini';
 
