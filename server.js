@@ -18,11 +18,58 @@ const content  = require('./modules/content');
 const storyEngine = require('./modules/storyEngine');
 const parentConfig = require('./modules/parentConfig');
 
+let server = null;
+let shuttingDown = false;
+
+function formatFatalError(err) {
+    if (err instanceof Error) return err.stack || err.message;
+    try {
+        return JSON.stringify(err);
+    } catch (_jsonErr) {
+        return String(err);
+    }
+}
+
+function requestProcessRestart(reason, err) {
+    logger.error(`[Process] ${reason}: ${formatFatalError(err)}`);
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    setTimeout(() => {
+        logger.error(`[Process] forcing exit after ${reason}`);
+        process.exit(1);
+    }, 3000).unref();
+
+    if (server?.listening) {
+        server.close(() => {
+            logger.error(`[Process] closed server after ${reason}`);
+            process.exit(1);
+        });
+        return;
+    }
+
+    process.exit(1);
+}
+
+process.on('unhandledRejection', (reason) => {
+    requestProcessRestart('unhandledRejection', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    requestProcessRestart('uncaughtException', err);
+});
+
 // ── Directories ──────────────────────────────────────────────────────────────
-const DIR_AUDIO   = path.join(__dirname, 'audio');
+const DIR_AUDIO   = process.env.AUDIO_DIR ? path.resolve(process.env.AUDIO_DIR) : path.join(__dirname, 'audio');
 const DIR_UPLOADS = path.join(__dirname, 'uploads');
 const DIR_CONTENT_AUDIO = path.join(DIR_AUDIO, 'content');
 [DIR_AUDIO, DIR_UPLOADS, DIR_CONTENT_AUDIO].forEach(d => fs.mkdirSync(d, { recursive: true }));
+
+if (process.env.AUDIO_DIR) {
+    logger.info(`[Audio] using persistent AUDIO_DIR: ${DIR_AUDIO}`);
+} else {
+    logger.warn('[Audio] AUDIO_DIR is not set; audio cache uses app-local storage and will be lost on redeploy');
+}
 
 // ── Express (static audio files) ─────────────────────────────────────────────
 const app = express();
@@ -494,7 +541,7 @@ function recordUsageSafe(deviceId, durationMs) {
 }
 
 
-const server = http.createServer(app);
+server = http.createServer(app);
 
 // ── WebSocket server ──────────────────────────────────────────────────────────
 const wss = new WebSocketServer({ server });

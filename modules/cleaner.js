@@ -34,12 +34,13 @@ function start(dir, ttlMs = 10 * 60 * 1000, keepFiles = []) {
 
         let deleted = 0;
         for (const file of files) {
-            if (!file.endsWith('.pcm')) continue;
+            if (!file.endsWith('.pcm') && !file.endsWith('.wav')) continue;
             if (keep.has(file)) continue;
 
             const filePath = path.join(dir, file);
             try {
                 const stat = fs.statSync(filePath);
+                if (!stat.isFile()) continue;
                 if (now - stat.mtimeMs > ttlMs) {
                     fs.unlinkSync(filePath);
                     deleted++;
