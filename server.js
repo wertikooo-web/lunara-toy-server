@@ -223,6 +223,19 @@ app.post('/chat', async (req, res) => {
     try {
         const settings = await parentConfig.getSettings(deviceId);
         const effectiveLang = settings.language || lang;
+        const runtime = await parentConfig.getRuntimeState(deviceId, settings);
+        if (!runtime.allowed) {
+            const reply = runtimeLimitReply(runtime, effectiveLang);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            return res.json({
+                reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                runtime,
+                ...cachedModelMeta(),
+            });
+        }
         const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
         if (pendingAnswer?.nextRiddle) {
             sessionRef.pendingContent = null;
@@ -232,6 +245,7 @@ app.post('/chat', async (req, res) => {
             });
             if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
                 sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
+                recordUsageSafe(deviceId, shortContent.durationMs);
                 return res.json({
                     reply: shortContent.reply,
                     audio_url: shortContent.audioUrl,
@@ -253,6 +267,7 @@ app.post('/chat', async (req, res) => {
                 lang: pendingAnswer.lang || lang,
                 key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
             });
+            recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply: pendingAnswer.reply,
                 audio_url: audio.audioUrl,
@@ -272,6 +287,7 @@ app.post('/chat', async (req, res) => {
                 lang: clarification.lang || effectiveLang,
                 key: 'clarification',
             });
+            recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply: clarification.reply,
                 audio_url: audio.audioUrl,
@@ -287,6 +303,7 @@ app.post('/chat', async (req, res) => {
         if (requestedContentType && !isContentTypeAllowed(settings, requestedContentType)) {
             const reply = disabledContentReply(requestedContentType, effectiveLang);
             const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -301,6 +318,7 @@ app.post('/chat', async (req, res) => {
         const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang: effectiveLang });
         if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
+            recordUsageSafe(deviceId, shortContent.durationMs);
             return res.json({
                 reply: shortContent.reply,
                 audio_url: shortContent.audioUrl,
@@ -321,6 +339,7 @@ app.post('/chat', async (req, res) => {
         if (story && !isContentTypeAllowed(settings, 'story')) {
             const reply = disabledContentReply('story', effectiveLang);
             const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -358,6 +377,7 @@ app.post('/chat', async (req, res) => {
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, effectiveLang);
+        recordUsageSafe(deviceId, durationMs);
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({
@@ -450,6 +470,27 @@ async function synthesizeReply(reply, ts, lang, baseUrl) {
     const durationMs = await tts.synthesize(reply, outputPath, lang);
     const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
     return { audioUrl, durationMs };
+}
+
+function runtimeLimitReply(runtime, lang = 'ru-RU') {
+    const key = String(lang).startsWith('ro') ? 'ro' : String(lang).startsWith('en') ? 'en' : 'ru';
+    if (runtime?.reason === 'daily_limit') {
+        return {
+            ru: 'На сегодня время Lumi закончилось. Давай отдохнём, а завтра снова поговорим.',
+            ro: 'Timpul Lumi pentru azi s-a terminat. Hai sa ne odihnim, iar maine vorbim din nou.',
+            en: 'Lumi time is finished for today. Let us rest, and we can talk again tomorrow.',
+        }[key];
+    }
+    return {
+        ru: 'Сейчас у Lumi время тишины. Давай отдохнём и поговорим позже.',
+        ro: 'Acum este timpul de liniste pentru Lumi. Hai sa ne odihnim si vorbim mai tarziu.',
+        en: 'It is quiet time for Lumi now. Let us rest and talk later.',
+    }[key];
+}
+
+function recordUsageSafe(deviceId, durationMs) {
+    parentConfig.recordRuntimeUsage(deviceId, durationMs)
+        .catch(err => logger.warn(`[Parent] usage record failed: ${err.message}`));
 }
 
 
@@ -688,6 +729,24 @@ async function handlePipeline(
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
         const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';
+        const runtime = await parentConfig.getRuntimeState(deviceId, settings);
+        if (!runtime.allowed) {
+            logger.info(`[Pipeline] runtime blocked: ${runtime.reason}`);
+            const reply = runtimeLimitReply(runtime, effectiveLang);
+            const audio = await content.ensureCachedReply(reply, {
+                baseUrl,
+                lang: effectiveLang,
+                key: `runtime_${runtime.reason}`,
+            });
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after runtime reply — discarding (child interrupted)');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            return;
+        }
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
         if (pendingAnswer?.nextRiddle) {
             state.pendingContent = null;
@@ -702,6 +761,7 @@ async function handlePipeline(
                 }
                 state.pendingContent = content.pendingFromItem(shortContent.item);
                 sendAudio(shortContent.audioUrl, shortContent.durationMs);
+                recordUsageSafe(deviceId, shortContent.durationMs);
                 logger.info(`[Pipeline] sent next riddle content: ${shortContent.item.id} cached=${shortContent.cached}`);
                 return;
             }
@@ -723,6 +783,7 @@ async function handlePipeline(
             }
 
             sendAudio(audio.audioUrl, audio.durationMs);
+            recordUsageSafe(deviceId, audio.durationMs);
             return;
         }
 
@@ -741,6 +802,7 @@ async function handlePipeline(
             }
 
             sendAudio(audio.audioUrl, audio.durationMs);
+            recordUsageSafe(deviceId, audio.durationMs);
             return;
         }
 
@@ -760,6 +822,7 @@ async function handlePipeline(
             }
 
             sendAudio(audio.audioUrl, audio.durationMs);
+            recordUsageSafe(deviceId, audio.durationMs);
             return;
         }
 
@@ -771,6 +834,7 @@ async function handlePipeline(
             }
             state.pendingContent = content.pendingFromItem(shortContent.item);
             sendAudio(shortContent.audioUrl, shortContent.durationMs);
+            recordUsageSafe(deviceId, shortContent.durationMs);
             logger.info(`[Pipeline] sent cached content audio: ${shortContent.item.id} cached=${shortContent.cached}`);
             return;
         }
@@ -796,6 +860,7 @@ async function handlePipeline(
             }
 
             sendAudio(audio.audioUrl, audio.durationMs);
+            recordUsageSafe(deviceId, audio.durationMs);
             return;
         }
         const followupContext = !story && state.lastContentMode === 'story'
@@ -839,6 +904,7 @@ async function handlePipeline(
 
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
+        recordUsageSafe(deviceId, durationMs);
         state.lastContentMode = story ? 'story' : null;
         if (settings.memory_enabled !== false) {
             memory.rememberFromText(deviceId, transcript, profile)

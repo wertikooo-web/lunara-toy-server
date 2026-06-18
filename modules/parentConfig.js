@@ -33,6 +33,10 @@ const DEFAULT_SETTINGS = {
     story_length: '5',
     custom_toy_type: '',
     custom_personality: '',
+    daily_limit_minutes: 0,
+    quiet_hours_enabled: false,
+    quiet_hours_start: '22:00',
+    quiet_hours_end: '07:00',
     content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'],
     allowed_topics: ['животные', 'космос', 'сказки', 'дружба'],
     blocked_topics: [],
@@ -52,6 +56,11 @@ function hashPin(pin) {
 
 function safeText(value, max = 120) {
     return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max);
+}
+
+function normalizeTime(value, fallback) {
+    const text = safeText(value, 5);
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : fallback;
 }
 
 function cleanStringArray(value, allowed = null, maxItems = 12) {
@@ -111,6 +120,13 @@ function normalizeSettingsPatch(raw = {}) {
     }
     if ('custom_toy_type' in raw) patch.custom_toy_type = safeText(raw.custom_toy_type, 40);
     if ('custom_personality' in raw) patch.custom_personality = safeText(raw.custom_personality, 220);
+    if ('daily_limit_minutes' in raw) {
+        const minutes = Number(raw.daily_limit_minutes);
+        patch.daily_limit_minutes = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, Math.round(minutes))) : DEFAULT_SETTINGS.daily_limit_minutes;
+    }
+    if ('quiet_hours_enabled' in raw) patch.quiet_hours_enabled = raw.quiet_hours_enabled === true || raw.quiet_hours_enabled === 'true' || raw.quiet_hours_enabled === 'on';
+    if ('quiet_hours_start' in raw) patch.quiet_hours_start = normalizeTime(raw.quiet_hours_start, DEFAULT_SETTINGS.quiet_hours_start);
+    if ('quiet_hours_end' in raw) patch.quiet_hours_end = normalizeTime(raw.quiet_hours_end, DEFAULT_SETTINGS.quiet_hours_end);
     if ('content_enabled' in raw) {
         patch.content_enabled = cleanStringArray(raw.content_enabled, ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'], 8);
     }
@@ -157,6 +173,10 @@ async function init() {
             story_length TEXT NOT NULL DEFAULT '5',
             custom_toy_type TEXT NOT NULL DEFAULT '',
             custom_personality TEXT NOT NULL DEFAULT '',
+            daily_limit_minutes INTEGER NOT NULL DEFAULT 0,
+            quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false,
+            quiet_hours_start TEXT NOT NULL DEFAULT '22:00',
+            quiet_hours_end TEXT NOT NULL DEFAULT '07:00',
             content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game","learning","roleplay"]'::jsonb,
             allowed_topics JSONB NOT NULL DEFAULT '["животные","космос","сказки","дружба"]'::jsonb,
             blocked_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -166,6 +186,10 @@ async function init() {
     `);
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_toy_type TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_start TEXT NOT NULL DEFAULT '22:00'");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'");
     await pool.query("UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'");
     await pool.query(`
         CREATE TABLE IF NOT EXISTS parent_config_profiles (
@@ -177,6 +201,15 @@ async function init() {
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE (device_id, profile_name)
+        )
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS device_usage_daily (
+            device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+            usage_date TEXT NOT NULL,
+            used_seconds INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (device_id, usage_date)
         )
     `);
 
@@ -305,8 +338,86 @@ async function getParentState(deviceId) {
     return {
         settings,
         profile: profileResult.rows[0] || null,
+        runtime: await getRuntimeState(id, settings),
         saved_profiles: await listProfiles(id),
     };
+}
+
+function localNow() {
+    const offsetMinutes = Number(process.env.RUNTIME_TIMEZONE_OFFSET_MINUTES || 180);
+    return new Date(Date.now() + offsetMinutes * 60 * 1000);
+}
+
+function localDateKey(date = localNow()) {
+    return date.toISOString().slice(0, 10);
+}
+
+function minutesOfDay(value) {
+    const [hours, minutes] = normalizeTime(value, '00:00').split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
+function nowMinutes() {
+    const now = localNow();
+    return now.getUTCHours() * 60 + now.getUTCMinutes();
+}
+
+function isQuietTime(settings = {}) {
+    if (settings.quiet_hours_enabled !== true) return false;
+    const start = minutesOfDay(settings.quiet_hours_start || DEFAULT_SETTINGS.quiet_hours_start);
+    const end = minutesOfDay(settings.quiet_hours_end || DEFAULT_SETTINGS.quiet_hours_end);
+    const current = nowMinutes();
+    if (start === end) return false;
+    if (start < end) return current >= start && current < end;
+    return current >= start || current < end;
+}
+
+async function getUsedSeconds(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return 0;
+    const usageDate = localDateKey();
+    const result = await pool.query(
+        'SELECT used_seconds FROM device_usage_daily WHERE device_id = $1 AND usage_date = $2 LIMIT 1',
+        [id, usageDate]
+    );
+    return Number(result.rows[0]?.used_seconds || 0);
+}
+
+async function getRuntimeState(deviceId, settings = null) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return { allowed: true, reason: 'disabled', used_minutes: 0, remaining_minutes: null };
+    const s = settings || await getSettings(id);
+    const usedSeconds = await getUsedSeconds(id);
+    const limitMinutes = Number(s.daily_limit_minutes || 0);
+    const usedMinutes = Math.ceil(usedSeconds / 60);
+    const quiet = isQuietTime(s);
+    const dailyExceeded = limitMinutes > 0 && usedSeconds >= limitMinutes * 60;
+    return {
+        allowed: !quiet && !dailyExceeded,
+        reason: quiet ? 'quiet_hours' : dailyExceeded ? 'daily_limit' : 'ok',
+        used_minutes: usedMinutes,
+        daily_limit_minutes: limitMinutes,
+        remaining_minutes: limitMinutes > 0 ? Math.max(0, limitMinutes - usedMinutes) : null,
+        quiet_hours_enabled: s.quiet_hours_enabled === true,
+        quiet_hours_start: s.quiet_hours_start,
+        quiet_hours_end: s.quiet_hours_end,
+    };
+}
+
+async function recordRuntimeUsage(deviceId, durationMs = 0) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return null;
+    const seconds = Math.max(1, Math.ceil(Number(durationMs || 0) / 1000));
+    const usageDate = localDateKey();
+    await pool.query(
+        `INSERT INTO device_usage_daily (device_id, usage_date, used_seconds)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (device_id, usage_date)
+         DO UPDATE SET used_seconds = device_usage_daily.used_seconds + EXCLUDED.used_seconds,
+                       updated_at = now()`,
+        [id, usageDate, seconds]
+    );
+    return getRuntimeState(id);
 }
 
 function settingsSnapshot(settings = {}) {
@@ -450,10 +561,14 @@ async function resetToDefaults(deviceId) {
              story_length = $11,
              custom_toy_type = $12,
              custom_personality = $13,
-             content_enabled = $14::jsonb,
-             allowed_topics = $15::jsonb,
-             blocked_topics = $16::jsonb,
-             memory_enabled = $17,
+             daily_limit_minutes = $14,
+             quiet_hours_enabled = $15,
+             quiet_hours_start = $16,
+             quiet_hours_end = $17,
+             content_enabled = $18::jsonb,
+             allowed_topics = $19::jsonb,
+             blocked_topics = $20::jsonb,
+             memory_enabled = $21,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -470,6 +585,10 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.story_length,
             DEFAULT_SETTINGS.custom_toy_type,
             DEFAULT_SETTINGS.custom_personality,
+            DEFAULT_SETTINGS.daily_limit_minutes,
+            DEFAULT_SETTINGS.quiet_hours_enabled,
+            DEFAULT_SETTINGS.quiet_hours_start,
+            DEFAULT_SETTINGS.quiet_hours_end,
             JSON.stringify(DEFAULT_SETTINGS.content_enabled),
             JSON.stringify(DEFAULT_SETTINGS.allowed_topics),
             JSON.stringify(DEFAULT_SETTINGS.blocked_topics),
@@ -477,6 +596,7 @@ async function resetToDefaults(deviceId) {
         ]
     );
     await pool.query('DELETE FROM child_profiles WHERE device_id = $1', [id]);
+    await pool.query('DELETE FROM device_usage_daily WHERE device_id = $1', [id]);
     return getParentState(id);
 }
 
@@ -526,6 +646,8 @@ module.exports = {
     loadProfileSnapshot,
     deleteProfileSnapshot,
     touchDevice,
+    getRuntimeState,
+    recordRuntimeUsage,
     modelModeToModelName,
     formatSettingsForPrompt,
 };
