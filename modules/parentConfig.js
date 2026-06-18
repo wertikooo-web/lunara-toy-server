@@ -33,8 +33,8 @@ const DEFAULT_SETTINGS = {
     story_length: '5',
     custom_toy_type: '',
     custom_personality: '',
-    content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game'],
-    allowed_topics: ['animals', 'space', 'fairy_tales', 'friendship'],
+    content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'],
+    allowed_topics: ['животные', 'космос', 'сказки', 'дружба'],
     blocked_topics: [],
     memory_enabled: true,
 };
@@ -157,8 +157,8 @@ async function init() {
             story_length TEXT NOT NULL DEFAULT '5',
             custom_toy_type TEXT NOT NULL DEFAULT '',
             custom_personality TEXT NOT NULL DEFAULT '',
-            content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game"]'::jsonb,
-            allowed_topics JSONB NOT NULL DEFAULT '["animals","space","fairy_tales","friendship"]'::jsonb,
+            content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game","learning","roleplay"]'::jsonb,
+            allowed_topics JSONB NOT NULL DEFAULT '["животные","космос","сказки","дружба"]'::jsonb,
             blocked_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
             memory_enabled BOOLEAN NOT NULL DEFAULT true,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

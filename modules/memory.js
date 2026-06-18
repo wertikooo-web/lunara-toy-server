@@ -53,6 +53,7 @@ const FIELD_LIMITS = {
 };
 
 const MEMORY_LIST_FIELDS = [
+    'nicknames',
     'favorite_colors',
     'favorite_animals',
     'favorite_games',
@@ -70,6 +71,7 @@ const MEMORY_LIST_FIELDS = [
 ];
 
 const LIST_LIMITS = {
+    nicknames: 5,
     favorite_colors: 8,
     favorite_animals: 8,
     favorite_games: 8,
@@ -314,6 +316,14 @@ async function applyMemoryActions(deviceId, actions) {
     const profile = await getProfile(id);
     const memoryJson = parseMemoryJson(profile?.memory_json);
     const scalarPatch = cleanPatch(actions.set || {});
+    if (scalarPatch.child_name && profile?.child_name) {
+        const existingName = String(profile.child_name).trim().toLocaleLowerCase('ru-RU');
+        const nextName = String(scalarPatch.child_name).trim().toLocaleLowerCase('ru-RU');
+        if (existingName && nextName && existingName !== nextName) {
+            actions.add.nicknames = cleanListValues([scalarPatch.child_name, ...(actions.add.nicknames || [])]);
+            delete scalarPatch.child_name;
+        }
+    }
 
     for (const [field, value] of Object.entries(scalarPatch)) {
         const listField = FIELD_TO_LIST[field];
@@ -368,6 +378,7 @@ async function extractPatchFromText(userText, profile = null) {
                     'add/remove may use only these list keys:',
                     MEMORY_LIST_FIELDS.join(', '),
                     'Use short values. Store stable, child-friendly preferences and shared play context.',
+                    'If current_profile already has child_name and the child says a different name, do not replace child_name; add the new safe first name to nicknames instead.',
                     'Important: when the child says they also like something, ADD it. Do not remove old likes unless the child clearly says they no longer like it.',
                     'If the child says a new favorite ("my favorite color is red"), set the scalar field and add it to the matching list. Keep previous list items.',
                     'Use remove only for explicit negations like "I no longer like pizza" or "green is not my favorite anymore".',
@@ -447,6 +458,7 @@ function formatProfileForPrompt(profile) {
         .map(([label, value]) => `- ${label}: ${value}`);
 
     const memoryLabels = {
+        nicknames: 'Возможные игровые имена или прозвища',
         favorite_colors: 'Любимые цвета',
         favorite_animals: 'Любимые животные',
         favorite_games: 'Любимые игры',

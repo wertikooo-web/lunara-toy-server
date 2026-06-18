@@ -11,6 +11,8 @@
     h1 { font-size: 28px; }
     h2 { font-size: 20px; margin-top: 26px; }
     section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .topbar select { width: auto; min-width: 150px; }
     label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
     input, select, textarea {
       width: 100%; box-sizing: border-box; border: 1px solid #57408f; border-radius: 8px;
@@ -33,13 +35,25 @@
     .status { color: #86efac; margin-top: 10px; min-height: 20px; }
     .error { color: #fecaca; }
     .hidden { display: none; }
+    .memory-card { background: #0b0914; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    .memory-row { display: grid; grid-template-columns: 190px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid #241943; }
+    .memory-row:last-child { border-bottom: 0; }
+    .memory-label { color: #c9b8ff; }
+    .memory-empty { color: #a999d6; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
-    @media (max-width: 700px) { .grid, .checks { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .grid, .checks, .memory-row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 <main>
-  <h1>Родительская консоль Lumi</h1>
+  <div class="topbar">
+    <h1>Родительская консоль Lumi</h1>
+    <select id="quickLanguage" onchange="setLanguageFromTop()">
+      <option value="ru-RU">Русский</option>
+      <option value="ro-RO">Română</option>
+      <option value="en-US">English</option>
+    </select>
+  </div>
   <p>Функциональная версия v1. Настройки сохраняются на сервере и применяются к игрушке по device_id.</p>
 
   <section id="loginBox">
@@ -101,7 +115,7 @@
         </div>
         <div>
           <label>Язык</label>
-          <select id="language">
+          <select id="language" onchange="setLanguageFromMain()">
             <option value="ru-RU">Русский</option>
             <option value="ro-RO">Румынский</option>
             <option value="en-US">English</option>
@@ -149,6 +163,7 @@
       <label>Текущий интерес</label>
       <input id="current_interest">
       <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
+      <div id="childProfileStatus" class="status"></div>
     </section>
 
     <section>
@@ -213,13 +228,14 @@
     <section>
       <h2>Контент</h2>
       <label>Что разрешено</label>
+      <p class="small">По умолчанию всё включено. Родитель просто убирает галочки у того, что сейчас не нужно. Мини-игры — короткие задания. Ролевые игры — “давай представим, что мы космонавты”.</p>
       <div class="checks" id="contentChecks">
         <label><input type="checkbox" value="riddle"> Загадки</label>
         <label><input type="checkbox" value="story"> Сказки</label>
         <label><input type="checkbox" value="tongue_twister"> Скороговорки</label>
-        <label><input type="checkbox" value="mini_game"> Мини-игры</label>
-        <label><input type="checkbox" value="learning"> Обучающие вопросы</label>
-        <label><input type="checkbox" value="roleplay"> Ролевые игры</label>
+        <label><input type="checkbox" value="mini_game"> Мини-игры: короткие задания</label>
+        <label><input type="checkbox" value="learning"> Обучающие мини-активности</label>
+        <label><input type="checkbox" value="roleplay"> Ролевые игры: представить роль</label>
       </div>
       <label>Длина сказки</label>
       <select id="story_length">
@@ -240,13 +256,32 @@
       <h2>Память</h2>
       <button class="secondary" onclick="loadState()">Обновить</button>
       <button class="danger" onclick="clearMemory()">Очистить память</button>
-      <pre id="memoryView">Память ещё не загружена.</pre>
+      <div id="memoryView" class="memory-card memory-empty">Память ещё не загружена.</div>
     </section>
   </div>
 </main>
 
 <script>
 let token = localStorage.getItem('lumi_parent_token') || '';
+
+const TOPIC_PRESETS = {
+  'ru-RU': {
+    allowed: ['животные', 'космос', 'сказки', 'дружба'],
+    blocked: ['монстры', 'грустные истории'],
+  },
+  'ro-RO': {
+    allowed: ['animale', 'spatiu', 'basme', 'prietenie'],
+    blocked: ['monstri', 'povesti triste'],
+  },
+  'en-US': {
+    allowed: ['animals', 'space', 'fairy tales', 'friendship'],
+    blocked: ['monsters', 'sad stories'],
+  },
+};
+
+const KNOWN_TOPIC_PRESETS = Object.values(TOPIC_PRESETS)
+  .flatMap(preset => [preset.allowed, preset.blocked])
+  .map(values => values.map(value => value.toLowerCase()).join('|'));
 
 function api(path, options = {}) {
   options.headers = options.headers || {};
@@ -306,6 +341,70 @@ function setCheckedValues(containerId, values) {
   });
 }
 
+function isKnownTopicPreset(values, allowEmpty = false) {
+  const normalized = (values || []).map(value => String(value).trim().toLowerCase()).filter(Boolean).join('|');
+  if (!normalized) return allowEmpty;
+  return !normalized || KNOWN_TOPIC_PRESETS.includes(normalized);
+}
+
+function topicText(values) {
+  return (values || []).join(', ');
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function addMemoryRow(rows, label, value) {
+  if (Array.isArray(value)) value = value.filter(Boolean).join(', ');
+  const text = String(value || '').trim();
+  if (!text) return;
+  rows.push(`<div class="memory-row"><div class="memory-label">${escapeHtml(label)}</div><div>${escapeHtml(text)}</div></div>`);
+}
+
+function renderMemoryView(profile) {
+  const rows = [];
+  const memory = profile?.memory_json || {};
+  addMemoryRow(rows, 'Имя ребёнка', profile?.child_name);
+  addMemoryRow(rows, 'Возраст', profile?.age);
+  addMemoryRow(rows, 'Любимый цвет', profile?.favorite_color);
+  addMemoryRow(rows, 'Любимое животное', profile?.favorite_animal);
+  addMemoryRow(rows, 'Любимая игра', profile?.favorite_game);
+  addMemoryRow(rows, 'Любимая игрушка', profile?.favorite_toy);
+  addMemoryRow(rows, 'Любимая еда', profile?.favorite_food);
+  addMemoryRow(rows, 'Текущий интерес', profile?.current_interest);
+  addMemoryRow(rows, 'Игровые имена / прозвища', memory.nicknames);
+  addMemoryRow(rows, 'Любимые цвета', memory.favorite_colors);
+  addMemoryRow(rows, 'Любимые животные', memory.favorite_animals);
+  addMemoryRow(rows, 'Любимые игрушки', memory.favorite_toys);
+  addMemoryRow(rows, 'Любимая еда', memory.favorite_foods);
+  addMemoryRow(rows, 'Интересы сейчас', memory.current_interests);
+  addMemoryRow(rows, 'Последние истории', memory.recent_stories);
+  addMemoryRow(rows, 'Общий мир Lumi', memory.shared_world_states);
+
+  const box = document.getElementById('memoryView');
+  if (!rows.length) {
+    box.className = 'memory-card memory-empty';
+    box.textContent = 'Память пока пустая.';
+    return;
+  }
+  box.className = 'memory-card';
+  box.innerHTML = rows.join('');
+}
+
+function applyLanguageTopicDefaults(lang) {
+  const preset = TOPIC_PRESETS[lang] || TOPIC_PRESETS['ru-RU'];
+  const allowed = document.getElementById('allowed_topics').value.split(',').map(v => v.trim()).filter(Boolean);
+  const blocked = document.getElementById('blocked_topics').value.split(',').map(v => v.trim()).filter(Boolean);
+  if (isKnownTopicPreset(allowed, true)) document.getElementById('allowed_topics').value = topicText(preset.allowed);
+  if (isKnownTopicPreset(blocked, false)) document.getElementById('blocked_topics').value = topicText(preset.blocked);
+}
+
 function renderSavedProfiles(profiles) {
   const select = document.getElementById('savedProfiles');
   select.innerHTML = '';
@@ -333,17 +432,30 @@ async function loadState() {
     'answer_length', 'humor_level', 'activity_level', 'question_frequency',
     'voice_speed', 'story_length', 'custom_toy_type', 'custom_personality'
   ].forEach(id => setValue(id, s[id]));
+  setValue('quickLanguage', s.language || 'ru-RU');
   renderSavedProfiles(data.saved_profiles || []);
   setValue('memory_enabled', s.memory_enabled !== false);
   setCheckedValues('contentChecks', s.content_enabled || []);
-  setValue('allowed_topics', (s.allowed_topics || []).join(', '));
-  setValue('blocked_topics', (s.blocked_topics || []).join(', '));
+  const lang = s.language || 'ru-RU';
+  const preset = TOPIC_PRESETS[lang] || TOPIC_PRESETS['ru-RU'];
+  setValue('allowed_topics', topicText(isKnownTopicPreset(s.allowed_topics, true) ? preset.allowed : s.allowed_topics));
+  setValue('blocked_topics', topicText(isKnownTopicPreset(s.blocked_topics, false) ? preset.blocked : s.blocked_topics));
   ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest']
     .forEach(id => setValue(id, p[id]));
-  document.getElementById('memoryView').textContent = JSON.stringify({
-    child_profile: p,
-    memory_json: p.memory_json || {},
-  }, null, 2);
+  renderMemoryView(p);
+}
+
+async function setLanguageFromTop() {
+  const quickLanguage = document.getElementById('quickLanguage').value;
+  setValue('language', quickLanguage);
+  applyLanguageTopicDefaults(quickLanguage);
+  await saveSettings();
+}
+
+function setLanguageFromMain() {
+  const language = document.getElementById('language').value;
+  setValue('quickLanguage', language);
+  applyLanguageTopicDefaults(language);
 }
 
 async function saveSettings() {
@@ -382,19 +494,29 @@ async function saveSettings() {
 }
 
 async function saveProfile() {
-  await api('/api/parent/profile', {
-    method: 'POST',
-    body: JSON.stringify({
-      child_name: document.getElementById('child_name').value,
-      age: document.getElementById('age').value,
-      favorite_color: document.getElementById('favorite_color').value,
-      favorite_animal: document.getElementById('favorite_animal').value,
-      favorite_toy: document.getElementById('favorite_toy').value,
-      favorite_food: document.getElementById('favorite_food').value,
-      current_interest: document.getElementById('current_interest').value,
-    }),
-  });
-  await loadState();
+  const status = document.getElementById('childProfileStatus');
+  status.textContent = 'Сохраняю профиль ребёнка...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/profile', {
+      method: 'POST',
+      body: JSON.stringify({
+        child_name: document.getElementById('child_name').value,
+        age: document.getElementById('age').value,
+        favorite_color: document.getElementById('favorite_color').value,
+        favorite_animal: document.getElementById('favorite_animal').value,
+        favorite_toy: document.getElementById('favorite_toy').value,
+        favorite_food: document.getElementById('favorite_food').value,
+        current_interest: document.getElementById('current_interest').value,
+      }),
+    });
+    status.textContent = 'Профиль ребёнка сохранён. История демо-сессии очищена.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+    throw err;
+  }
 }
 
 async function saveConfigProfile() {

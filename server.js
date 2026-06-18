@@ -121,7 +121,8 @@ app.post('/api/parent/settings', async (req, res) => {
     if (!session) return;
     try {
         const settings = await parentConfig.updateSettings(session.device_id, req.body || {});
-        res.json({ ok: true, settings });
+        clearDemoSession(session.device_id);
+        res.json({ ok: true, settings, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] settings error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -132,7 +133,9 @@ app.post('/api/parent/profile', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
     try {
-        res.json(await parentConfig.updateChildProfile(session.device_id, req.body || {}));
+        const state = await parentConfig.updateChildProfile(session.device_id, req.body || {});
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] profile error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -143,7 +146,9 @@ app.post('/api/parent/memory/clear', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
     try {
-        res.json(await parentConfig.clearMemory(session.device_id));
+        const state = await parentConfig.clearMemory(session.device_id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] memory clear error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -154,7 +159,9 @@ app.post('/api/parent/reset', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
     try {
-        res.json(await parentConfig.resetToDefaults(session.device_id));
+        const state = await parentConfig.resetToDefaults(session.device_id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] reset error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -176,7 +183,9 @@ app.post('/api/parent/profiles/:id/load', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
     try {
-        res.json(await parentConfig.loadProfileSnapshot(session.device_id, req.params.id));
+        const state = await parentConfig.loadProfileSnapshot(session.device_id, req.params.id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] profile load error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -274,6 +283,21 @@ app.post('/chat', async (req, res) => {
             });
         }
 
+        const requestedContentType = content.classifyRequest(text);
+        if (requestedContentType && !isContentTypeAllowed(settings, requestedContentType)) {
+            const reply = disabledContentReply(requestedContentType, effectiveLang);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            return res.json({
+                reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                content_type: requestedContentType,
+                disabled_by_parent: true,
+                ...cachedModelMeta(),
+            });
+        }
+
         const shortContent = await content.tryHandleShortRequest(text, { baseUrl, lang: effectiveLang });
         if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
@@ -294,6 +318,19 @@ app.post('/chat', async (req, res) => {
         const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
         const modelName = req.body?.model || parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(text);
+        if (story && !isContentTypeAllowed(settings, 'story')) {
+            const reply = disabledContentReply('story', effectiveLang);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            return res.json({
+                reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                content_type: 'story',
+                disabled_by_parent: true,
+                ...cachedModelMeta(),
+            });
+        }
         const followupContext = !story && sessionRef.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(text)
             : '';
@@ -368,8 +405,45 @@ function isContentTypeAllowed(settings, type) {
     return true;
 }
 
+function disabledContentReply(type, lang = 'ru-RU') {
+    const key = String(lang).startsWith('ro') ? 'ro' : String(lang).startsWith('en') ? 'en' : 'ru';
+    const names = {
+        ru: {
+            riddle: 'загадки',
+            tongue_twister: 'скороговорки',
+            mini_game: 'игры',
+            story: 'сказки',
+        },
+        ro: {
+            riddle: 'ghicitorile',
+            tongue_twister: 'framantarile de limba',
+            mini_game: 'jocurile',
+            story: 'povestile',
+        },
+        en: {
+            riddle: 'riddles',
+            tongue_twister: 'tongue twisters',
+            mini_game: 'games',
+            story: 'stories',
+        },
+    };
+    const label = names[key][type] || names[key].story;
+    const replies = {
+        ru: `${label[0].toUpperCase()}${label.slice(1)} сейчас выключены в настройках. Давай лучше просто поговорим или выберем что-нибудь другое.`,
+        ro: `Acum ${label} sunt oprite in setari. Hai mai bine sa vorbim sau sa alegem altceva.`,
+        en: `${label[0].toUpperCase()}${label.slice(1)} are turned off in settings right now. Let us chat or choose something else.`,
+    };
+    return replies[key];
+}
+
 // Demo session storage (in-memory, keyed by x-session-id header)
 const demoSessions = new Map();
+
+function clearDemoSession(deviceId) {
+    const id = memory.normalizeDeviceId(deviceId);
+    demoSessions.delete(id);
+    logger.info(`[Parent] cleared browser demo session for device_id=${id}`);
+}
 
 async function synthesizeReply(reply, ts, lang, baseUrl) {
     const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
@@ -670,6 +744,25 @@ async function handlePipeline(
             return;
         }
 
+        const requestedContentType = content.classifyRequest(transcript);
+        if (requestedContentType && !isContentTypeAllowed(settings, requestedContentType)) {
+            logger.info(`[Pipeline] parent-disabled content requested: ${requestedContentType}`);
+            const reply = disabledContentReply(requestedContentType, effectiveLang);
+            const audio = await content.ensureCachedReply(reply, {
+                baseUrl,
+                lang: effectiveLang,
+                key: `disabled_${requestedContentType}`,
+            });
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after disabled content reply — discarding (child interrupted)');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            return;
+        }
+
         const shortContent = await content.tryHandleShortRequest(transcript, { baseUrl, lang: effectiveLang });
         if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             if (!isCurrent()) {
@@ -688,6 +781,23 @@ async function handlePipeline(
         const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
         const modelName = parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(transcript);
+        if (story && !isContentTypeAllowed(settings, 'story')) {
+            logger.info('[Pipeline] parent-disabled story requested');
+            const reply = disabledContentReply('story', effectiveLang);
+            const audio = await content.ensureCachedReply(reply, {
+                baseUrl,
+                lang: effectiveLang,
+                key: 'disabled_story',
+            });
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after disabled story reply — discarding (child interrupted)');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            return;
+        }
         const followupContext = !story && state.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(transcript)
             : '';
