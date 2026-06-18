@@ -18,7 +18,6 @@ const YANDEX_TTS_URL   = 'https://tts.api.cloud.yandex.net/speech/v1/tts:synthes
 const YANDEX_FOLDER_ID = process.env.YANDEX_FOLDER_ID;
 const YANDEX_API_KEY   = process.env.YANDEX_API_KEY;
 const YANDEX_VOICE     = 'alena';
-const YANDEX_SPEED     = '0.85';
 const SAMPLE_RATE      = 16000;
 
 const openai       = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -78,10 +77,16 @@ function saveFiles(pcmBuffer, outputPath) {
 }
 
 // ── Yandex TTS ────────────────────────────────────────────────────────────────
-function yandexTTS(text) {
+function normalizeSpeechSpeed(voiceSpeed = 'normal') {
+    if (voiceSpeed === 'slow') return 0.8;
+    if (voiceSpeed === 'fast') return 1.1;
+    return 0.9;
+}
+
+function yandexTTS(text, speed) {
     return new Promise((resolve, reject) => {
         const body = new URLSearchParams({
-            text, voice: YANDEX_VOICE, speed: YANDEX_SPEED,
+            text, voice: YANDEX_VOICE, speed: String(speed),
             format: 'lpcm', sampleRateHertz: String(SAMPLE_RATE),
             folderId: YANDEX_FOLDER_ID,
         }).toString();
@@ -111,13 +116,13 @@ function yandexTTS(text) {
 }
 
 // ── OpenAI TTS → PCM 16kHz ───────────────────────────────────────────────────
-async function openaiTTS(text, lang) {
+async function openaiTTS(text, lang, speed) {
     const voice = OPENAI_VOICES[lang] || OPENAI_VOICES['default'];
     logger.info(`[TTS] OpenAI voice: ${voice} (lang=${lang})`);
     const response = await openai.audio.speech.create({
         model: OPENAI_MODEL, voice, input: text,
         response_format: 'pcm',  // PCM16 LE 24kHz
-        speed: 0.85,
+        speed,
     });
     const pcm24k = Buffer.from(await response.arrayBuffer());
     return resample24to16(pcm24k);
@@ -139,18 +144,19 @@ function resample24to16(pcm24k) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-async function synthesize(text, outputPath, lang = null) {
+async function synthesize(text, outputPath, lang = null, options = {}) {
     // Use explicit lang from client if provided, otherwise auto-detect
     const explicitLang = normalizeExplicitLang(lang);
     const detectedLang = explicitLang || detectLang(text);
-    logger.info(`[TTS] lang=${detectedLang} (${explicitLang ? 'explicit' : 'auto'})`);
+    const speed = normalizeSpeechSpeed(options.voiceSpeed || 'normal');
+    logger.info(`[TTS] lang=${detectedLang} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}`);
 
     let pcmBuffer;
     if (detectedLang === 'ru') {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
-        pcmBuffer = await yandexTTS(text);
+        pcmBuffer = await yandexTTS(text, speed);
     } else {
-        pcmBuffer = await openaiTTS(text, detectedLang);
+        pcmBuffer = await openaiTTS(text, detectedLang, speed);
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);

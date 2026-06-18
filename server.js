@@ -152,6 +152,13 @@ app.post('/api/parent/login', async (req, res) => {
     }
 });
 
+app.post('/api/parent/logout', (req, res) => {
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : String(req.headers['x-parent-token'] || '');
+    if (token) parentSessions.delete(token);
+    res.json({ ok: true });
+});
+
 app.get('/api/parent/state', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
@@ -189,6 +196,21 @@ app.post('/api/parent/profile', async (req, res) => {
     }
 });
 
+app.post('/api/parent/password', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.changeParentPin(
+            session.device_id,
+            req.body?.current_pin,
+            req.body?.new_pin
+        ));
+    } catch (err) {
+        logger.warn(`[Parent] password change failed: ${err.message}`);
+        res.status(400).json({ error: err.message });
+    }
+});
+
 app.post('/api/parent/memory/clear', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
@@ -202,6 +224,19 @@ app.post('/api/parent/memory/clear', async (req, res) => {
     }
 });
 
+app.post('/api/parent/profile/clear', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const state = await parentConfig.clearChildProfile(session.device_id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
+    } catch (err) {
+        logger.error(`[Parent] child profile clear error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/parent/reset', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
@@ -211,6 +246,19 @@ app.post('/api/parent/reset', async (req, res) => {
         res.json({ ...state, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] reset error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/reset-all', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const state = await parentConfig.resetEverything(session.device_id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
+    } catch (err) {
+        logger.error(`[Parent] reset all error: ${err.message}`);
         res.status(500).json({ error: err.message });
     }
 });
@@ -273,7 +321,7 @@ app.post('/chat', async (req, res) => {
         const runtime = await parentConfig.getRuntimeState(deviceId, settings);
         if (!runtime.allowed) {
             const reply = runtimeLimitReply(runtime, effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -349,7 +397,7 @@ app.post('/chat', async (req, res) => {
         const requestedContentType = content.classifyRequest(text);
         if (requestedContentType && !isContentTypeAllowed(settings, requestedContentType)) {
             const reply = disabledContentReply(requestedContentType, effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
             recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply,
@@ -385,7 +433,7 @@ app.post('/chat', async (req, res) => {
         const story = await storyEngine.buildStoryContext(text);
         if (story && !isContentTypeAllowed(settings, 'story')) {
             const reply = disabledContentReply('story', effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
             recordUsageSafe(deviceId, audio.durationMs);
             return res.json({
                 reply,
@@ -423,7 +471,7 @@ app.post('/chat', async (req, res) => {
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang);
+        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang, { voiceSpeed: settings.voice_speed });
         recordUsageSafe(deviceId, durationMs);
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
@@ -512,9 +560,9 @@ function clearDemoSession(deviceId) {
     logger.info(`[Parent] cleared browser demo session for device_id=${id}`);
 }
 
-async function synthesizeReply(reply, ts, lang, baseUrl) {
+async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal') {
     const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-    const durationMs = await tts.synthesize(reply, outputPath, lang);
+    const durationMs = await tts.synthesize(reply, outputPath, lang, { voiceSpeed });
     const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
     return { audioUrl, durationMs };
 }
@@ -938,7 +986,7 @@ async function handlePipeline(
         // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang);
+        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed });
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
 
         if (!isCurrent()) {

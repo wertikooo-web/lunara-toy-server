@@ -1,0 +1,31 @@
+{
+  "name": "Lumi Parent Control",
+  "short_name": "Lumi Parent",
+  "description": "Parental control panel for Lumi.",
+  "start_url": "/parent",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1020",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/lumi-parent-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/lumi-parent-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/lumi-parent-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

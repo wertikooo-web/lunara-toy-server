@@ -152,11 +152,13 @@ async function init() {
             toy_name TEXT NOT NULL DEFAULT 'Lumi',
             toy_type TEXT NOT NULL DEFAULT 'bear',
             parent_pin_hash TEXT NOT NULL DEFAULT '',
+            active_profile_id INTEGER,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             last_seen_at TIMESTAMPTZ,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
     `);
+    await pool.query("ALTER TABLE devices ADD COLUMN IF NOT EXISTS active_profile_id INTEGER");
 
     await pool.query(`
         CREATE TABLE IF NOT EXISTS device_settings (
@@ -238,6 +240,16 @@ async function touchDevice(deviceId) {
     return id;
 }
 
+async function setActiveProfile(deviceId, profileId = null) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return null;
+    await pool.query(
+        'UPDATE devices SET active_profile_id = $2, updated_at = now() WHERE device_id = $1',
+        [id, profileId ? Number(profileId) : null]
+    );
+    return profileId ? Number(profileId) : null;
+}
+
 async function login(deviceId, pin) {
     const id = await ensureDevice(deviceId);
     if (!id) throw new Error('Parent config is not ready');
@@ -262,6 +274,29 @@ async function login(deviceId, pin) {
     return { device_id: id };
 }
 
+async function changeParentPin(deviceId, currentPin, newPin) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    const current = safeText(currentPin, 24);
+    const next = safeText(newPin, 24);
+    if (!current) throw new Error('Current PIN is required');
+    if (next.length < 4) throw new Error('New PIN must be at least 4 characters');
+
+    const result = await pool.query('SELECT parent_pin_hash FROM devices WHERE device_id = $1 LIMIT 1', [id]);
+    const expected = result.rows[0]?.parent_pin_hash || '';
+    if (expected) {
+        if (hashPin(current) !== expected) throw new Error('Current PIN is incorrect');
+    } else if (current !== DEFAULT_PARENT_PIN) {
+        throw new Error('Current PIN is incorrect');
+    }
+
+    await pool.query(
+        'UPDATE devices SET parent_pin_hash = $2, updated_at = now() WHERE device_id = $1',
+        [id, hashPin(next)]
+    );
+    return { ok: true, device_id: id };
+}
+
 function normalizeSettingsRow(row = {}) {
     const settings = { ...DEFAULT_SETTINGS };
     for (const key of SETTING_KEYS) {
@@ -280,7 +315,7 @@ async function getSettings(deviceId) {
     const id = await ensureDevice(deviceId);
     if (!id) return { ...DEFAULT_SETTINGS };
     const result = await pool.query(
-        `SELECT d.device_id, d.toy_name, d.toy_type, s.*
+        `SELECT d.device_id, d.toy_name, d.toy_type, d.active_profile_id, s.*
          FROM devices d
          JOIN device_settings s ON s.device_id = d.device_id
          WHERE d.device_id = $1
@@ -292,6 +327,7 @@ async function getSettings(deviceId) {
         device_id: id,
         toy_name: row.toy_name || 'Lumi',
         toy_type: row.toy_type || 'bear',
+        active_profile_id: row.active_profile_id || null,
         ...normalizeSettingsRow(row),
     };
 }
@@ -306,6 +342,7 @@ async function updateSettings(deviceId, rawPatch = {}) {
             `UPDATE devices
              SET toy_name = COALESCE(NULLIF($2, ''), toy_name),
                  toy_type = COALESCE(NULLIF($3, ''), toy_type),
+                 active_profile_id = NULL,
                  updated_at = now()
              WHERE device_id = $1`,
             [id, safeText(rawPatch.toy_name, 40), safeText(rawPatch.toy_type, 24)]
@@ -320,6 +357,7 @@ async function updateSettings(deviceId, rawPatch = {}) {
             `UPDATE device_settings SET ${sets.join(', ')}, updated_at = now() WHERE device_id = $1`,
             [id, ...values]
         );
+        await setActiveProfile(id, null);
     }
 
     return getSettings(id);
@@ -339,6 +377,7 @@ async function getParentState(deviceId) {
         settings,
         profile: profileResult.rows[0] || null,
         runtime: await getRuntimeState(id, settings),
+        active_profile_id: settings.active_profile_id || null,
         saved_profiles: await listProfiles(id),
     };
 }
@@ -441,10 +480,12 @@ async function listProfiles(deviceId) {
     const id = await ensureDevice(deviceId);
     if (!id) return [];
     const result = await pool.query(
-        `SELECT id, profile_name, created_at, updated_at
-         FROM parent_config_profiles
-         WHERE device_id = $1
-         ORDER BY updated_at DESC, id DESC`,
+        `SELECT p.id, p.profile_name, p.created_at, p.updated_at,
+                (p.id = d.active_profile_id) AS is_active
+         FROM parent_config_profiles p
+         JOIN devices d ON d.device_id = p.device_id
+         WHERE p.device_id = $1
+         ORDER BY is_active DESC, p.updated_at DESC, p.id DESC`,
         [id]
     );
     return result.rows;
@@ -455,13 +496,14 @@ async function saveProfileSnapshot(deviceId, profileName) {
     if (!id) throw new Error('Parent config is not ready');
     const name = safeText(profileName, 40) || `Профиль ${new Date().toISOString().slice(0, 10)}`;
     const state = await getParentState(id);
-    await pool.query(
+    const saved = await pool.query(
         `INSERT INTO parent_config_profiles (device_id, profile_name, settings, child_profile)
          VALUES ($1, $2, $3::jsonb, $4::jsonb)
          ON CONFLICT (device_id, profile_name)
          DO UPDATE SET settings = EXCLUDED.settings,
                        child_profile = EXCLUDED.child_profile,
-                       updated_at = now()`,
+                       updated_at = now()
+         RETURNING id`,
         [
             id,
             name,
@@ -469,6 +511,7 @@ async function saveProfileSnapshot(deviceId, profileName) {
             JSON.stringify(profileSnapshot(state.profile || {})),
         ]
     );
+    await setActiveProfile(id, saved.rows[0]?.id);
     return getParentState(id);
 }
 
@@ -494,6 +537,7 @@ async function loadProfileSnapshot(deviceId, profileId) {
             [id, JSON.stringify(row.child_profile.memory_json)]
         );
     }
+    await setActiveProfile(id, profileId);
     return getParentState(id);
 }
 
@@ -504,6 +548,10 @@ async function deleteProfileSnapshot(deviceId, profileId) {
         'DELETE FROM parent_config_profiles WHERE device_id = $1 AND id = $2',
         [id, Number(profileId)]
     );
+    const active = await pool.query('SELECT active_profile_id FROM devices WHERE device_id = $1 LIMIT 1', [id]);
+    if (Number(active.rows[0]?.active_profile_id || 0) === Number(profileId)) {
+        await setActiveProfile(id, null);
+    }
     return getParentState(id);
 }
 
@@ -521,6 +569,7 @@ async function updateChildProfile(deviceId, raw = {}) {
             `UPDATE child_profiles SET ${sets.join(', ')}, updated_at = now() WHERE device_id = $1`,
             [id, ...values]
         );
+        await setActiveProfile(id, null);
     }
     return getParentState(id);
 }
@@ -529,12 +578,20 @@ async function clearMemory(deviceId) {
     const id = await ensureDevice(deviceId);
     await pool.query(
         `UPDATE child_profiles
-         SET favorite_color = '', favorite_animal = '', favorite_game = '', favorite_toy = '',
-             favorite_food = '', current_interest = '', last_story = '', last_adventure = '',
-             special_phrase = '', shared_world_state = '', memory_json = '{}'::jsonb, updated_at = now()
+         SET last_story = '', last_adventure = '', special_phrase = '',
+             shared_world_state = '', memory_json = '{}'::jsonb, updated_at = now()
          WHERE device_id = $1`,
         [id]
     );
+    await setActiveProfile(id, null);
+    return getParentState(id);
+}
+
+async function clearChildProfile(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    await pool.query('DELETE FROM child_profiles WHERE device_id = $1', [id]);
+    await setActiveProfile(id, null);
     return getParentState(id);
 }
 
@@ -543,7 +600,7 @@ async function resetToDefaults(deviceId) {
     if (!id) throw new Error('Parent config is not ready');
     await pool.query(
         `UPDATE devices
-         SET toy_name = 'Lumi', toy_type = 'bear', updated_at = now()
+         SET toy_name = 'Lumi', toy_type = 'bear', active_profile_id = NULL, updated_at = now()
          WHERE device_id = $1`,
         [id]
     );
@@ -600,6 +657,15 @@ async function resetToDefaults(deviceId) {
     return getParentState(id);
 }
 
+async function resetEverything(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    await resetToDefaults(id);
+    await pool.query('DELETE FROM parent_config_profiles WHERE device_id = $1', [id]);
+    await setActiveProfile(id, null);
+    return getParentState(id);
+}
+
 function modelModeToModelName(settings = {}) {
     const mode = settings.model_mode || 'auto';
     if (mode === 'economy' || mode === 'deepseek') return 'deepseek';
@@ -607,21 +673,48 @@ function modelModeToModelName(settings = {}) {
     return 'auto';
 }
 
+const ANSWER_LENGTH_PROMPTS = {
+    very_short: 'very short: 1-2 short sentences, with pauses, no long monologues',
+    short: 'short: 2-4 short sentences, finish the thought completely',
+    normal: 'normal: up to 5 short sentences, still voice-first and not lecture-like',
+};
+
+const HUMOR_PROMPTS = {
+    low: 'low humor: warm and simple, almost no jokes',
+    normal: 'normal humor: occasional light playful phrase',
+    high: 'more humor: add gentle child-safe playfulness, but do not derail the answer',
+};
+
+const ACTIVITY_PROMPTS = {
+    calm: 'calm activity: quieter, slower, suitable for bedtime or tired child',
+    normal: 'normal activity: balanced, friendly, not too energetic',
+    active: 'active: more energetic and game-like, but still concise',
+};
+
+const QUESTION_PROMPTS = {
+    rare: 'rare follow-up questions: usually answer without asking back',
+    sometimes: 'sometimes ask one small follow-up when it naturally helps',
+    often: 'often invite the child with one small question or choice, but not after every sentence',
+};
+
 function formatSettingsForPrompt(settings = {}) {
     const s = { ...DEFAULT_SETTINGS, ...settings };
     const personality = PERSONALITY_PRESETS[s.personality_preset] || PERSONALITY_PRESETS.gentle;
+    const toyType = s.toy_type === 'custom' && s.custom_toy_type
+        ? safeText(s.custom_toy_type, 40)
+        : safeText(s.toy_type || 'bear', 24);
     const lines = [
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
-        `- Toy character type: ${safeText(s.toy_type || 'bear', 24)}`,
-        s.custom_toy_type ? `- Parent custom toy type: ${safeText(s.custom_toy_type, 40)}` : '',
+        `- Toy character type: ${toyType}`,
+        s.custom_toy_type && s.toy_type !== 'custom' ? `- Parent custom toy type: ${safeText(s.custom_toy_type, 40)}` : '',
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
-        `- Answer length: ${s.answer_length}`,
-        `- Humor level: ${s.humor_level}`,
-        `- Activity level: ${s.activity_level}`,
-        `- Ask follow-up questions: ${s.question_frequency}`,
+        `- Answer length rule: ${ANSWER_LENGTH_PROMPTS[s.answer_length] || ANSWER_LENGTH_PROMPTS.short}`,
+        `- Humor rule: ${HUMOR_PROMPTS[s.humor_level] || HUMOR_PROMPTS.normal}`,
+        `- Activity rule: ${ACTIVITY_PROMPTS[s.activity_level] || ACTIVITY_PROMPTS.normal}`,
+        `- Follow-up question rule: ${QUESTION_PROMPTS[s.question_frequency] || QUESTION_PROMPTS.sometimes}`,
         `- Enabled content: ${cleanStringArray(s.content_enabled).join(', ') || 'none'}`,
         `- Preferred topics: ${cleanStringArray(s.allowed_topics).join(', ') || 'not set'}`,
         `- Avoid topics: ${cleanStringArray(s.blocked_topics).join(', ') || 'not set'}`,
@@ -635,12 +728,15 @@ function formatSettingsForPrompt(settings = {}) {
 module.exports = {
     init,
     login,
+    changeParentPin,
     getSettings,
     updateSettings,
     getParentState,
     updateChildProfile,
     clearMemory,
+    clearChildProfile,
     resetToDefaults,
+    resetEverything,
     listProfiles,
     saveProfileSnapshot,
     loadProfileSnapshot,

@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lumi">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Lumi Parent Control</title>
+  <link rel="manifest" href="/parent.webmanifest">
+  <link rel="icon" type="image/png" href="/icons/lumi-parent-icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/lumi-parent-icon-192.png">
   <style>
     body { margin: 0; font-family: Arial, sans-serif; background: #0f1020; color: #f7f3ff; }
     main { max-width: 920px; margin: 0 auto; padding: 24px 16px 56px; }
@@ -50,6 +57,7 @@
     .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .metric { background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
     .metric strong { display: block; font-size: 20px; margin-top: 4px; }
+    .default-summary { margin-top: 10px; background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; line-height: 1.45; color: #d8ccff; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
     @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
   </style>
@@ -105,8 +113,34 @@
         <button class="secondary" onclick="loadConfigProfile()">Выбрать профиль</button>
         <button class="danger" onclick="deleteConfigProfile()">Удалить профиль</button>
       </div>
-      <button class="danger" onclick="resetDefaults()">Сбросить к исходным настройкам</button>
+      <div id="activeProfileStatus" class="small"></div>
+      <button class="secondary" onclick="resetDefaults()">Использовать по умолчанию</button>
+      <div id="defaultSummary" class="default-summary">
+        По умолчанию: Lumi-мишка, русский язык, мягкий характер, короткие ответы, нормальный юмор, весь детский контент включён, память включена, без дневного лимита и без ночного режима.
+      </div>
       <div id="profileStatus" class="status"></div>
+    </section>
+
+    <section>
+      <h2>Пароль родителя</h2>
+      <p class="small">PIN нужен для входа в родительский контроль. Он хранится в защищённом виде и не показывается обратно.</p>
+      <div class="grid">
+        <div>
+          <label>Текущий PIN</label>
+          <input id="current_parent_pin" type="password" autocomplete="current-password">
+        </div>
+        <div>
+          <label>Новый PIN</label>
+          <input id="new_parent_pin" type="password" autocomplete="new-password">
+        </div>
+        <div>
+          <label>Повторить новый PIN</label>
+          <input id="repeat_parent_pin" type="password" autocomplete="new-password">
+        </div>
+      </div>
+      <button onclick="changeParentPin()">Сохранить пароль</button>
+      <p class="small">Забыли пароль? В MVP восстановление делается через сервисный сброс устройства или поддержку. Позже добавим восстановление через аккаунт родителя.</p>
+      <div id="pinStatus" class="status"></div>
     </section>
 
     <section>
@@ -123,6 +157,7 @@
             <option value="bunny">Зайчик</option>
             <option value="cat">Котик</option>
             <option value="dragon">Дракончик</option>
+            <option value="custom">Свой персонаж</option>
           </select>
         </div>
         <div>
@@ -178,7 +213,11 @@
       </div>
       <label>Текущий интерес</label>
       <input id="current_interest">
-      <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
+      <div class="row-actions">
+        <button class="secondary" onclick="editChildProfile()">Редактировать</button>
+        <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
+        <button class="danger" onclick="clearChildProfile()">Очистить профиль</button>
+      </div>
       <div id="childProfileStatus" class="status"></div>
     </section>
 
@@ -276,18 +315,6 @@
     </section>
 
     <section>
-      <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>
-      <div id="analyticsPanel" class="analytics-panel hidden">
-        <div class="analytics-grid">
-          <div class="metric">Сегодня использовано<strong id="metricUsedToday">0 мин</strong></div>
-          <div class="metric">Осталось сегодня<strong id="metricRemainingToday">Без лимита</strong></div>
-          <div class="metric">Статус<strong id="metricRuntimeStatus">Работает</strong></div>
-        </div>
-        <p class="small">Позже здесь появятся: количество вопросов и ответов, режимы общения, категории контента, частые темы и общий эмоциональный тон без показа сырых фраз ребёнка.</p>
-      </div>
-    </section>
-
-    <section>
       <h2>Контент</h2>
       <label>Что разрешено</label>
       <p class="small">По умолчанию всё включено. Родитель просто убирает галочки у того, что сейчас не нужно. Мини-игры — короткие задания. Ролевые игры — “давай представим, что мы космонавты”.</p>
@@ -318,13 +345,34 @@
       <h2>Память</h2>
       <button class="secondary" onclick="loadState()">Обновить</button>
       <button class="danger" onclick="clearMemory()">Очистить память</button>
+      <button class="danger" onclick="clearChildProfile('memory')">Удалить профиль ребёнка</button>
+      <button class="danger" onclick="resetEverything()">Удалить всё</button>
+      <div id="memoryStatus" class="status"></div>
       <div id="memoryView" class="memory-card memory-empty">Память ещё не загружена.</div>
+    </section>
+
+    <section>
+      <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>
+      <div id="analyticsPanel" class="analytics-panel hidden">
+        <div class="analytics-grid">
+          <div class="metric">Сегодня использовано<strong id="metricUsedToday">0 мин</strong></div>
+          <div class="metric">Осталось сегодня<strong id="metricRemainingToday">Без лимита</strong></div>
+          <div class="metric">Статус<strong id="metricRuntimeStatus">Работает</strong></div>
+        </div>
+        <p class="small">Позже здесь появятся: количество вопросов и ответов, режимы общения, категории контента, частые темы и общий эмоциональный тон без показа сырых фраз ребёнка.</p>
+      </div>
+    </section>
+
+    <section>
+      <button class="secondary" onclick="logoutParent()">Выйти</button>
+      <div id="logoutStatus" class="status"></div>
     </section>
   </div>
 </main>
 
 <script>
-let token = localStorage.getItem('lumi_parent_token') || '';
+let token = '';
+localStorage.removeItem('lumi_parent_token');
 
 const TOPIC_PRESETS = {
   'ru-RU': {
@@ -363,7 +411,18 @@ const UI_TEXT = {
     savedProfiles: 'Сохранённые профили',
     chooseProfile: 'Выбрать профиль',
     deleteProfile: 'Удалить профиль',
-    resetDefaults: 'Сбросить к исходным настройкам',
+    activeProfile: 'Активный профиль',
+    noActiveProfile: 'Активный профиль не выбран: сейчас используются ручные настройки.',
+    activeSuffix: 'активен',
+    resetDefaults: 'Использовать по умолчанию',
+    defaultSummary: 'По умолчанию: Lumi-мишка, русский язык, мягкий характер, короткие ответы, нормальный юмор, весь детский контент включён, память включена, без дневного лимита и без ночного режима.',
+    parentPassword: 'Пароль родителя',
+    parentPasswordHelp: 'PIN нужен для входа в родительский контроль. Он хранится в защищённом виде и не показывается обратно.',
+    currentPin: 'Текущий PIN',
+    newPin: 'Новый PIN',
+    repeatPin: 'Повторить новый PIN',
+    savePassword: 'Сохранить пароль',
+    forgotPassword: 'Забыли пароль? В MVP восстановление делается через сервисный сброс устройства или поддержку. Позже добавим восстановление через аккаунт родителя.',
     toy: 'Игрушка',
     toyName: 'Имя игрушки',
     toyType: 'Тип персонажа',
@@ -379,7 +438,9 @@ const UI_TEXT = {
     favoriteToy: 'Любимая игрушка',
     food: 'Любимая еда',
     currentInterest: 'Текущий интерес',
+    editChild: 'Редактировать',
     saveChild: 'Сохранить профиль ребёнка',
+    clearChild: 'Очистить профиль',
     characterVoice: 'Характер и голос',
     character: 'Характер',
     answerLength: 'Длина ответов',
@@ -388,7 +449,7 @@ const UI_TEXT = {
     questions: 'Вопросы ребёнку',
     voiceSpeed: 'Скорость голоса',
     customPersonality: 'Свободное описание характера',
-    customPersonalityPlaceholder: 'Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности.',
+    customPersonalityPlaceholder: 'Например: мягкая, немного смешная, любит космос и спокойные истории. (Ваш выбор не влияет на правила безопасности.)',
     runtime: 'Время работы',
     analytics: 'Аналитика',
     analyticsUsed: 'Сегодня использовано',
@@ -428,6 +489,9 @@ const UI_TEXT = {
     memory: 'Память',
     refresh: 'Обновить',
     clearMemory: 'Очистить память',
+    clearChildProfile: 'Удалить профиль ребёнка',
+    deleteEverything: 'Удалить всё',
+    logout: 'Выйти',
   },
   'ro-RO': {
     title: 'Control parental Lumi',
@@ -444,7 +508,18 @@ const UI_TEXT = {
     savedProfiles: 'Profiluri salvate',
     chooseProfile: 'Alege profil',
     deleteProfile: 'Sterge profil',
-    resetDefaults: 'Revino la setarile initiale',
+    activeProfile: 'Profil activ',
+    noActiveProfile: 'Nu este ales un profil activ: acum sunt folosite setari manuale.',
+    activeSuffix: 'activ',
+    resetDefaults: 'Foloseste implicit',
+    defaultSummary: 'Implicit: Lumi ursulet, limba rusa, caracter bland, raspunsuri scurte, umor normal, tot continutul pentru copii activ, memorie activa, fara limita zilnica si fara mod de noapte.',
+    parentPassword: 'Parola parintelui',
+    parentPasswordHelp: 'PIN-ul este necesar pentru intrarea in controlul parental. Este pastrat protejat si nu se afiseaza inapoi.',
+    currentPin: 'PIN curent',
+    newPin: 'PIN nou',
+    repeatPin: 'Repeta PIN nou',
+    savePassword: 'Salveaza parola',
+    forgotPassword: 'Ati uitat parola? In MVP recuperarea se face prin resetarea de service a dispozitivului sau prin suport. Mai tarziu adaugam recuperare prin contul parintelui.',
     toy: 'Jucarie',
     toyName: 'Numele jucariei',
     toyType: 'Tip personaj',
@@ -460,7 +535,9 @@ const UI_TEXT = {
     favoriteToy: 'Jucarie preferata',
     food: 'Mancare preferata',
     currentInterest: 'Interes curent',
+    editChild: 'Editeaza',
     saveChild: 'Salveaza profilul copilului',
+    clearChild: 'Curata profilul',
     characterVoice: 'Caracter si voce',
     character: 'Caracter',
     answerLength: 'Lungimea raspunsurilor',
@@ -469,7 +546,7 @@ const UI_TEXT = {
     questions: 'Intrebari catre copil',
     voiceSpeed: 'Viteza vocii',
     customPersonality: 'Descriere libera a caracterului',
-    customPersonalityPlaceholder: 'De exemplu: blanda, putin amuzanta, iubeste spatiul si povestile calme.',
+    customPersonalityPlaceholder: 'De exemplu: blanda, putin amuzanta, iubeste spatiul si povestile calme. (Alegerea dvs. nu modifica regulile de siguranta.)',
     runtime: 'Timp de functionare',
     analytics: 'Analitica',
     analyticsUsed: 'Folosit azi',
@@ -509,6 +586,9 @@ const UI_TEXT = {
     memory: 'Memorie',
     refresh: 'Actualizeaza',
     clearMemory: 'Sterge memoria',
+    clearChildProfile: 'Sterge profilul copilului',
+    deleteEverything: 'Sterge tot',
+    logout: 'Iesi',
   },
   'en-US': {
     title: 'Lumi Parental Control',
@@ -525,7 +605,18 @@ const UI_TEXT = {
     savedProfiles: 'Saved profiles',
     chooseProfile: 'Choose profile',
     deleteProfile: 'Delete profile',
-    resetDefaults: 'Reset to default settings',
+    activeProfile: 'Active profile',
+    noActiveProfile: 'No active profile is selected: manual settings are being used.',
+    activeSuffix: 'active',
+    resetDefaults: 'Use defaults',
+    defaultSummary: 'Default: Lumi bear, Russian language, gentle personality, short replies, normal humor, all child content enabled, memory enabled, no daily limit, and no night mode.',
+    parentPassword: 'Parent password',
+    parentPasswordHelp: 'PIN is used to enter parental control. It is stored securely and is not shown back.',
+    currentPin: 'Current PIN',
+    newPin: 'New PIN',
+    repeatPin: 'Repeat new PIN',
+    savePassword: 'Save password',
+    forgotPassword: 'Forgot password? In the MVP, recovery is done through a service device reset or support. Later we will add recovery through the parent account.',
     toy: 'Toy',
     toyName: 'Toy name',
     toyType: 'Character type',
@@ -541,7 +632,9 @@ const UI_TEXT = {
     favoriteToy: 'Favorite toy',
     food: 'Favorite food',
     currentInterest: 'Current interest',
+    editChild: 'Edit',
     saveChild: 'Save child profile',
+    clearChild: 'Clear profile',
     characterVoice: 'Personality and voice',
     character: 'Personality',
     answerLength: 'Answer length',
@@ -550,7 +643,7 @@ const UI_TEXT = {
     questions: 'Questions to child',
     voiceSpeed: 'Voice speed',
     customPersonality: 'Free personality notes',
-    customPersonalityPlaceholder: 'For example: gentle, a little funny, loves space and calm stories.',
+    customPersonalityPlaceholder: 'For example: gentle, a little funny, loves space and calm stories. (Your choice does not affect safety rules.)',
     runtime: 'Runtime',
     analytics: 'Analytics',
     analyticsUsed: 'Used today',
@@ -590,6 +683,9 @@ const UI_TEXT = {
     memory: 'Memory',
     refresh: 'Refresh',
     clearMemory: 'Clear memory',
+    clearChildProfile: 'Delete child profile',
+    deleteEverything: 'Delete everything',
+    logout: 'Logout',
   },
 };
 
@@ -643,26 +739,36 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(1) label:nth-of-type(2)', t.savedProfiles);
   setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(2) button:nth-of-type(1)', t.chooseProfile);
   setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(2) button:nth-of-type(2)', t.deleteProfile);
-  setText('#consoleBox > section:nth-of-type(1) > button.danger', t.resetDefaults);
+  setText('#consoleBox > section:nth-of-type(1) > button.secondary', t.resetDefaults);
+  setText('#defaultSummary', t.defaultSummary);
+
+  setText('#consoleBox > section:nth-of-type(2) h2', t.parentPassword);
+  setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(1)', t.parentPasswordHelp);
+  const pinLabels = [t.currentPin, t.newPin, t.repeatPin];
+  document.querySelectorAll('#consoleBox > section:nth-of-type(2) label').forEach((el, i) => { if (pinLabels[i]) el.textContent = pinLabels[i]; });
+  setText('#consoleBox > section:nth-of-type(2) button', t.savePassword);
+  setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(2)', t.forgotPassword);
 
   const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language, t.modelMode];
-  setText('#consoleBox > section:nth-of-type(2) h2', t.toy);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(2) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
+  setText('#consoleBox > section:nth-of-type(3) h2', t.toy);
+  document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
   setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
 
   const childLabels = [t.childName, t.age, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
-  setText('#consoleBox > section:nth-of-type(3) h2', t.child);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
-  setText('#consoleBox > section:nth-of-type(3) button', t.saveChild);
+  setText('#consoleBox > section:nth-of-type(4) h2', t.child);
+  document.querySelectorAll('#consoleBox > section:nth-of-type(4) label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
+  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(1)', t.editChild);
+  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(2)', t.saveChild);
+  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(3)', t.clearChild);
 
   const characterLabels = [t.character, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
-  setText('#consoleBox > section:nth-of-type(4) h2', t.characterVoice);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(4) label').forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
+  setText('#consoleBox > section:nth-of-type(5) h2', t.characterVoice);
+  document.querySelectorAll('#consoleBox > section:nth-of-type(5) label').forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
   setPlaceholder('#custom_personality', t.customPersonalityPlaceholder);
 
-  setText('#consoleBox > section:nth-of-type(5) h2', t.runtime);
+  setText('#consoleBox > section:nth-of-type(6) h2', t.runtime);
   const runtimeLabels = [t.dailyLimit, t.customMinutes, t.quietEnabled, t.offFrom, t.offUntil];
-  document.querySelectorAll('#consoleBox > section:nth-of-type(5) label').forEach((el, i) => { if (runtimeLabels[i]) {
+  document.querySelectorAll('#consoleBox > section:nth-of-type(6) label').forEach((el, i) => { if (runtimeLabels[i]) {
     if (i === 2) el.innerHTML = `<input id="quiet_hours_enabled" type="checkbox"> ${escapeHtml(runtimeLabels[i])}`;
     else el.textContent = runtimeLabels[i];
   }});
@@ -671,7 +777,7 @@ function applyConsoleLocale(lang) {
   [t.noLimit, t.oneHour, t.twoHours, t.threeHours, t.sixHours, t.customTime].forEach((label, i) => { if (dailyOptions[i]) dailyOptions[i].textContent = label; });
   setPlaceholder('#daily_limit_minutes', t.customMinutesPlaceholder);
 
-  setText('#consoleBox > section:nth-of-type(6) button', t.analytics);
+  setText('#consoleBox > section:nth-of-type(9) button', t.analytics);
   setText('#metricUsedToday', document.getElementById('metricUsedToday')?.textContent || '0 мин');
   const metricCards = document.querySelectorAll('#analyticsPanel .metric');
   if (metricCards[0]?.firstChild) metricCards[0].firstChild.textContent = t.analyticsUsed;
@@ -699,6 +805,9 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(8) h2', t.memory);
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(1)', t.refresh);
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(2)', t.clearMemory);
+  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(3)', t.clearChildProfile);
+  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(4)', t.deleteEverything);
+  setText('#consoleBox > section:nth-of-type(10) button', t.logout);
 }
 
 async function login() {
@@ -714,7 +823,6 @@ async function login() {
       }),
     });
     token = data.token;
-    localStorage.setItem('lumi_parent_token', token);
     status.textContent = 'Вход выполнен: ' + data.device_id;
     document.getElementById('consoleBox').classList.remove('hidden');
     await loadState();
@@ -774,7 +882,7 @@ function renderRuntime(runtime = {}) {
   const status = runtime.allowed === false ? t.analyticsBlocked : t.analyticsWorks;
   setText('#runtimeStatus', runtime.daily_limit_minutes
     ? `${t.analyticsUsed}: ${used} ${t.minUnit}. ${t.analyticsRemaining}: ${Math.max(0, remaining || 0)} ${t.minUnit}.`
-    : t.analyticsNoLimit);
+    : '');
   setText('#metricUsedToday', `${used} ${t.minUnit}`);
   setText('#metricRemainingToday', remaining == null ? t.analyticsNoLimit : `${Math.max(0, remaining)} ${t.minUnit}`);
   setText('#metricRuntimeStatus', status);
@@ -836,20 +944,30 @@ function applyLanguageTopicDefaults(lang) {
 
 function renderSavedProfiles(profiles) {
   const select = document.getElementById('savedProfiles');
+  const status = document.getElementById('activeProfileStatus');
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   select.innerHTML = '';
   if (!profiles || profiles.length === 0) {
     const option = document.createElement('option');
     option.value = '';
     option.textContent = 'Профилей пока нет';
     select.appendChild(option);
+    if (status) status.textContent = t.noActiveProfile;
     return;
   }
+  const activeProfile = profiles.find(profile => profile.is_active);
   profiles.forEach(profile => {
     const option = document.createElement('option');
     option.value = profile.id;
-    option.textContent = profile.profile_name;
+    option.textContent = profile.is_active ? `${profile.profile_name} (${t.activeSuffix})` : profile.profile_name;
+    option.selected = profile.is_active === true;
     select.appendChild(option);
   });
+  if (status) {
+    status.textContent = activeProfile
+      ? `${t.activeProfile}: ${activeProfile.profile_name}`
+      : t.noActiveProfile;
+  }
 }
 
 async function loadState() {
@@ -865,6 +983,7 @@ async function loadState() {
   syncDailyLimitPreset(s.daily_limit_minutes);
   setValue('quiet_hours_enabled', s.quiet_hours_enabled === true);
   window.lastRuntime = data.runtime || {};
+  window.lastSavedProfiles = data.saved_profiles || [];
   renderSavedProfiles(data.saved_profiles || []);
   setValue('memory_enabled', s.memory_enabled !== false);
   setCheckedValues('contentChecks', s.content_enabled || []);
@@ -881,6 +1000,7 @@ async function loadState() {
 
 async function setLanguageFromTop(language) {
   applyConsoleLocale(language);
+  renderSavedProfiles(window.lastSavedProfiles || []);
   renderRuntime(window.lastRuntime || {});
 }
 
@@ -951,6 +1071,38 @@ async function saveProfile() {
     status.textContent = err.message;
     status.className = 'status error';
     throw err;
+  }
+}
+
+function editChildProfile() {
+  const status = document.getElementById('childProfileStatus');
+  status.textContent = 'Измените нужные поля и нажмите “Сохранить профиль ребёнка”.';
+  status.className = 'status';
+  document.getElementById('child_name').focus();
+}
+
+async function changeParentPin() {
+  const status = document.getElementById('pinStatus');
+  const currentPin = document.getElementById('current_parent_pin').value;
+  const newPin = document.getElementById('new_parent_pin').value;
+  const repeatPin = document.getElementById('repeat_parent_pin').value;
+  status.textContent = 'Сохраняю пароль...';
+  status.className = 'status';
+  if (newPin !== repeatPin) {
+    status.textContent = 'Новый PIN и повтор не совпадают.';
+    status.className = 'status error';
+    return;
+  }
+  try {
+    await api('/api/parent/password', {
+      method: 'POST',
+      body: JSON.stringify({ current_pin: currentPin, new_pin: newPin }),
+    });
+    ['current_parent_pin', 'new_parent_pin', 'repeat_parent_pin'].forEach(id => setValue(id, ''));
+    status.textContent = 'Пароль сохранён.';
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
   }
 }
 
@@ -1036,20 +1188,66 @@ async function resetDefaults() {
 
 async function clearMemory() {
   if (!confirm('Очистить память этой игрушки?')) return;
-  await api('/api/parent/memory/clear', { method: 'POST', body: '{}' });
-  await loadState();
+  const status = document.getElementById('memoryStatus');
+  status.textContent = 'Очищаю память...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/memory/clear', { method: 'POST', body: '{}' });
+    status.textContent = 'Память очищена. Профиль ребёнка оставлен.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function clearChildProfile(source = 'child') {
+  if (!confirm('Удалить профиль ребёнка: имя, возраст, предпочтения и живую память? Настройки игрушки останутся.')) return;
+  const status = document.getElementById(source === 'memory' ? 'memoryStatus' : 'childProfileStatus');
+  status.textContent = 'Удаляю профиль ребёнка...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/profile/clear', { method: 'POST', body: '{}' });
+    status.textContent = 'Профиль ребёнка удалён.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function resetEverything() {
+  if (!confirm('Удалить всё для этой игрушки: настройки, профиль ребёнка, память, сохранённые профили и дневную статистику? Вход lumi_001 останется.')) return;
+  const status = document.getElementById('memoryStatus');
+  status.textContent = 'Удаляю всё...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/reset-all', { method: 'POST', body: '{}' });
+    status.textContent = 'Всё удалено. Игрушка вернулась к исходным настройкам.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function logoutParent() {
+  const status = document.getElementById('logoutStatus');
+  status.textContent = 'Выходим...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/logout', { method: 'POST', body: '{}' });
+  } catch (_err) {
+    // Local logout is still enough if the server token was already expired.
+  }
+  token = '';
+  localStorage.removeItem('lumi_parent_token');
+  document.getElementById('consoleBox').classList.add('hidden');
+  document.getElementById('loginStatus').textContent = 'Вы вышли. Для доступа войдите снова.';
+  status.textContent = '';
 }
 
 applyConsoleLocale(consoleLanguage);
-
-if (token) {
-  document.getElementById('consoleBox').classList.remove('hidden');
-  loadState().catch(() => {
-    localStorage.removeItem('lumi_parent_token');
-    token = '';
-    document.getElementById('consoleBox').classList.add('hidden');
-  });
-}
 </script>
 </body>
 </html>
