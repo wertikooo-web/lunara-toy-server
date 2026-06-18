@@ -67,8 +67,13 @@
     .default-summary { margin-top: 10px; background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; line-height: 1.45; color: #d8ccff; }
     .inline-check { display: inline-flex; align-items: center; gap: 10px; width: auto; margin-top: 14px; font-size: 15px; }
     .inline-check input[type="checkbox"] { width: 24px; height: 24px; accent-color: #8b5cf6; }
+    .runtime-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+    .runtime-card { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 14px; min-height: 190px; }
+    .runtime-card .inline-check { margin: 0 0 12px; color: #f7f3ff; }
+    .runtime-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .runtime-fields label { margin-top: 0; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
-    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
+    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
   </style>
 </head>
 <body>
@@ -250,7 +255,6 @@
         <div>
           <label>Варианты обращения</label>
           <div class="checks" id="childAddressChecks">
-            <label><input type="checkbox" value="name"> По имени</label>
             <label><input type="checkbox" value="sunshine"> Солнышко</label>
             <label><input type="checkbox" value="little_one"> Малыш</label>
             <label><input type="checkbox" value="friend"> Дружок</label>
@@ -258,7 +262,7 @@
           </div>
         </div>
         <div>
-          <label>Свой вариант обращения</label>
+          <label>Свой вариант обращения (через запятую)</label>
           <input id="child_address_custom" maxlength="80" placeholder="Например: звёздочка, котёнок">
         </div>
         <div>
@@ -308,35 +312,37 @@
 
     <section>
       <h2>Время работы</h2>
-      <div class="grid">
-        <div>
-          <label><input id="daily_limit_enabled" type="checkbox" onchange="toggleDailyLimit()"> <span id="dailyLimitOffText">Без лимита</span></label>
+      <div class="runtime-grid">
+        <div class="runtime-card">
+          <label class="inline-check">
+            <input id="daily_limit_enabled" type="checkbox" onchange="toggleDailyLimit()">
+            <span id="dailyLimitOffText">Без лимита</span>
+            <span id="dailyLimitOnText" class="hidden">Лимит включён</span>
+          </label>
+          <div class="runtime-fields daily-limit-control">
+            <label id="dailyLimitLabel">Лимит в день</label>
+            <select id="daily_limit_preset" onchange="setDailyLimitPreset()">
+              <option value="60">1 час</option>
+              <option value="120">2 часа</option>
+              <option value="180">3 часа</option>
+              <option value="360">6 часов</option>
+              <option value="custom">Своё время</option>
+            </select>
+            <label id="customMinutesLabel">Своё время, минут</label>
+            <input id="daily_limit_minutes" type="number" min="5" max="1440" step="5" placeholder="Например: 120">
+          </div>
         </div>
-        <div class="daily-limit-control">
-          <label>Лимит в день</label>
-          <select id="daily_limit_preset" onchange="setDailyLimitPreset()">
-            <option value="60">1 час</option>
-            <option value="120">2 часа</option>
-            <option value="180">3 часа</option>
-            <option value="360">6 часов</option>
-            <option value="custom">Своё время</option>
-          </select>
-        </div>
-        <div class="daily-limit-control">
-          <label>Своё время, минут</label>
-          <input id="daily_limit_minutes" type="number" min="5" max="1440" step="5" placeholder="Например: 120">
-        </div>
-        <div>
-          <label><input id="quiet_hours_enabled" type="checkbox"> Ночное время включено</label>
-        </div>
-        <div></div>
-        <div>
-          <label>Не работает с</label>
-          <input id="quiet_hours_start" type="time" value="22:00">
-        </div>
-        <div>
-          <label>Не работает до</label>
-          <input id="quiet_hours_end" type="time" value="07:00">
+        <div class="runtime-card">
+          <label class="inline-check">
+            <input id="quiet_hours_enabled" type="checkbox">
+            <span id="quietHoursLabel">Ночное время включено</span>
+          </label>
+          <div class="runtime-fields">
+            <label id="offFromLabel">Не работает с</label>
+            <input id="quiet_hours_start" type="time" value="22:00">
+            <label id="offUntilLabel">Не работает до</label>
+            <input id="quiet_hours_end" type="time" value="07:00">
+          </div>
         </div>
       </div>
       <div id="runtimeStatus" class="small"></div>
@@ -425,7 +431,7 @@ const KNOWN_TOPIC_PRESETS = Object.values(TOPIC_PRESETS)
   .map(values => values.map(value => value.toLowerCase()).join('|'));
 KNOWN_TOPIC_PRESETS.push('animals|space|fairy tales|friendship', 'animals|space|fairy_tales|friendship', 'monsters|sad stories');
 
-const ADDRESS_PRESETS = ['name', 'sunshine', 'little_one', 'friend', 'champion'];
+const ADDRESS_PRESETS = ['sunshine', 'little_one', 'friend', 'champion'];
 
 const TOY_TYPE_PRESETS = {
   'ru-RU': ['Мишка', 'Зайчик', 'Котик', 'Дракончик', 'Динозавр', 'Крокодил', 'Обезьянка', 'Кукла', 'Робот', 'Единорог', 'Чебурашка'],
@@ -502,7 +508,7 @@ const UI_TEXT = {
     teacher: 'Учитель-помощник',
     addressMode: 'Как обращаться к ребёнку',
     addressVariants: 'Варианты обращения',
-    addressCustom: 'Свой вариант обращения',
+    addressCustom: 'Свой вариант обращения (через запятую)',
     addressVaried: 'Вариативно',
     addressByName: 'По имени',
     addressWarm: 'Ласково',
@@ -535,6 +541,7 @@ const UI_TEXT = {
     analyticsHelp: 'Позже здесь появятся: количество вопросов и ответов, режимы общения, категории контента, частые темы и общий эмоциональный тон без показа сырых фраз ребёнка.',
     analyticsEmpty: 'Аналитика появится после новых разговоров.',
     dailyLimit: 'Лимит в день',
+    dailyLimitEnabled: 'Лимит включён',
     noLimit: 'Без ограничений',
     oneHour: '1 час',
     twoHours: '2 часа',
@@ -624,7 +631,7 @@ const UI_TEXT = {
     teacher: 'Invatator-ajutor',
     addressMode: 'Cum se adreseaza copilului',
     addressVariants: 'Variante de adresare',
-    addressCustom: 'Varianta proprie de adresare',
+    addressCustom: 'Varianta proprie de adresare (separate prin virgula)',
     addressVaried: 'Variat',
     addressByName: 'Pe nume',
     addressWarm: 'Cu blandete',
@@ -657,6 +664,7 @@ const UI_TEXT = {
     analyticsHelp: 'Mai tarziu aici vor aparea: numarul de intrebari si raspunsuri, modurile de comunicare, categoriile de continut, temele frecvente si tonul emotional general fara fraze brute ale copilului.',
     analyticsEmpty: 'Analitica va aparea dupa conversatii noi.',
     dailyLimit: 'Limita pe zi',
+    dailyLimitEnabled: 'Limita activa',
     noLimit: 'Fara limita',
     oneHour: '1 ora',
     twoHours: '2 ore',
@@ -746,7 +754,7 @@ const UI_TEXT = {
     teacher: 'Teacher-helper',
     addressMode: 'How to address the child',
     addressVariants: 'Address variants',
-    addressCustom: 'Custom address variant',
+    addressCustom: 'Custom address variant (comma-separated)',
     addressVaried: 'Varied',
     addressByName: 'By name',
     addressWarm: 'Warmly',
@@ -779,6 +787,7 @@ const UI_TEXT = {
     analyticsHelp: 'Later this will show: questions and answers count, communication modes, content categories, frequent topics, and overall emotional tone without raw child phrases.',
     analyticsEmpty: 'Analytics will appear after new conversations.',
     dailyLimit: 'Daily limit',
+    dailyLimitEnabled: 'Limit enabled',
     noLimit: 'No limit',
     oneHour: '1 hour',
     twoHours: '2 hours',
@@ -903,7 +912,7 @@ function setChildAddressNames(values = []) {
   const list = Array.isArray(values) ? values : String(values || '').split(',');
   const presetValues = list.filter(value => ADDRESS_PRESETS.includes(value));
   const customValues = list.filter(value => value && !ADDRESS_PRESETS.includes(value));
-  setCheckedValues('childAddressChecks', presetValues.length ? presetValues : ['name', 'sunshine', 'friend']);
+  setCheckedValues('childAddressChecks', presetValues.length ? presetValues : ['sunshine', 'friend']);
   setValue('child_address_custom', customValues.join(', '));
 }
 
@@ -973,7 +982,7 @@ function applyConsoleLocale(lang) {
   });
   const addressOptions = document.querySelectorAll('#child_address_mode option');
   [t.addressVaried, t.addressByName, t.addressWarm, t.addressNeutral].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
-  const addressLabels = [t.addressName, t.addressSunshine, t.addressLittleOne, t.addressFriend, t.addressChampion];
+  const addressLabels = [t.addressSunshine, t.addressLittleOne, t.addressFriend, t.addressChampion];
   document.querySelectorAll('#childAddressChecks label').forEach((el, i) => {
     const input = el.querySelector('input');
     el.textContent = ' ' + addressLabels[i];
@@ -983,15 +992,13 @@ function applyConsoleLocale(lang) {
   setPlaceholder('#custom_personality', t.customPersonalityPlaceholder);
 
   setText('#consoleBox > section:nth-of-type(6) h2', t.runtime);
-  const runtimeLabels = [t.analyticsNoLimit, t.dailyLimit, t.customMinutes, t.quietEnabled, t.offFrom, t.offUntil];
-  const dailyLimitChecked = document.getElementById('daily_limit_enabled')?.checked || false;
-  document.querySelectorAll('#consoleBox > section:nth-of-type(6) label').forEach((el, i) => { if (runtimeLabels[i]) {
-    if (i === 0) el.innerHTML = `<input id="daily_limit_enabled" type="checkbox" onchange="toggleDailyLimit()"> <span id="dailyLimitOffText">${escapeHtml(t.analyticsNoLimit)}</span>`;
-    else if (i === 3) el.innerHTML = `<input id="quiet_hours_enabled" type="checkbox"> ${escapeHtml(runtimeLabels[i])}`;
-    else el.textContent = runtimeLabels[i];
-  }});
-  setValue('daily_limit_enabled', dailyLimitChecked);
-  setValue('quiet_hours_enabled', quietChecked);
+  setText('#dailyLimitOffText', t.analyticsNoLimit);
+  setText('#dailyLimitOnText', t.dailyLimitEnabled);
+  setText('#dailyLimitLabel', t.dailyLimit);
+  setText('#customMinutesLabel', t.customMinutes);
+  setText('#quietHoursLabel', t.quietEnabled);
+  setText('#offFromLabel', t.offFrom);
+  setText('#offUntilLabel', t.offUntil);
   const dailyOptions = document.querySelectorAll('#daily_limit_preset option');
   [t.oneHour, t.twoHours, t.threeHours, t.sixHours, t.customTime].forEach((label, i) => { if (dailyOptions[i]) dailyOptions[i].textContent = label; });
   setPlaceholder('#daily_limit_minutes', t.customMinutesPlaceholder);
@@ -1106,6 +1113,7 @@ function syncDailyLimitPreset(minutes) {
 function toggleDailyLimit() {
   const enabled = document.getElementById('daily_limit_enabled')?.checked === true;
   document.getElementById('dailyLimitOffText')?.classList.toggle('hidden', enabled);
+  document.getElementById('dailyLimitOnText')?.classList.toggle('hidden', !enabled);
   document.querySelectorAll('.daily-limit-control').forEach(el => el.classList.toggle('hidden', !enabled));
   if (!enabled) return;
   if (!Number(document.getElementById('daily_limit_minutes').value || 0)) {
@@ -1266,7 +1274,7 @@ async function loadState() {
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   setToyTypeValue(s.toy_type);
   setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
-  setChildAddressNames(s.child_address_names || ['name', 'sunshine', 'friend']);
+  setChildAddressNames(s.child_address_names || ['sunshine', 'friend']);
   syncDailyLimitPreset(s.daily_limit_minutes);
   setValue('quiet_hours_enabled', s.quiet_hours_enabled === true);
   window.lastRuntime = data.runtime || {};

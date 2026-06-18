@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS = {
     model_mode: 'auto',
     personality_preset: 'gentle',
     child_address_mode: 'varied',
-    child_address_names: ['name', 'sunshine', 'friend'],
+    child_address_names: ['sunshine', 'friend'],
     answer_length: 'short',
     humor_level: 'normal',
     activity_level: 'normal',
@@ -186,7 +186,7 @@ async function init() {
             model_mode TEXT NOT NULL DEFAULT 'auto',
             personality_preset TEXT NOT NULL DEFAULT 'gentle',
             child_address_mode TEXT NOT NULL DEFAULT 'varied',
-            child_address_names JSONB NOT NULL DEFAULT '["name","sunshine","friend"]'::jsonb,
+            child_address_names JSONB NOT NULL DEFAULT '["sunshine","friend"]'::jsonb,
             answer_length TEXT NOT NULL DEFAULT 'short',
             humor_level TEXT NOT NULL DEFAULT 'normal',
             activity_level TEXT NOT NULL DEFAULT 'normal',
@@ -210,7 +210,7 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_toy_type TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_mode TEXT NOT NULL DEFAULT 'varied'");
-    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"name\",\"sunshine\",\"friend\"]'::jsonb");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"sunshine\",\"friend\"]'::jsonb");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_start TEXT NOT NULL DEFAULT '22:00'");
@@ -849,6 +849,7 @@ function formatSettingsForPrompt(settings = {}) {
     const toyType = safeText(s.toy_type || 'bear', 40);
     const addressMode = ADDRESS_MODE_PROMPTS[s.child_address_mode] || ADDRESS_MODE_PROMPTS.varied;
     const addressNames = cleanStringArray(s.child_address_names, null, 8)
+        .filter((value) => value !== 'name')
         .map(addressNameForPrompt)
         .filter(Boolean)
         .join(', ');
