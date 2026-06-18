@@ -19,11 +19,22 @@ const PERSONALITY_PRESETS = {
     fairy: 'fairy-tale storyteller',
     teacher: 'kind teacher-helper',
 };
+const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
+const ADDRESS_MODES = ['neutral', 'name', 'warm', 'varied'];
+const ADDRESS_PRESETS = {
+    name: 'the child name',
+    sunshine: 'sunshine',
+    little_one: 'little one',
+    friend: 'buddy',
+    champion: 'champion',
+};
 
 const DEFAULT_SETTINGS = {
     language: 'ru-RU',
     model_mode: 'auto',
     personality_preset: 'gentle',
+    child_address_mode: 'varied',
+    child_address_names: ['name', 'sunshine', 'friend'],
     answer_length: 'short',
     humor_level: 'normal',
     activity_level: 'normal',
@@ -90,8 +101,16 @@ function normalizeSettingsPatch(raw = {}) {
         patch.model_mode = ['auto', 'economy', 'smart', 'gpt', 'deepseek'].includes(value) ? value : DEFAULT_SETTINGS.model_mode;
     }
     if ('personality_preset' in raw) {
-        const value = safeText(raw.personality_preset, 24);
-        patch.personality_preset = PERSONALITY_PRESETS[value] ? value : DEFAULT_SETTINGS.personality_preset;
+        const values = cleanStringArray(raw.personality_preset, PERSONALITY_KEYS, 4);
+        patch.personality_preset = values.length ? values.join(',') : DEFAULT_SETTINGS.personality_preset;
+    }
+    if ('child_address_mode' in raw) {
+        const value = safeText(raw.child_address_mode, 16);
+        patch.child_address_mode = ADDRESS_MODES.includes(value) ? value : DEFAULT_SETTINGS.child_address_mode;
+    }
+    if ('child_address_names' in raw) {
+        const values = cleanStringArray(raw.child_address_names, null, 8);
+        patch.child_address_names = values.length ? values : DEFAULT_SETTINGS.child_address_names;
     }
     if ('answer_length' in raw) {
         const value = safeText(raw.answer_length, 16);
@@ -166,6 +185,8 @@ async function init() {
             language TEXT NOT NULL DEFAULT 'ru-RU',
             model_mode TEXT NOT NULL DEFAULT 'auto',
             personality_preset TEXT NOT NULL DEFAULT 'gentle',
+            child_address_mode TEXT NOT NULL DEFAULT 'varied',
+            child_address_names JSONB NOT NULL DEFAULT '["name","sunshine","friend"]'::jsonb,
             answer_length TEXT NOT NULL DEFAULT 'short',
             humor_level TEXT NOT NULL DEFAULT 'normal',
             activity_level TEXT NOT NULL DEFAULT 'normal',
@@ -188,6 +209,8 @@ async function init() {
     `);
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_toy_type TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_mode TEXT NOT NULL DEFAULT 'varied'");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"name\",\"sunshine\",\"friend\"]'::jsonb");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_start TEXT NOT NULL DEFAULT '22:00'");
@@ -212,6 +235,21 @@ async function init() {
             used_seconds INTEGER NOT NULL DEFAULT 0,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             PRIMARY KEY (device_id, usage_date)
+        )
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS device_conversation_daily (
+            device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+            usage_date TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'chat',
+            tone TEXT NOT NULL DEFAULT 'neutral',
+            topic TEXT NOT NULL DEFAULT '',
+            model_provider TEXT NOT NULL DEFAULT '',
+            turns_count INTEGER NOT NULL DEFAULT 0,
+            answers_count INTEGER NOT NULL DEFAULT 0,
+            duration_seconds INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (device_id, usage_date, category, tone, topic, model_provider)
         )
     `);
 
@@ -306,6 +344,9 @@ function normalizeSettingsRow(row = {}) {
     settings.content_enabled = cleanStringArray(settings.content_enabled, null, 12);
     settings.allowed_topics = cleanStringArray(settings.allowed_topics, null, 12);
     settings.blocked_topics = cleanStringArray(settings.blocked_topics, null, 12);
+    settings.child_address_names = cleanStringArray(settings.child_address_names, null, 8);
+    if (!settings.child_address_names.length) settings.child_address_names = DEFAULT_SETTINGS.child_address_names;
+    if (!ADDRESS_MODES.includes(settings.child_address_mode)) settings.child_address_mode = DEFAULT_SETTINGS.child_address_mode;
     if (!['ru-RU', 'ro-RO', 'en-US'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
     settings.memory_enabled = settings.memory_enabled !== false;
     return settings;
@@ -459,6 +500,92 @@ async function recordRuntimeUsage(deviceId, durationMs = 0) {
     return getRuntimeState(id);
 }
 
+async function recordConversation(deviceId, event = {}) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return null;
+    const usageDate = localDateKey();
+    const category = safeText(event.category || 'chat', 40) || 'chat';
+    const tone = safeText(event.tone || 'neutral', 40) || 'neutral';
+    const topic = safeText(event.topic || '', 60);
+    const modelProvider = safeText(event.model_provider || '', 60);
+    const seconds = Math.max(0, Math.ceil(Number(event.duration_ms || 0) / 1000));
+    await pool.query(
+        `INSERT INTO device_conversation_daily
+            (device_id, usage_date, category, tone, topic, model_provider, turns_count, answers_count, duration_seconds)
+         VALUES ($1, $2, $3, $4, $5, $6, 1, 1, $7)
+         ON CONFLICT (device_id, usage_date, category, tone, topic, model_provider)
+         DO UPDATE SET turns_count = device_conversation_daily.turns_count + 1,
+                       answers_count = device_conversation_daily.answers_count + 1,
+                       duration_seconds = device_conversation_daily.duration_seconds + EXCLUDED.duration_seconds,
+                       updated_at = now()`,
+        [id, usageDate, category, tone, topic, modelProvider, seconds]
+    );
+    return { ok: true };
+}
+
+async function getAnalytics(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    const today = localDateKey();
+    const usage = await getRuntimeState(id);
+    const since = new Date(localNow().getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const totals = await pool.query(
+        `SELECT COALESCE(sum(turns_count), 0)::int AS turns,
+                COALESCE(sum(answers_count), 0)::int AS answers,
+                COALESCE(sum(duration_seconds), 0)::int AS duration_seconds
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date >= $2`,
+        [id, since]
+    );
+    const todayRows = await pool.query(
+        `SELECT COALESCE(sum(turns_count), 0)::int AS turns,
+                COALESCE(sum(answers_count), 0)::int AS answers
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date = $2`,
+        [id, today]
+    );
+    const categories = await pool.query(
+        `SELECT category, sum(turns_count)::int AS count
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date >= $2
+         GROUP BY category
+         ORDER BY count DESC, category
+         LIMIT 8`,
+        [id, since]
+    );
+    const tones = await pool.query(
+        `SELECT tone, sum(turns_count)::int AS count
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date >= $2
+         GROUP BY tone
+         ORDER BY count DESC, tone
+         LIMIT 5`,
+        [id, since]
+    );
+    const topics = await pool.query(
+        `SELECT topic, sum(turns_count)::int AS count
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date >= $2 AND topic <> ''
+         GROUP BY topic
+         ORDER BY count DESC, topic
+         LIMIT 8`,
+        [id, since]
+    );
+    return {
+        today,
+        period_days: 7,
+        usage,
+        today_turns: todayRows.rows[0]?.turns || 0,
+        today_answers: todayRows.rows[0]?.answers || 0,
+        turns_7d: totals.rows[0]?.turns || 0,
+        answers_7d: totals.rows[0]?.answers || 0,
+        duration_minutes_7d: Math.ceil(Number(totals.rows[0]?.duration_seconds || 0) / 60),
+        categories: categories.rows,
+        tones: tones.rows,
+        topics: topics.rows,
+    };
+}
+
 function settingsSnapshot(settings = {}) {
     const snapshot = {};
     for (const key of ['toy_name', 'toy_type', ...SETTING_KEYS]) {
@@ -609,23 +736,25 @@ async function resetToDefaults(deviceId) {
          SET language = $2,
              model_mode = $3,
              personality_preset = $4,
-             answer_length = $5,
-             humor_level = $6,
-             activity_level = $7,
-             question_frequency = $8,
-             voice = $9,
-             voice_speed = $10,
-             story_length = $11,
-             custom_toy_type = $12,
-             custom_personality = $13,
-             daily_limit_minutes = $14,
-             quiet_hours_enabled = $15,
-             quiet_hours_start = $16,
-             quiet_hours_end = $17,
-             content_enabled = $18::jsonb,
-             allowed_topics = $19::jsonb,
-             blocked_topics = $20::jsonb,
-             memory_enabled = $21,
+             child_address_mode = $5,
+             child_address_names = $6::jsonb,
+             answer_length = $7,
+             humor_level = $8,
+             activity_level = $9,
+             question_frequency = $10,
+             voice = $11,
+             voice_speed = $12,
+             story_length = $13,
+             custom_toy_type = $14,
+             custom_personality = $15,
+             daily_limit_minutes = $16,
+             quiet_hours_enabled = $17,
+             quiet_hours_start = $18,
+             quiet_hours_end = $19,
+             content_enabled = $20::jsonb,
+             allowed_topics = $21::jsonb,
+             blocked_topics = $22::jsonb,
+             memory_enabled = $23,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -633,6 +762,8 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.language,
             DEFAULT_SETTINGS.model_mode,
             DEFAULT_SETTINGS.personality_preset,
+            DEFAULT_SETTINGS.child_address_mode,
+            JSON.stringify(DEFAULT_SETTINGS.child_address_names),
             DEFAULT_SETTINGS.answer_length,
             DEFAULT_SETTINGS.humor_level,
             DEFAULT_SETTINGS.activity_level,
@@ -654,6 +785,7 @@ async function resetToDefaults(deviceId) {
     );
     await pool.query('DELETE FROM child_profiles WHERE device_id = $1', [id]);
     await pool.query('DELETE FROM device_usage_daily WHERE device_id = $1', [id]);
+    await pool.query('DELETE FROM device_conversation_daily WHERE device_id = $1', [id]);
     return getParentState(id);
 }
 
@@ -697,16 +829,36 @@ const QUESTION_PROMPTS = {
     often: 'often invite the child with one small question or choice, but not after every sentence',
 };
 
+const ADDRESS_MODE_PROMPTS = {
+    neutral: 'use no special address most of the time',
+    name: 'prefer addressing the child by name, but not in every reply',
+    warm: 'use parent-approved warm addresses sometimes, but not in every reply',
+    varied: 'vary naturally between the child name and parent-approved warm addresses, but do not overuse them',
+};
+
+function addressNameForPrompt(value) {
+    return ADDRESS_PRESETS[value] || safeText(value, 40);
+}
+
 function formatSettingsForPrompt(settings = {}) {
     const s = { ...DEFAULT_SETTINGS, ...settings };
-    const personality = PERSONALITY_PRESETS[s.personality_preset] || PERSONALITY_PRESETS.gentle;
+    const personality = cleanStringArray(s.personality_preset, PERSONALITY_KEYS, 4)
+        .map((key) => PERSONALITY_PRESETS[key])
+        .filter(Boolean)
+        .join(', ') || PERSONALITY_PRESETS.gentle;
     const toyType = safeText(s.toy_type || 'bear', 40);
+    const addressMode = ADDRESS_MODE_PROMPTS[s.child_address_mode] || ADDRESS_MODE_PROMPTS.varied;
+    const addressNames = cleanStringArray(s.child_address_names, null, 8)
+        .map(addressNameForPrompt)
+        .filter(Boolean)
+        .join(', ');
     const lines = [
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
         `- Toy character type: ${toyType}`,
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
+        `- Child address rule: ${addressMode}${addressNames ? `; allowed address variants: ${addressNames}` : ''}.`,
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
         `- Answer length rule: ${ANSWER_LENGTH_PROMPTS[s.answer_length] || ANSWER_LENGTH_PROMPTS.short}`,
         `- Humor rule: ${HUMOR_PROMPTS[s.humor_level] || HUMOR_PROMPTS.normal}`,
@@ -741,6 +893,8 @@ module.exports = {
     touchDevice,
     getRuntimeState,
     recordRuntimeUsage,
+    recordConversation,
+    getAnalytics,
     modelModeToModelName,
     formatSettingsForPrompt,
 };

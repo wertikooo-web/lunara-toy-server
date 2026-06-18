@@ -170,6 +170,17 @@ app.get('/api/parent/state', async (req, res) => {
     }
 });
 
+app.get('/api/parent/analytics', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.getAnalytics(session.device_id));
+    } catch (err) {
+        logger.error(`[Parent] analytics error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/parent/settings', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
@@ -322,6 +333,7 @@ app.post('/chat', async (req, res) => {
         if (!runtime.allowed) {
             const reply = runtimeLimitReply(runtime, effectiveLang);
             const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            recordAnalyticsSafe(deviceId, text, reply, { type: 'runtime_limit', durationMs: audio.durationMs, provider: 'system' });
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -341,6 +353,7 @@ app.post('/chat', async (req, res) => {
             if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
                 sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
                 recordUsageSafe(deviceId, shortContent.durationMs);
+                recordAnalyticsSafe(deviceId, text, shortContent.reply, { type: shortContent.item?.type, durationMs: shortContent.durationMs, provider: 'content_cache' });
                 return res.json({
                     reply: shortContent.reply,
                     audio_url: shortContent.audioUrl,
@@ -363,6 +376,7 @@ app.post('/chat', async (req, res) => {
                 key: `riddle_${pendingAnswer.correct === true ? 'correct' : pendingAnswer.correct === false ? 'answer' : 'command'}`,
             });
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, text, pendingAnswer.reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'content_cache' });
             return res.json({
                 reply: pendingAnswer.reply,
                 audio_url: audio.audioUrl,
@@ -383,6 +397,7 @@ app.post('/chat', async (req, res) => {
                 key: 'clarification',
             });
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, text, clarification.reply, { type: 'clarification', durationMs: audio.durationMs, provider: 'content_cache' });
             return res.json({
                 reply: clarification.reply,
                 audio_url: audio.audioUrl,
@@ -399,6 +414,7 @@ app.post('/chat', async (req, res) => {
             const reply = disabledContentReply(requestedContentType, effectiveLang);
             const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, text, reply, { type: requestedContentType, durationMs: audio.durationMs, provider: 'system' });
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -414,6 +430,7 @@ app.post('/chat', async (req, res) => {
         if (shortContent && isContentTypeAllowed(settings, shortContent.item?.type)) {
             sessionRef.pendingContent = content.pendingFromItem(shortContent.item);
             recordUsageSafe(deviceId, shortContent.durationMs);
+            recordAnalyticsSafe(deviceId, text, shortContent.reply, { type: shortContent.item?.type, durationMs: shortContent.durationMs, provider: 'content_cache' });
             return res.json({
                 reply: shortContent.reply,
                 audio_url: shortContent.audioUrl,
@@ -435,6 +452,7 @@ app.post('/chat', async (req, res) => {
             const reply = disabledContentReply('story', effectiveLang);
             const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, text, reply, { type: 'story', durationMs: audio.durationMs, provider: 'system' });
             return res.json({
                 reply,
                 audio_url: audio.audioUrl,
@@ -473,6 +491,7 @@ app.post('/chat', async (req, res) => {
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, effectiveLang, { voiceSpeed: settings.voice_speed });
         recordUsageSafe(deviceId, durationMs);
+        recordAnalyticsSafe(deviceId, text, reply, { type: story ? 'story' : undefined, durationMs, provider: 'llm' });
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({
@@ -586,6 +605,52 @@ function runtimeLimitReply(runtime, lang = 'ru-RU') {
 function recordUsageSafe(deviceId, durationMs) {
     parentConfig.recordRuntimeUsage(deviceId, durationMs)
         .catch(err => logger.warn(`[Parent] usage record failed: ${err.message}`));
+}
+
+function analyticsCategory(type, text = '') {
+    if (type === 'riddle') return 'riddles';
+    if (type === 'story' || type === 'story_template' || type === 'fairytale_template') return 'stories';
+    if (type === 'tongue_twister') return 'tongue_twisters';
+    if (type === 'mini_game') return 'mini_games';
+    if (type === 'learning') return 'learning';
+    if (type === 'runtime_limit') return 'limits';
+    const normalized = String(text || '').toLowerCase();
+    if (/загад|riddle|ghic/i.test(normalized)) return 'riddles';
+    if (/сказ|истор|story|povest/i.test(normalized)) return 'stories';
+    if (/скороговор|tongue|framant/i.test(normalized)) return 'tongue_twisters';
+    if (/игр|game|joac/i.test(normalized)) return 'mini_games';
+    return 'chat';
+}
+
+function analyticsTone(text = '') {
+    const normalized = String(text || '').toLowerCase();
+    if (/страш|боюсь|плак|груст|обид|злюсь|sad|scared|fric|trist/i.test(normalized)) return 'supportive';
+    if (/ура|класс|супер|люблю|нрав|happy|great|imi place/i.test(normalized)) return 'happy';
+    if (/почему|как|зачем|сколько|why|how|de ce|cum/i.test(normalized)) return 'curious';
+    return 'neutral';
+}
+
+function analyticsTopic(text = '', type = '') {
+    if (type) return analyticsCategory(type, text);
+    const normalized = String(text || '').toLowerCase();
+    const topics = [
+        ['animals', /живот|кот|собак|заяц|крокодил|animal|cat|dog|iepure|pisic/i],
+        ['space', /космос|луна|звезд|планет|space|moon|star|luna|stea/i],
+        ['food', /еда|пицц|яблок|картош|food|pizza|apple|mancare/i],
+        ['family', /мама|папа|бабуш|семь|family|mother|father|mama|tata/i],
+        ['school', /школ|урок|учител|school|lesson|scoala/i],
+    ];
+    return topics.find(([, pattern]) => pattern.test(normalized))?.[0] || '';
+}
+
+function recordAnalyticsSafe(deviceId, inputText, outputText, meta = {}) {
+    parentConfig.recordConversation(deviceId, {
+        category: analyticsCategory(meta.type, inputText),
+        tone: analyticsTone(`${inputText} ${outputText}`),
+        topic: analyticsTopic(inputText, meta.type),
+        model_provider: meta.provider || '',
+        duration_ms: meta.durationMs || 0,
+    }).catch(err => logger.warn(`[Parent] analytics record failed: ${err.message}`));
 }
 
 
@@ -840,6 +905,7 @@ async function handlePipeline(
             }
 
             sendAudio(audio.audioUrl, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, reply, { type: 'runtime_limit', durationMs: audio.durationMs, provider: 'system' });
             return;
         }
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
@@ -857,6 +923,7 @@ async function handlePipeline(
                 state.pendingContent = content.pendingFromItem(shortContent.item);
                 sendAudio(shortContent.audioUrl, shortContent.durationMs);
                 recordUsageSafe(deviceId, shortContent.durationMs);
+                recordAnalyticsSafe(deviceId, transcript, shortContent.reply, { type: shortContent.item?.type, durationMs: shortContent.durationMs, provider: 'content_cache' });
                 logger.info(`[Pipeline] sent next riddle content: ${shortContent.item.id} cached=${shortContent.cached}`);
                 return;
             }
@@ -879,6 +946,7 @@ async function handlePipeline(
 
             sendAudio(audio.audioUrl, audio.durationMs);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, pendingAnswer.reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'content_cache' });
             return;
         }
 
@@ -898,6 +966,7 @@ async function handlePipeline(
 
             sendAudio(audio.audioUrl, audio.durationMs);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, clarification.reply, { type: 'clarification', durationMs: audio.durationMs, provider: 'content_cache' });
             return;
         }
 
@@ -918,6 +987,7 @@ async function handlePipeline(
 
             sendAudio(audio.audioUrl, audio.durationMs);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, reply, { type: requestedContentType, durationMs: audio.durationMs, provider: 'system' });
             return;
         }
 
@@ -930,6 +1000,7 @@ async function handlePipeline(
             state.pendingContent = content.pendingFromItem(shortContent.item);
             sendAudio(shortContent.audioUrl, shortContent.durationMs);
             recordUsageSafe(deviceId, shortContent.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, shortContent.reply, { type: shortContent.item?.type, durationMs: shortContent.durationMs, provider: 'content_cache' });
             logger.info(`[Pipeline] sent cached content audio: ${shortContent.item.id} cached=${shortContent.cached}`);
             return;
         }
@@ -956,6 +1027,7 @@ async function handlePipeline(
 
             sendAudio(audio.audioUrl, audio.durationMs);
             recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, reply, { type: 'story', durationMs: audio.durationMs, provider: 'system' });
             return;
         }
         const followupContext = !story && state.lastContentMode === 'story'
@@ -1000,6 +1072,7 @@ async function handlePipeline(
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
         recordUsageSafe(deviceId, durationMs);
+        recordAnalyticsSafe(deviceId, transcript, reply, { type: story ? 'story' : undefined, durationMs, provider: 'llm' });
         state.lastContentMode = story ? 'story' : null;
         if (settings.memory_enabled !== false) {
             memory.rememberFromText(deviceId, transcript, profile)

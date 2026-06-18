@@ -18,6 +18,11 @@
     h1 { font-size: 28px; }
     h2 { font-size: 20px; margin-top: 26px; }
     section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
+    #consoleBox { display: flex; flex-direction: column; }
+    #consoleBox > section { order: 10; }
+    #consoleBox > section:first-child { order: 1; }
+    #childPanel { order: 2; }
+    #toyPanel { order: 3; }
     .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
     .console-lang { display: inline-flex; gap: 6px; }
     .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
@@ -45,6 +50,8 @@
     .error { color: #fecaca; }
     .hidden { display: none; }
     .memory-card { background: #0b0914; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    .memory-card h3 { margin: 8px 0 6px; font-size: 15px; color: #ffffff; }
+    .memory-card h3:first-child { margin-top: 0; }
     .memory-row { display: grid; grid-template-columns: 190px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid #241943; }
     .memory-row:last-child { border-bottom: 0; }
     .memory-label { color: #c9b8ff; }
@@ -58,6 +65,8 @@
     .metric { background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
     .metric strong { display: block; font-size: 20px; margin-top: 4px; }
     .default-summary { margin-top: 10px; background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; line-height: 1.45; color: #d8ccff; }
+    .inline-check { display: inline-flex; align-items: center; gap: 10px; width: auto; margin-top: 14px; font-size: 15px; }
+    .inline-check input[type="checkbox"] { width: 24px; height: 24px; accent-color: #8b5cf6; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
     @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
   </style>
@@ -121,7 +130,7 @@
       <div id="profileStatus" class="status"></div>
     </section>
 
-    <section>
+    <section class="hidden">
       <h2>Пароль родителя</h2>
       <p class="small">PIN нужен для входа в родительский контроль. Он хранится в защищённом виде и не показывается обратно.</p>
       <div class="grid">
@@ -143,7 +152,7 @@
       <div id="pinStatus" class="status"></div>
     </section>
 
-    <section>
+    <section id="toyPanel">
       <h2>Игрушка</h2>
       <div class="grid">
         <div>
@@ -152,16 +161,11 @@
         </div>
         <div>
           <label>Тип персонажа</label>
-          <input id="toy_type" maxlength="40" list="toyTypeOptions" placeholder="Мишка, зайчик, котик или свой вариант">
-          <datalist id="toyTypeOptions">
-            <option value="Мишка"></option>
-            <option value="Зайчик"></option>
-            <option value="Котик"></option>
-            <option value="Дракончик"></option>
-            <option value="Робот"></option>
-            <option value="Единорог"></option>
-            <option value="Чебурашка"></option>
-          </datalist>
+          <select id="toy_type" onchange="toggleCustomToyType()"></select>
+        </div>
+        <div id="customToyTypeWrap" class="hidden">
+          <label>Свой тип персонажа</label>
+          <input id="custom_toy_type" maxlength="40" placeholder="Например: Чебурашка, единорог, робот">
         </div>
         <div>
           <label>Язык</label>
@@ -182,7 +186,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="childPanel">
       <h2>Ребёнок</h2>
       <div class="grid">
         <div>
@@ -225,14 +229,37 @@
       <div class="grid">
         <div>
           <label>Характер</label>
-          <select id="personality_preset">
-            <option value="gentle">Заботливая</option>
-            <option value="playful">Весёлая</option>
-            <option value="calm">Спокойная</option>
-            <option value="curious">Любознательная</option>
-            <option value="fairy">Сказочная</option>
-            <option value="teacher">Учитель-помощник</option>
+          <div class="checks" id="personalityChecks">
+            <label><input type="checkbox" value="gentle"> Заботливая</label>
+            <label><input type="checkbox" value="playful"> Весёлая</label>
+            <label><input type="checkbox" value="calm"> Спокойная</label>
+            <label><input type="checkbox" value="curious"> Любознательная</label>
+            <label><input type="checkbox" value="fairy"> Сказочная</label>
+            <label><input type="checkbox" value="teacher"> Учитель-помощник</label>
+          </div>
+        </div>
+        <div>
+          <label>Как обращаться к ребёнку</label>
+          <select id="child_address_mode">
+            <option value="varied">Вариативно</option>
+            <option value="name">По имени</option>
+            <option value="warm">Ласково</option>
+            <option value="neutral">Нейтрально</option>
           </select>
+        </div>
+        <div>
+          <label>Варианты обращения</label>
+          <div class="checks" id="childAddressChecks">
+            <label><input type="checkbox" value="name"> По имени</label>
+            <label><input type="checkbox" value="sunshine"> Солнышко</label>
+            <label><input type="checkbox" value="little_one"> Малыш</label>
+            <label><input type="checkbox" value="friend"> Дружок</label>
+            <label><input type="checkbox" value="champion"> Чемпион</label>
+          </div>
+        </div>
+        <div>
+          <label>Свой вариант обращения</label>
+          <input id="child_address_custom" maxlength="80" placeholder="Например: звёздочка, котёнок">
         </div>
         <div>
           <label>Длина ответов</label>
@@ -283,9 +310,11 @@
       <h2>Время работы</h2>
       <div class="grid">
         <div>
+          <label><input id="daily_limit_enabled" type="checkbox" onchange="toggleDailyLimit()"> <span id="dailyLimitOffText">Без лимита</span></label>
+        </div>
+        <div class="daily-limit-control">
           <label>Лимит в день</label>
           <select id="daily_limit_preset" onchange="setDailyLimitPreset()">
-            <option value="0">Без ограничений</option>
             <option value="60">1 час</option>
             <option value="120">2 часа</option>
             <option value="180">3 часа</option>
@@ -293,9 +322,9 @@
             <option value="custom">Своё время</option>
           </select>
         </div>
-        <div>
+        <div class="daily-limit-control">
           <label>Своё время, минут</label>
-          <input id="daily_limit_minutes" type="number" min="0" max="1440" step="5" placeholder="0 = без ограничений">
+          <input id="daily_limit_minutes" type="number" min="5" max="1440" step="5" placeholder="Например: 120">
         </div>
         <div>
           <label><input id="quiet_hours_enabled" type="checkbox"> Ночное время включено</label>
@@ -335,7 +364,7 @@
       <input id="allowed_topics" placeholder="animals, space, friendship">
       <label>Не предлагать темы через запятую</label>
       <input id="blocked_topics" placeholder="monsters, sad stories">
-      <label><input id="memory_enabled" type="checkbox"> Память включена</label>
+      <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Память включена</span></label>
       <button onclick="saveSettings()">Сохранить настройки</button>
       <div id="saveStatus" class="status"></div>
     </section>
@@ -357,8 +386,11 @@
           <div class="metric">Сегодня использовано<strong id="metricUsedToday">0 мин</strong></div>
           <div class="metric">Осталось сегодня<strong id="metricRemainingToday">Без лимита</strong></div>
           <div class="metric">Статус<strong id="metricRuntimeStatus">Работает</strong></div>
+          <div class="metric">Реплик сегодня<strong id="metricTurnsToday">0</strong></div>
+          <div class="metric">Реплик за 7 дней<strong id="metricTurnsWeek">0</strong></div>
+          <div class="metric">Ответов за 7 дней<strong id="metricAnswersWeek">0</strong></div>
         </div>
-        <p class="small">Позже здесь появятся: количество вопросов и ответов, режимы общения, категории контента, частые темы и общий эмоциональный тон без показа сырых фраз ребёнка.</p>
+        <div id="analyticsSummary" class="memory-card memory-empty">Аналитика появится после новых разговоров.</div>
       </div>
     </section>
 
@@ -391,11 +423,14 @@ const TOPIC_PRESETS = {
 const KNOWN_TOPIC_PRESETS = Object.values(TOPIC_PRESETS)
   .flatMap(preset => [preset.allowed, preset.blocked])
   .map(values => values.map(value => value.toLowerCase()).join('|'));
+KNOWN_TOPIC_PRESETS.push('animals|space|fairy tales|friendship', 'animals|space|fairy_tales|friendship', 'monsters|sad stories');
+
+const ADDRESS_PRESETS = ['name', 'sunshine', 'little_one', 'friend', 'champion'];
 
 const TOY_TYPE_PRESETS = {
-  'ru-RU': ['Мишка', 'Зайчик', 'Котик', 'Дракончик', 'Робот', 'Единорог', 'Чебурашка'],
-  'ro-RO': ['Ursulet', 'Iepuras', 'Pisica', 'Dragonas', 'Robot', 'Unicorn'],
-  'en-US': ['Bear', 'Bunny', 'Cat', 'Little dragon', 'Robot', 'Unicorn'],
+  'ru-RU': ['Мишка', 'Зайчик', 'Котик', 'Дракончик', 'Динозавр', 'Крокодил', 'Обезьянка', 'Кукла', 'Робот', 'Единорог', 'Чебурашка'],
+  'ro-RO': ['Ursulet', 'Iepuras', 'Pisica', 'Dragonas', 'Dinozaur', 'Crocodil', 'Maimutica', 'Papusa', 'Robot', 'Unicorn'],
+  'en-US': ['Bear', 'Bunny', 'Cat', 'Little dragon', 'Dinosaur', 'Crocodile', 'Monkey', 'Doll', 'Robot', 'Unicorn'],
 };
 
 const LEGACY_TOY_TYPES = {
@@ -405,6 +440,7 @@ const LEGACY_TOY_TYPES = {
   dragon: 'Дракончик',
   custom: '',
 };
+const CUSTOM_TOY_VALUE = '__custom__';
 
 let consoleLanguage = localStorage.getItem('lumi_parent_console_lang') || 'ru-RU';
 
@@ -440,6 +476,9 @@ const UI_TEXT = {
     toyName: 'Имя игрушки',
     toyType: 'Тип персонажа',
     toyTypePlaceholder: 'Мишка, зайчик, котик или свой вариант',
+    customToyType: 'Свой тип персонажа',
+    customToyPlaceholder: 'Например: Чебурашка, единорог, робот',
+    customToyOption: 'Свой тип',
     language: 'Язык',
     modelMode: 'Режим модели',
     child: 'Ребёнок',
@@ -455,6 +494,25 @@ const UI_TEXT = {
     clearChild: 'Очистить профиль',
     characterVoice: 'Характер и голос',
     character: 'Характер',
+    gentle: 'Заботливая',
+    playful: 'Весёлая',
+    calm: 'Спокойная',
+    curious: 'Любознательная',
+    fairy: 'Сказочная',
+    teacher: 'Учитель-помощник',
+    addressMode: 'Как обращаться к ребёнку',
+    addressVariants: 'Варианты обращения',
+    addressCustom: 'Свой вариант обращения',
+    addressVaried: 'Вариативно',
+    addressByName: 'По имени',
+    addressWarm: 'Ласково',
+    addressNeutral: 'Нейтрально',
+    addressName: 'По имени',
+    addressSunshine: 'Солнышко',
+    addressLittleOne: 'Малыш',
+    addressFriend: 'Дружок',
+    addressChampion: 'Чемпион',
+    addressCustomPlaceholder: 'Например: звёздочка, котёнок',
     answerLength: 'Длина ответов',
     humor: 'Юмор',
     activity: 'Активность',
@@ -467,11 +525,15 @@ const UI_TEXT = {
     analyticsUsed: 'Сегодня использовано',
     analyticsRemaining: 'Осталось сегодня',
     analyticsStatus: 'Статус',
+    analyticsTurnsToday: 'Реплик сегодня',
+    analyticsTurnsWeek: 'Реплик за 7 дней',
+    analyticsAnswersWeek: 'Ответов за 7 дней',
     analyticsNoLimit: 'Без лимита',
     analyticsWorks: 'Работает',
     analyticsBlocked: 'Ограничено',
     minUnit: 'мин',
     analyticsHelp: 'Позже здесь появятся: количество вопросов и ответов, режимы общения, категории контента, частые темы и общий эмоциональный тон без показа сырых фраз ребёнка.',
+    analyticsEmpty: 'Аналитика появится после новых разговоров.',
     dailyLimit: 'Лимит в день',
     noLimit: 'Без ограничений',
     oneHour: '1 час',
@@ -536,6 +598,9 @@ const UI_TEXT = {
     toyName: 'Numele jucariei',
     toyType: 'Tip personaj',
     toyTypePlaceholder: 'Ursulet, iepuras, pisica sau varianta proprie',
+    customToyType: 'Tip propriu de personaj',
+    customToyPlaceholder: 'De exemplu: robot, unicorn, personaj propriu',
+    customToyOption: 'Tip propriu',
     language: 'Limba',
     modelMode: 'Mod model',
     child: 'Copil',
@@ -551,6 +616,25 @@ const UI_TEXT = {
     clearChild: 'Curata profilul',
     characterVoice: 'Caracter si voce',
     character: 'Caracter',
+    gentle: 'Grijulie',
+    playful: 'Vesela',
+    calm: 'Linistita',
+    curious: 'Curioasa',
+    fairy: 'De basm',
+    teacher: 'Invatator-ajutor',
+    addressMode: 'Cum se adreseaza copilului',
+    addressVariants: 'Variante de adresare',
+    addressCustom: 'Varianta proprie de adresare',
+    addressVaried: 'Variat',
+    addressByName: 'Pe nume',
+    addressWarm: 'Cu blandete',
+    addressNeutral: 'Neutru',
+    addressName: 'Pe nume',
+    addressSunshine: 'Soarele meu',
+    addressLittleOne: 'Dragul meu',
+    addressFriend: 'Prietene',
+    addressChampion: 'Campionule',
+    addressCustomPlaceholder: 'De exemplu: steluta, puisor',
     answerLength: 'Lungimea raspunsurilor',
     humor: 'Umor',
     activity: 'Activitate',
@@ -563,11 +647,15 @@ const UI_TEXT = {
     analyticsUsed: 'Folosit azi',
     analyticsRemaining: 'Ramas azi',
     analyticsStatus: 'Status',
+    analyticsTurnsToday: 'Replici azi',
+    analyticsTurnsWeek: 'Replici in 7 zile',
+    analyticsAnswersWeek: 'Raspunsuri in 7 zile',
     analyticsNoLimit: 'Fara limita',
     analyticsWorks: 'Functioneaza',
     analyticsBlocked: 'Limitat',
     minUnit: 'min',
     analyticsHelp: 'Mai tarziu aici vor aparea: numarul de intrebari si raspunsuri, modurile de comunicare, categoriile de continut, temele frecvente si tonul emotional general fara fraze brute ale copilului.',
+    analyticsEmpty: 'Analitica va aparea dupa conversatii noi.',
     dailyLimit: 'Limita pe zi',
     noLimit: 'Fara limita',
     oneHour: '1 ora',
@@ -632,6 +720,9 @@ const UI_TEXT = {
     toyName: 'Toy name',
     toyType: 'Character type',
     toyTypePlaceholder: 'Bear, bunny, cat, or your own option',
+    customToyType: 'Custom character type',
+    customToyPlaceholder: 'For example: robot, unicorn, your own character',
+    customToyOption: 'Custom type',
     language: 'Language',
     modelMode: 'Model mode',
     child: 'Child',
@@ -647,6 +738,25 @@ const UI_TEXT = {
     clearChild: 'Clear profile',
     characterVoice: 'Personality and voice',
     character: 'Personality',
+    gentle: 'Caring',
+    playful: 'Playful',
+    calm: 'Calm',
+    curious: 'Curious',
+    fairy: 'Fairy-tale',
+    teacher: 'Teacher-helper',
+    addressMode: 'How to address the child',
+    addressVariants: 'Address variants',
+    addressCustom: 'Custom address variant',
+    addressVaried: 'Varied',
+    addressByName: 'By name',
+    addressWarm: 'Warmly',
+    addressNeutral: 'Neutral',
+    addressName: 'By name',
+    addressSunshine: 'Sunshine',
+    addressLittleOne: 'Little one',
+    addressFriend: 'Buddy',
+    addressChampion: 'Champion',
+    addressCustomPlaceholder: 'For example: little star, sweetheart',
     answerLength: 'Answer length',
     humor: 'Humor',
     activity: 'Activity',
@@ -659,11 +769,15 @@ const UI_TEXT = {
     analyticsUsed: 'Used today',
     analyticsRemaining: 'Remaining today',
     analyticsStatus: 'Status',
+    analyticsTurnsToday: 'Turns today',
+    analyticsTurnsWeek: 'Turns in 7 days',
+    analyticsAnswersWeek: 'Answers in 7 days',
     analyticsNoLimit: 'No limit',
     analyticsWorks: 'Works',
     analyticsBlocked: 'Limited',
     minUnit: 'min',
     analyticsHelp: 'Later this will show: questions and answers count, communication modes, content categories, frequent topics, and overall emotional tone without raw child phrases.',
+    analyticsEmpty: 'Analytics will appear after new conversations.',
     dailyLimit: 'Daily limit',
     noLimit: 'No limit',
     oneHour: '1 hour',
@@ -727,19 +841,78 @@ function setPlaceholder(selector, value) {
 }
 
 function setToyTypeOptions(lang) {
-  const list = document.getElementById('toyTypeOptions');
-  if (!list) return;
-  list.innerHTML = '';
+  const select = document.getElementById('toy_type');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = '';
   (TOY_TYPE_PRESETS[lang] || TOY_TYPE_PRESETS['ru-RU']).forEach(value => {
     const option = document.createElement('option');
     option.value = value;
-    list.appendChild(option);
+    option.textContent = value;
+    select.appendChild(option);
   });
+  const customOption = document.createElement('option');
+  customOption.value = CUSTOM_TOY_VALUE;
+  customOption.textContent = (UI_TEXT[lang] || UI_TEXT['ru-RU']).customToyOption;
+  select.appendChild(customOption);
+  if (current) select.value = current;
 }
 
 function normalizeToyTypeForDisplay(value) {
   const text = String(value || '').trim();
   return LEGACY_TOY_TYPES[text] !== undefined ? LEGACY_TOY_TYPES[text] || '' : text;
+}
+
+function setToyTypeValue(value) {
+  const text = normalizeToyTypeForDisplay(value) || 'Мишка';
+  const select = document.getElementById('toy_type');
+  const custom = document.getElementById('custom_toy_type');
+  const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];
+  if (presets.includes(text)) {
+    select.value = text;
+    if (custom) custom.value = '';
+  } else {
+    select.value = CUSTOM_TOY_VALUE;
+    if (custom) custom.value = text;
+  }
+  toggleCustomToyType();
+}
+
+function getToyTypeValue() {
+  const select = document.getElementById('toy_type');
+  if (select.value === CUSTOM_TOY_VALUE) {
+    return document.getElementById('custom_toy_type').value;
+  }
+  return select.value;
+}
+
+function toggleCustomToyType() {
+  const isCustom = document.getElementById('toy_type')?.value === CUSTOM_TOY_VALUE;
+  document.getElementById('customToyTypeWrap')?.classList.toggle('hidden', !isCustom);
+}
+
+function splitCustomAddressNames(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function setChildAddressNames(values = []) {
+  const list = Array.isArray(values) ? values : String(values || '').split(',');
+  const presetValues = list.filter(value => ADDRESS_PRESETS.includes(value));
+  const customValues = list.filter(value => value && !ADDRESS_PRESETS.includes(value));
+  setCheckedValues('childAddressChecks', presetValues.length ? presetValues : ['name', 'sunshine', 'friend']);
+  setValue('child_address_custom', customValues.join(', '));
+}
+
+function getChildAddressNames() {
+  const values = getCheckedValues('childAddressChecks');
+  splitCustomAddressNames(document.getElementById('child_address_custom')?.value).forEach(value => {
+    if (!values.includes(value)) values.push(value);
+  });
+  return values.slice(0, 8);
 }
 
 function applyConsoleLocale(lang) {
@@ -775,10 +948,10 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(2) button', t.savePassword);
   setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(2)', t.forgotPassword);
 
-  const toyLabels = [t.toyName, t.toyType, t.language, t.modelMode];
+  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language, t.modelMode];
   setText('#consoleBox > section:nth-of-type(3) h2', t.toy);
   document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
-  setPlaceholder('#toy_type', t.toyTypePlaceholder);
+  setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
   setToyTypeOptions(lang);
 
   const childLabels = [t.childName, t.age, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
@@ -788,21 +961,41 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(2)', t.saveChild);
   setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(3)', t.clearChild);
 
-  const characterLabels = [t.character, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
+  const characterLabels = [t.character, t.addressMode, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
   setText('#consoleBox > section:nth-of-type(5) h2', t.characterVoice);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(5) label').forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
+  document.querySelectorAll('#consoleBox > section:nth-of-type(5) > .grid > div > label, #consoleBox > section:nth-of-type(5) > label')
+    .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
+  const personalityLabels = [t.gentle, t.playful, t.calm, t.curious, t.fairy, t.teacher];
+  document.querySelectorAll('#personalityChecks label').forEach((el, i) => {
+    const input = el.querySelector('input');
+    el.textContent = ' ' + personalityLabels[i];
+    if (input) el.prepend(input);
+  });
+  const addressOptions = document.querySelectorAll('#child_address_mode option');
+  [t.addressVaried, t.addressByName, t.addressWarm, t.addressNeutral].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
+  const addressLabels = [t.addressName, t.addressSunshine, t.addressLittleOne, t.addressFriend, t.addressChampion];
+  document.querySelectorAll('#childAddressChecks label').forEach((el, i) => {
+    const input = el.querySelector('input');
+    el.textContent = ' ' + addressLabels[i];
+    if (input) el.prepend(input);
+  });
+  setPlaceholder('#child_address_custom', t.addressCustomPlaceholder);
   setPlaceholder('#custom_personality', t.customPersonalityPlaceholder);
 
   setText('#consoleBox > section:nth-of-type(6) h2', t.runtime);
-  const runtimeLabels = [t.dailyLimit, t.customMinutes, t.quietEnabled, t.offFrom, t.offUntil];
+  const runtimeLabels = [t.analyticsNoLimit, t.dailyLimit, t.customMinutes, t.quietEnabled, t.offFrom, t.offUntil];
+  const dailyLimitChecked = document.getElementById('daily_limit_enabled')?.checked || false;
   document.querySelectorAll('#consoleBox > section:nth-of-type(6) label').forEach((el, i) => { if (runtimeLabels[i]) {
-    if (i === 2) el.innerHTML = `<input id="quiet_hours_enabled" type="checkbox"> ${escapeHtml(runtimeLabels[i])}`;
+    if (i === 0) el.innerHTML = `<input id="daily_limit_enabled" type="checkbox" onchange="toggleDailyLimit()"> <span id="dailyLimitOffText">${escapeHtml(t.analyticsNoLimit)}</span>`;
+    else if (i === 3) el.innerHTML = `<input id="quiet_hours_enabled" type="checkbox"> ${escapeHtml(runtimeLabels[i])}`;
     else el.textContent = runtimeLabels[i];
   }});
+  setValue('daily_limit_enabled', dailyLimitChecked);
   setValue('quiet_hours_enabled', quietChecked);
   const dailyOptions = document.querySelectorAll('#daily_limit_preset option');
-  [t.noLimit, t.oneHour, t.twoHours, t.threeHours, t.sixHours, t.customTime].forEach((label, i) => { if (dailyOptions[i]) dailyOptions[i].textContent = label; });
+  [t.oneHour, t.twoHours, t.threeHours, t.sixHours, t.customTime].forEach((label, i) => { if (dailyOptions[i]) dailyOptions[i].textContent = label; });
   setPlaceholder('#daily_limit_minutes', t.customMinutesPlaceholder);
+  toggleDailyLimit();
 
   setText('#consoleBox > section:nth-of-type(9) button', t.analytics);
   setText('#metricUsedToday', document.getElementById('metricUsedToday')?.textContent || '0 мин');
@@ -810,7 +1003,9 @@ function applyConsoleLocale(lang) {
   if (metricCards[0]?.firstChild) metricCards[0].firstChild.textContent = t.analyticsUsed;
   if (metricCards[1]?.firstChild) metricCards[1].firstChild.textContent = t.analyticsRemaining;
   if (metricCards[2]?.firstChild) metricCards[2].firstChild.textContent = t.analyticsStatus;
-  setText('#analyticsPanel .small', t.analyticsHelp);
+  if (metricCards[3]?.firstChild) metricCards[3].firstChild.textContent = t.analyticsTurnsToday;
+  if (metricCards[4]?.firstChild) metricCards[4].firstChild.textContent = t.analyticsTurnsWeek;
+  if (metricCards[5]?.firstChild) metricCards[5].firstChild.textContent = t.analyticsAnswersWeek;
 
   setText('#consoleBox > section:nth-of-type(7) h2', t.content);
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(1)', t.allowed);
@@ -825,7 +1020,7 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(3)', t.topics);
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(4)', t.blockedTopics);
   const memoryLabel = document.querySelector('#consoleBox > section:nth-of-type(7) > label:nth-of-type(5)');
-  if (memoryLabel) memoryLabel.innerHTML = `<input id="memory_enabled" type="checkbox"> ${escapeHtml(t.memoryEnabled)}`;
+  if (memoryLabel) memoryLabel.innerHTML = `<input id="memory_enabled" type="checkbox"> <span>${escapeHtml(t.memoryEnabled)}</span>`;
   setValue('memory_enabled', memoryChecked);
   setText('#consoleBox > section:nth-of-type(7) button', t.saveSettings);
 
@@ -851,6 +1046,7 @@ async function login() {
     });
     token = data.token;
     status.textContent = 'Вход выполнен: ' + data.device_id;
+    document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('consoleBox').classList.remove('hidden');
     await loadState();
   } catch (err) {
@@ -878,9 +1074,12 @@ function setCheckedValues(containerId, values) {
 }
 
 function isKnownTopicPreset(values, allowEmpty = false) {
-  const normalized = (values || []).map(value => String(value).trim().toLowerCase()).filter(Boolean).join('|');
+  const normalized = (values || [])
+    .map(value => String(value).trim().toLowerCase().replaceAll('_', ' '))
+    .filter(Boolean)
+    .join('|');
   if (!normalized) return allowEmpty;
-  return !normalized || KNOWN_TOPIC_PRESETS.includes(normalized);
+  return !normalized || KNOWN_TOPIC_PRESETS.map(value => value.replaceAll('_', ' ')).includes(normalized);
 }
 
 function topicText(values) {
@@ -894,12 +1093,29 @@ function setDailyLimitPreset() {
 
 function syncDailyLimitPreset(minutes) {
   const value = String(Number(minutes || 0));
-  const preset = ['0', '60', '120', '180', '360'].includes(value) ? value : 'custom';
+  const enabled = Number(minutes || 0) > 0;
+  setValue('daily_limit_enabled', enabled);
+  const preset = ['60', '120', '180', '360'].includes(value) ? value : 'custom';
   setValue('daily_limit_preset', preset);
+  if (!enabled && !document.getElementById('daily_limit_minutes').value) {
+    document.getElementById('daily_limit_minutes').value = '120';
+  }
+  toggleDailyLimit();
+}
+
+function toggleDailyLimit() {
+  const enabled = document.getElementById('daily_limit_enabled')?.checked === true;
+  document.getElementById('dailyLimitOffText')?.classList.toggle('hidden', enabled);
+  document.querySelectorAll('.daily-limit-control').forEach(el => el.classList.toggle('hidden', !enabled));
+  if (!enabled) return;
+  if (!Number(document.getElementById('daily_limit_minutes').value || 0)) {
+    document.getElementById('daily_limit_minutes').value = document.getElementById('daily_limit_preset').value || '120';
+  }
 }
 
 function toggleAnalytics() {
   document.getElementById('analyticsPanel').classList.toggle('hidden');
+  loadAnalytics().catch(() => {});
 }
 
 function renderRuntime(runtime = {}) {
@@ -913,6 +1129,43 @@ function renderRuntime(runtime = {}) {
   setText('#metricUsedToday', `${used} ${t.minUnit}`);
   setText('#metricRemainingToday', remaining == null ? t.analyticsNoLimit : `${Math.max(0, remaining)} ${t.minUnit}`);
   setText('#metricRuntimeStatus', status);
+}
+
+function listSummary(rows = []) {
+  return rows.length
+    ? rows.map(row => `${escapeHtml(row.category || row.tone || row.topic)}: ${Number(row.count || 0)}`).join(', ')
+    : '';
+}
+
+function renderAnalytics(data = {}) {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  renderRuntime(data.usage || window.lastRuntime || {});
+  setText('#metricTurnsToday', String(data.today_turns || 0));
+  setText('#metricTurnsWeek', String(data.turns_7d || 0));
+  setText('#metricAnswersWeek', String(data.answers_7d || 0));
+  const rows = [];
+  const categories = listSummary(data.categories || []);
+  const tones = listSummary(data.tones || []);
+  const topics = listSummary(data.topics || []);
+  if (categories) rows.push(`<div class="memory-row"><div class="memory-label">Категории</div><div>${categories}</div></div>`);
+  if (tones) rows.push(`<div class="memory-row"><div class="memory-label">Тон</div><div>${tones}</div></div>`);
+  if (topics) rows.push(`<div class="memory-row"><div class="memory-label">Темы</div><div>${topics}</div></div>`);
+  if (data.duration_minutes_7d) rows.push(`<div class="memory-row"><div class="memory-label">Время за 7 дней</div><div>${Number(data.duration_minutes_7d)} ${t.minUnit}</div></div>`);
+  const box = document.getElementById('analyticsSummary');
+  if (!rows.length) {
+    box.className = 'memory-card memory-empty';
+    box.textContent = t.analyticsEmpty;
+    return;
+  }
+  box.className = 'memory-card';
+  box.innerHTML = rows.join('');
+}
+
+async function loadAnalytics() {
+  if (!token) return;
+  const data = await api('/api/parent/analytics');
+  window.lastAnalytics = data;
+  renderAnalytics(data);
 }
 
 function escapeHtml(value) {
@@ -932,33 +1185,37 @@ function addMemoryRow(rows, label, value) {
 }
 
 function renderMemoryView(profile) {
-  const rows = [];
+  const profileRows = [];
+  const memoryRows = [];
   const memory = profile?.memory_json || {};
-  addMemoryRow(rows, 'Имя ребёнка', profile?.child_name);
-  addMemoryRow(rows, 'Возраст', profile?.age);
-  addMemoryRow(rows, 'Любимый цвет', profile?.favorite_color);
-  addMemoryRow(rows, 'Любимое животное', profile?.favorite_animal);
-  addMemoryRow(rows, 'Любимая игра', profile?.favorite_game);
-  addMemoryRow(rows, 'Любимая игрушка', profile?.favorite_toy);
-  addMemoryRow(rows, 'Любимая еда', profile?.favorite_food);
-  addMemoryRow(rows, 'Текущий интерес', profile?.current_interest);
-  addMemoryRow(rows, 'Игровые имена / прозвища', memory.nicknames);
-  addMemoryRow(rows, 'Любимые цвета', memory.favorite_colors);
-  addMemoryRow(rows, 'Любимые животные', memory.favorite_animals);
-  addMemoryRow(rows, 'Любимые игрушки', memory.favorite_toys);
-  addMemoryRow(rows, 'Любимая еда', memory.favorite_foods);
-  addMemoryRow(rows, 'Интересы сейчас', memory.current_interests);
-  addMemoryRow(rows, 'Последние истории', memory.recent_stories);
-  addMemoryRow(rows, 'Общий мир Lumi', memory.shared_world_states);
+  addMemoryRow(profileRows, 'Имя ребёнка', profile?.child_name);
+  addMemoryRow(profileRows, 'Возраст', profile?.age);
+  addMemoryRow(profileRows, 'Любимый цвет', profile?.favorite_color);
+  addMemoryRow(profileRows, 'Любимое животное', profile?.favorite_animal);
+  addMemoryRow(profileRows, 'Любимая игра', profile?.favorite_game);
+  addMemoryRow(profileRows, 'Любимая игрушка', profile?.favorite_toy);
+  addMemoryRow(profileRows, 'Любимая еда', profile?.favorite_food);
+  addMemoryRow(profileRows, 'Текущий интерес', profile?.current_interest);
+  addMemoryRow(memoryRows, 'Игровые имена / прозвища', memory.nicknames);
+  addMemoryRow(memoryRows, 'Любимые цвета', memory.favorite_colors);
+  addMemoryRow(memoryRows, 'Любимые животные', memory.favorite_animals);
+  addMemoryRow(memoryRows, 'Любимые игрушки', memory.favorite_toys);
+  addMemoryRow(memoryRows, 'Любимая еда', memory.favorite_foods);
+  addMemoryRow(memoryRows, 'Интересы сейчас', memory.current_interests);
+  addMemoryRow(memoryRows, 'Последние истории', memory.recent_stories);
+  addMemoryRow(memoryRows, 'Общий мир Lumi', memory.shared_world_states);
 
   const box = document.getElementById('memoryView');
-  if (!rows.length) {
+  if (!profileRows.length && !memoryRows.length) {
     box.className = 'memory-card memory-empty';
     box.textContent = 'Память пока пустая.';
     return;
   }
   box.className = 'memory-card';
-  box.innerHTML = rows.join('');
+  box.innerHTML = [
+    profileRows.length ? `<h3>Профиль ребёнка</h3>${profileRows.join('')}` : '',
+    `<h3>Живая память Lumi</h3>${memoryRows.length ? memoryRows.join('') : '<div class="memory-empty">Живая память очищена или пока не накоплена.</div>'}`,
+  ].join('');
 }
 
 function applyLanguageTopicDefaults(lang) {
@@ -1002,11 +1259,14 @@ async function loadState() {
   const s = data.settings || {};
   const p = data.profile || {};
   [
-    'toy_name', 'toy_type', 'language', 'model_mode', 'personality_preset',
+    'toy_name', 'language', 'model_mode',
     'answer_length', 'humor_level', 'activity_level', 'question_frequency',
-    'voice_speed', 'story_length', 'custom_personality',
+    'voice_speed', 'story_length', 'custom_personality', 'child_address_mode',
     'daily_limit_minutes', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
+  setToyTypeValue(s.toy_type);
+  setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
+  setChildAddressNames(s.child_address_names || ['name', 'sunshine', 'friend']);
   syncDailyLimitPreset(s.daily_limit_minutes);
   setValue('quiet_hours_enabled', s.quiet_hours_enabled === true);
   window.lastRuntime = data.runtime || {};
@@ -1023,12 +1283,17 @@ async function loadState() {
   applyConsoleLocale(consoleLanguage);
   renderRuntime(data.runtime || {});
   renderMemoryView(p);
+  loadAnalytics().catch(() => {});
 }
 
 async function setLanguageFromTop(language) {
+  const toyTypeBefore = getToyTypeValue();
   applyConsoleLocale(language);
+  setToyTypeValue(toyTypeBefore);
+  applyLanguageTopicDefaults(language);
   renderSavedProfiles(window.lastSavedProfiles || []);
   renderRuntime(window.lastRuntime || {});
+  if (window.lastAnalytics) renderAnalytics(window.lastAnalytics);
 }
 
 function setLanguageFromMain() {
@@ -1045,10 +1310,12 @@ async function saveSettings() {
       method: 'POST',
       body: JSON.stringify({
         toy_name: document.getElementById('toy_name').value,
-        toy_type: document.getElementById('toy_type').value,
+        toy_type: getToyTypeValue(),
         language: document.getElementById('language').value,
         model_mode: document.getElementById('model_mode').value,
-        personality_preset: document.getElementById('personality_preset').value,
+        personality_preset: getCheckedValues('personalityChecks'),
+        child_address_mode: document.getElementById('child_address_mode').value,
+        child_address_names: getChildAddressNames(),
         answer_length: document.getElementById('answer_length').value,
         humor_level: document.getElementById('humor_level').value,
         activity_level: document.getElementById('activity_level').value,
@@ -1057,7 +1324,7 @@ async function saveSettings() {
         story_length: document.getElementById('story_length').value,
         custom_toy_type: '',
         custom_personality: document.getElementById('custom_personality').value,
-        daily_limit_minutes: document.getElementById('daily_limit_minutes').value,
+        daily_limit_minutes: document.getElementById('daily_limit_enabled').checked ? document.getElementById('daily_limit_minutes').value : 0,
         quiet_hours_enabled: document.getElementById('quiet_hours_enabled').checked,
         quiet_hours_start: document.getElementById('quiet_hours_start').value,
         quiet_hours_end: document.getElementById('quiet_hours_end').value,
@@ -1270,6 +1537,7 @@ async function logoutParent() {
   token = '';
   localStorage.removeItem('lumi_parent_token');
   document.getElementById('consoleBox').classList.add('hidden');
+  document.getElementById('loginBox').classList.remove('hidden');
   document.getElementById('loginStatus').textContent = 'Вы вышли. Для доступа войдите снова.';
   status.textContent = '';
 }
