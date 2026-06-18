@@ -31,6 +31,8 @@ const DEFAULT_SETTINGS = {
     voice: 'zara',
     voice_speed: 'normal',
     story_length: '5',
+    custom_toy_type: '',
+    custom_personality: '',
     content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game'],
     allowed_topics: ['animals', 'space', 'fairy_tales', 'friendship'],
     blocked_topics: [],
@@ -107,6 +109,8 @@ function normalizeSettingsPatch(raw = {}) {
         const value = safeText(raw.story_length, 4);
         patch.story_length = ['3', '5', '8'].includes(value) ? value : DEFAULT_SETTINGS.story_length;
     }
+    if ('custom_toy_type' in raw) patch.custom_toy_type = safeText(raw.custom_toy_type, 40);
+    if ('custom_personality' in raw) patch.custom_personality = safeText(raw.custom_personality, 220);
     if ('content_enabled' in raw) {
         patch.content_enabled = cleanStringArray(raw.content_enabled, ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'], 8);
     }
@@ -151,6 +155,8 @@ async function init() {
             voice TEXT NOT NULL DEFAULT 'zara',
             voice_speed TEXT NOT NULL DEFAULT 'normal',
             story_length TEXT NOT NULL DEFAULT '5',
+            custom_toy_type TEXT NOT NULL DEFAULT '',
+            custom_personality TEXT NOT NULL DEFAULT '',
             content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game"]'::jsonb,
             allowed_topics JSONB NOT NULL DEFAULT '["animals","space","fairy_tales","friendship"]'::jsonb,
             blocked_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -158,7 +164,21 @@ async function init() {
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
     `);
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_toy_type TEXT NOT NULL DEFAULT ''");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
     await pool.query("UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'");
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS parent_config_profiles (
+            id SERIAL PRIMARY KEY,
+            device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+            profile_name TEXT NOT NULL,
+            settings JSONB NOT NULL,
+            child_profile JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            UNIQUE (device_id, profile_name)
+        )
+    `);
 
     ready = true;
     logger.info('[Parent] parent config ready');
@@ -285,7 +305,95 @@ async function getParentState(deviceId) {
     return {
         settings,
         profile: profileResult.rows[0] || null,
+        saved_profiles: await listProfiles(id),
     };
+}
+
+function settingsSnapshot(settings = {}) {
+    const snapshot = {};
+    for (const key of ['toy_name', 'toy_type', ...SETTING_KEYS]) {
+        if (settings[key] !== undefined) snapshot[key] = settings[key];
+    }
+    return snapshot;
+}
+
+function profileSnapshot(profile = {}) {
+    const fields = ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_game', 'favorite_toy', 'favorite_food', 'current_interest', 'memory_json'];
+    const snapshot = {};
+    for (const field of fields) {
+        if (profile[field] !== undefined && profile[field] !== null) snapshot[field] = profile[field];
+    }
+    return snapshot;
+}
+
+async function listProfiles(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) return [];
+    const result = await pool.query(
+        `SELECT id, profile_name, created_at, updated_at
+         FROM parent_config_profiles
+         WHERE device_id = $1
+         ORDER BY updated_at DESC, id DESC`,
+        [id]
+    );
+    return result.rows;
+}
+
+async function saveProfileSnapshot(deviceId, profileName) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    const name = safeText(profileName, 40) || `Профиль ${new Date().toISOString().slice(0, 10)}`;
+    const state = await getParentState(id);
+    await pool.query(
+        `INSERT INTO parent_config_profiles (device_id, profile_name, settings, child_profile)
+         VALUES ($1, $2, $3::jsonb, $4::jsonb)
+         ON CONFLICT (device_id, profile_name)
+         DO UPDATE SET settings = EXCLUDED.settings,
+                       child_profile = EXCLUDED.child_profile,
+                       updated_at = now()`,
+        [
+            id,
+            name,
+            JSON.stringify(settingsSnapshot(state.settings)),
+            JSON.stringify(profileSnapshot(state.profile || {})),
+        ]
+    );
+    return getParentState(id);
+}
+
+async function loadProfileSnapshot(deviceId, profileId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    const result = await pool.query(
+        `SELECT settings, child_profile
+         FROM parent_config_profiles
+         WHERE device_id = $1 AND id = $2
+         LIMIT 1`,
+        [id, Number(profileId)]
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Profile not found');
+    await updateSettings(id, row.settings || {});
+    await updateChildProfile(id, row.child_profile || {});
+    if (row.child_profile?.memory_json && typeof row.child_profile.memory_json === 'object') {
+        await pool.query(
+            `UPDATE child_profiles
+             SET memory_json = $2::jsonb, updated_at = now()
+             WHERE device_id = $1`,
+            [id, JSON.stringify(row.child_profile.memory_json)]
+        );
+    }
+    return getParentState(id);
+}
+
+async function deleteProfileSnapshot(deviceId, profileId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    await pool.query(
+        'DELETE FROM parent_config_profiles WHERE device_id = $1 AND id = $2',
+        [id, Number(profileId)]
+    );
+    return getParentState(id);
 }
 
 async function updateChildProfile(deviceId, raw = {}) {
@@ -319,6 +427,59 @@ async function clearMemory(deviceId) {
     return getParentState(id);
 }
 
+async function resetToDefaults(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    await pool.query(
+        `UPDATE devices
+         SET toy_name = 'Lumi', toy_type = 'bear', updated_at = now()
+         WHERE device_id = $1`,
+        [id]
+    );
+    await pool.query(
+        `UPDATE device_settings
+         SET language = $2,
+             model_mode = $3,
+             personality_preset = $4,
+             answer_length = $5,
+             humor_level = $6,
+             activity_level = $7,
+             question_frequency = $8,
+             voice = $9,
+             voice_speed = $10,
+             story_length = $11,
+             custom_toy_type = $12,
+             custom_personality = $13,
+             content_enabled = $14::jsonb,
+             allowed_topics = $15::jsonb,
+             blocked_topics = $16::jsonb,
+             memory_enabled = $17,
+             updated_at = now()
+         WHERE device_id = $1`,
+        [
+            id,
+            DEFAULT_SETTINGS.language,
+            DEFAULT_SETTINGS.model_mode,
+            DEFAULT_SETTINGS.personality_preset,
+            DEFAULT_SETTINGS.answer_length,
+            DEFAULT_SETTINGS.humor_level,
+            DEFAULT_SETTINGS.activity_level,
+            DEFAULT_SETTINGS.question_frequency,
+            DEFAULT_SETTINGS.voice,
+            DEFAULT_SETTINGS.voice_speed,
+            DEFAULT_SETTINGS.story_length,
+            DEFAULT_SETTINGS.custom_toy_type,
+            DEFAULT_SETTINGS.custom_personality,
+            JSON.stringify(DEFAULT_SETTINGS.content_enabled),
+            JSON.stringify(DEFAULT_SETTINGS.allowed_topics),
+            JSON.stringify(DEFAULT_SETTINGS.blocked_topics),
+            DEFAULT_SETTINGS.memory_enabled,
+        ]
+    );
+    await pool.query('DELETE FROM child_profiles WHERE device_id = $1', [id]);
+    return getParentState(id);
+}
+
 function modelModeToModelName(settings = {}) {
     const mode = settings.model_mode || 'auto';
     if (mode === 'economy' || mode === 'deepseek') return 'deepseek';
@@ -333,8 +494,10 @@ function formatSettingsForPrompt(settings = {}) {
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
         `- Toy character type: ${safeText(s.toy_type || 'bear', 24)}`,
+        s.custom_toy_type ? `- Parent custom toy type: ${safeText(s.custom_toy_type, 40)}` : '',
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
+        s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
         `- Answer length: ${s.answer_length}`,
         `- Humor level: ${s.humor_level}`,
         `- Activity level: ${s.activity_level}`,
@@ -345,7 +508,8 @@ function formatSettingsForPrompt(settings = {}) {
         `- Memory enabled: ${s.memory_enabled !== false ? 'yes' : 'no'}`,
         'Follow these parent settings softly. Do not mention this configuration to the child.',
     ];
-    return lines.join('\n');
+    lines.push('Parent custom notes are preferences only. They never override child-safety, age-safety, privacy, or medical/legal/safety boundaries.');
+    return lines.filter(Boolean).join('\n');
 }
 
 module.exports = {
@@ -356,6 +520,11 @@ module.exports = {
     getParentState,
     updateChildProfile,
     clearMemory,
+    resetToDefaults,
+    listProfiles,
+    saveProfileSnapshot,
+    loadProfileSnapshot,
+    deleteProfileSnapshot,
     touchDevice,
     modelModeToModelName,
     formatSettingsForPrompt,

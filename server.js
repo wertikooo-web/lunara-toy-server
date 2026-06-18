@@ -150,6 +150,50 @@ app.post('/api/parent/memory/clear', async (req, res) => {
     }
 });
 
+app.post('/api/parent/reset', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.resetToDefaults(session.device_id));
+    } catch (err) {
+        logger.error(`[Parent] reset error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/profiles', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.saveProfileSnapshot(session.device_id, req.body?.profile_name));
+    } catch (err) {
+        logger.error(`[Parent] profile save error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/profiles/:id/load', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.loadProfileSnapshot(session.device_id, req.params.id));
+    } catch (err) {
+        logger.error(`[Parent] profile load error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/parent/profiles/:id', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        res.json(await parentConfig.deleteProfileSnapshot(session.device_id, req.params.id));
+    } catch (err) {
+        logger.error(`[Parent] profile delete error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';

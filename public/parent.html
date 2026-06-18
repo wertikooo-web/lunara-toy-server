@@ -24,6 +24,9 @@
     button.secondary { background: #374151; }
     button.danger { background: #dc2626; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
+    .small { color: #a999d6; font-size: 12px; line-height: 1.35; }
     .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: #f7f3ff; }
     .checks input { width: auto; }
@@ -59,6 +62,24 @@
 
   <div id="consoleBox" class="hidden">
     <section>
+      <h2>Профили</h2>
+      <p class="small">Можно сохранить текущие настройки как “Профиль 1”, “Маша”, “Петя” и быстро возвращаться к ним. Это удобно для экспериментов и для одной игрушки у нескольких детей.</p>
+      <label>Сохранить текущие настройки как профиль</label>
+      <div class="row-actions">
+        <input id="profileName" maxlength="40" placeholder="Например: Профиль 1 или Маша">
+        <button onclick="saveConfigProfile()">Сохранить профиль</button>
+      </div>
+      <label>Сохранённые профили</label>
+      <div class="row-actions">
+        <select id="savedProfiles"></select>
+        <button class="secondary" onclick="loadConfigProfile()">Загрузить</button>
+        <button class="danger" onclick="deleteConfigProfile()">Удалить</button>
+      </div>
+      <button class="danger" onclick="resetDefaults()">Сбросить к исходным настройкам</button>
+      <div id="profileStatus" class="status"></div>
+    </section>
+
+    <section>
       <h2>Игрушка</h2>
       <div class="grid">
         <div>
@@ -73,6 +94,10 @@
             <option value="cat">Котик</option>
             <option value="dragon">Дракончик</option>
           </select>
+        </div>
+        <div>
+          <label>Свой тип игрушки</label>
+          <input id="custom_toy_type" maxlength="40" placeholder="Например: Чебурашка, единорог, робот">
         </div>
         <div>
           <label>Язык</label>
@@ -181,6 +206,8 @@
           </select>
         </div>
       </div>
+      <label>Свободное описание характера</label>
+      <textarea id="custom_personality" maxlength="220" placeholder="Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности."></textarea>
     </section>
 
     <section>
@@ -279,6 +306,24 @@ function setCheckedValues(containerId, values) {
   });
 }
 
+function renderSavedProfiles(profiles) {
+  const select = document.getElementById('savedProfiles');
+  select.innerHTML = '';
+  if (!profiles || profiles.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Профилей пока нет';
+    select.appendChild(option);
+    return;
+  }
+  profiles.forEach(profile => {
+    const option = document.createElement('option');
+    option.value = profile.id;
+    option.textContent = profile.profile_name;
+    select.appendChild(option);
+  });
+}
+
 async function loadState() {
   const data = await api('/api/parent/state');
   const s = data.settings || {};
@@ -286,8 +331,9 @@ async function loadState() {
   [
     'toy_name', 'toy_type', 'language', 'model_mode', 'personality_preset',
     'answer_length', 'humor_level', 'activity_level', 'question_frequency',
-    'voice_speed', 'story_length'
+    'voice_speed', 'story_length', 'custom_toy_type', 'custom_personality'
   ].forEach(id => setValue(id, s[id]));
+  renderSavedProfiles(data.saved_profiles || []);
   setValue('memory_enabled', s.memory_enabled !== false);
   setCheckedValues('contentChecks', s.content_enabled || []);
   setValue('allowed_topics', (s.allowed_topics || []).join(', '));
@@ -319,6 +365,8 @@ async function saveSettings() {
         question_frequency: document.getElementById('question_frequency').value,
         voice_speed: document.getElementById('voice_speed').value,
         story_length: document.getElementById('story_length').value,
+        custom_toy_type: document.getElementById('custom_toy_type').value,
+        custom_personality: document.getElementById('custom_personality').value,
         content_enabled: getCheckedValues('contentChecks'),
         allowed_topics: document.getElementById('allowed_topics').value,
         blocked_topics: document.getElementById('blocked_topics').value,
@@ -347,6 +395,77 @@ async function saveProfile() {
     }),
   });
   await loadState();
+}
+
+async function saveConfigProfile() {
+  const status = document.getElementById('profileStatus');
+  status.textContent = 'Сохраняю профиль...';
+  status.className = 'status';
+  try {
+    await saveSettings();
+    await saveProfile();
+    await api('/api/parent/profiles', {
+      method: 'POST',
+      body: JSON.stringify({ profile_name: document.getElementById('profileName').value }),
+    });
+    status.textContent = 'Профиль сохранён.';
+    document.getElementById('profileName').value = '';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function loadConfigProfile() {
+  const profileId = document.getElementById('savedProfiles').value;
+  if (!profileId) return;
+  const status = document.getElementById('profileStatus');
+  status.textContent = 'Загружаю профиль...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/profiles/' + encodeURIComponent(profileId) + '/load', {
+      method: 'POST',
+      body: '{}',
+    });
+    status.textContent = 'Профиль загружен.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function deleteConfigProfile() {
+  const profileId = document.getElementById('savedProfiles').value;
+  if (!profileId) return;
+  if (!confirm('Удалить этот сохранённый профиль?')) return;
+  const status = document.getElementById('profileStatus');
+  status.textContent = 'Удаляю профиль...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/profiles/' + encodeURIComponent(profileId), { method: 'DELETE' });
+    status.textContent = 'Профиль удалён.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
+}
+
+async function resetDefaults() {
+  if (!confirm('Сбросить настройки, профиль ребёнка и память к исходному состоянию? Сохранённые профили останутся.')) return;
+  const status = document.getElementById('profileStatus');
+  status.textContent = 'Сбрасываю...';
+  status.className = 'status';
+  try {
+    await api('/api/parent/reset', { method: 'POST', body: '{}' });
+    status.textContent = 'Исходные настройки восстановлены.';
+    await loadState();
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'status error';
+  }
 }
 
 async function clearMemory() {
