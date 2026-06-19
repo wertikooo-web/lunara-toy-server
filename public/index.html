@@ -701,7 +701,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       msgInput.placeholder = micText('placeholder');
       const text = (finalTranscript || msgInput.value).trim();
       msgInput.blur();
-      if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
+      if (text) {
+        msgInput.value = text;
+        playBeep(520, 0.08, 0.28);
+        setTimeout(() => playBeep(700, 0.08, 0.22), 95);
+        setTimeout(() => sendMessage(), 200);
+      }
       else ignoreEmptyTranscript();
     };
 
@@ -756,6 +761,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition = createRec();
     try {
       recognition.start();
+      playBeep(980, 0.09, 0.25);
       // Warning beep at 20s
       micWarnTimer = setTimeout(() => {
         playBeep(880, 0.15, 0.4); // first beep
