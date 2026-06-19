@@ -172,7 +172,6 @@
     <div id="quickSetupPanel" class="quick-panel">
       <div>
         <h2 id="quickSetupTitle">Быстрая настройка</h2>
-        <p id="quickSetupHelp" class="small">Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.</p>
       </div>
       <div class="quick-actions">
         <button id="basicToggleButton" class="secondary" type="button" onclick="toggleBasicSettings()">Настройки</button>
@@ -620,7 +619,6 @@ const UI_TEXT = {
     title: 'Родительский контроль Lumi',
     titleTemplate: 'Родительский контроль {toy}',
     quickSetup: 'Панель управления',
-    quickSetupHelp: 'Статус игрушки и готовность настроек. Откройте нужный раздел ниже.',
     quickDone: 'ГОТОВО',
     basicShow: 'Настройки',
     basicHide: 'Скрыть настройки',
@@ -895,7 +893,6 @@ const UI_TEXT = {
     title: 'Control parental Lumi',
     titleTemplate: 'Control parental {toy}',
     quickSetup: 'Panou de control',
-    quickSetupHelp: 'Statusul jucariei si starea setarilor. Deschideti sectiunea necesara mai jos.',
     quickDone: 'GATA',
     basicShow: 'Setari',
     basicHide: 'Ascunde setarile',
@@ -1170,7 +1167,6 @@ const UI_TEXT = {
     title: 'Lumi Parental Control',
     titleTemplate: '{toy} Parental Control',
     quickSetup: 'Control panel',
-    quickSetupHelp: 'Toy status and settings readiness. Open the section you need below.',
     quickDone: 'READY',
     basicShow: 'Settings',
     basicHide: 'Hide settings',
@@ -1835,7 +1831,6 @@ function applyConsoleLocale(lang) {
   updateToyBranding();
   setText('.hero-text', t.heroText);
   setText('#quickSetupTitle', t.quickSetup);
-  setText('#quickSetupHelp', t.quickSetupHelp);
   setText('#quickDoneIndicator', t.quickDone);
   updateBasicToggleText();
   setText('#advancedTitle', t.advancedTitle);
