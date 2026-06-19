@@ -558,36 +558,51 @@ function isContentTypeAllowed(settings, type) {
 
 function disabledContentReply(type, lang = 'ru-RU') {
     const key = String(lang).startsWith('ro') ? 'ro' : String(lang).startsWith('en') ? 'en' : 'ru';
-    const names = {
+    const alternatives = {
         ru: {
-            riddle: 'загадки',
-            tongue_twister: 'скороговорки',
-            mini_game: 'игры',
-            speech_development: 'развитие речи',
-            story: 'сказки',
+            riddle: 'Можем просто поболтать, поиграть в слова или придумать смешного героя.',
+            tongue_twister: 'Можем сказать смешное слово, поиграть в рифмы или просто поболтать.',
+            mini_game: 'Можем спокойно поговорить, придумать маленькую историю или выбрать другое занятие.',
+            speech_development: 'Можем просто поболтать, назвать любимые слова или придумать рифму.',
+            story: 'Можем придумать маленького героя, поговорить о твоём дне или выбрать что-то другое.',
         },
         ro: {
-            riddle: 'ghicitorile',
-            tongue_twister: 'framantarile de limba',
-            mini_game: 'jocurile',
-            speech_development: 'dezvoltarea vorbirii',
-            story: 'povestile',
+            riddle: 'Putem sa vorbim, sa ne jucam cu cuvinte sau sa inventam un personaj amuzant.',
+            tongue_twister: 'Putem spune un cuvant haios, cauta rime sau doar sa povestim putin.',
+            mini_game: 'Putem vorbi linistit, inventa o povestioara mica sau alege altceva.',
+            speech_development: 'Putem vorbi putin, spune cuvinte preferate sau gasi o rima.',
+            story: 'Putem inventa un personaj mic, vorbi despre ziua ta sau alege altceva.',
         },
         en: {
-            riddle: 'riddles',
-            tongue_twister: 'tongue twisters',
-            mini_game: 'games',
-            speech_development: 'speech development',
-            story: 'stories',
+            riddle: 'We can chat, play with words, or invent a funny little character.',
+            tongue_twister: 'We can say a silly word, find a rhyme, or just chat for a bit.',
+            mini_game: 'We can talk calmly, make up a tiny story, or choose something else.',
+            speech_development: 'We can chat, name favorite words, or find a little rhyme.',
+            story: 'We can invent a small character, talk about your day, or choose something else.',
         },
     };
-    const label = names[key][type] || names[key].story;
     const replies = {
-        ru: `${label[0].toUpperCase()}${label.slice(1)} сейчас выключены в настройках. Давай лучше просто поговорим или выберем что-нибудь другое.`,
-        ro: `Acum ${label} sunt oprite in setari. Hai mai bine sa vorbim sau sa alegem altceva.`,
-        en: `${label[0].toUpperCase()}${label.slice(1)} are turned off in settings right now. Let us chat or choose something else.`,
+        ru: [
+            `Ой, извини, сейчас я не смогу это сделать. ${alternatives.ru[type] || alternatives.ru.story}`,
+            `Хм, сейчас это не получится. ${alternatives.ru[type] || alternatives.ru.story}`,
+            `Давай это оставим на потом, хорошо? ${alternatives.ru[type] || alternatives.ru.story}`,
+            `Сейчас я лучше не буду это делать. ${alternatives.ru[type] || alternatives.ru.story}`,
+        ],
+        ro: [
+            `Of, scuze, acum nu pot face asta. ${alternatives.ro[type] || alternatives.ro.story}`,
+            `Hm, acum nu iese asta. ${alternatives.ro[type] || alternatives.ro.story}`,
+            `Hai sa lasam asta pentru mai tarziu, bine? ${alternatives.ro[type] || alternatives.ro.story}`,
+            `Acum mai bine nu fac asta. ${alternatives.ro[type] || alternatives.ro.story}`,
+        ],
+        en: [
+            `Oops, sorry, I cannot do that right now. ${alternatives.en[type] || alternatives.en.story}`,
+            `Hmm, that will not work right now. ${alternatives.en[type] || alternatives.en.story}`,
+            `Let us save that for later, okay? ${alternatives.en[type] || alternatives.en.story}`,
+            `I had better not do that right now. ${alternatives.en[type] || alternatives.en.story}`,
+        ],
     };
-    return replies[key];
+    const variants = replies[key] || replies.ru;
+    return variants[Math.floor(Math.random() * variants.length)];
 }
 
 function contentModeContext(type) {
