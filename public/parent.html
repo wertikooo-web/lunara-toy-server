@@ -34,6 +34,9 @@
     #consoleBox > #analyticsSection { order: 30; }
     #consoleBox > #technicalPanel { order: 90; }
     #consoleBox > #logoutPanel { order: 99; }
+    #consoleBox.basic-collapsed > #childPanel,
+    #consoleBox.basic-collapsed > #toyPanel,
+    #consoleBox.basic-collapsed > #runtimePanel { display: none; }
     #consoleBox.advanced-collapsed .advanced-section,
     #consoleBox.advanced-collapsed .advanced-field { display: none; }
     .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
@@ -84,6 +87,8 @@
     .quick-panel { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
     .quick-panel h2 { margin-top: 0; }
     .quick-panel p { margin: 0; max-width: 640px; }
+    .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+    .quick-actions button { margin: 0; }
     .ready-indicator { border-radius: 999px; padding: 10px 16px; min-width: 88px; text-align: center; font-weight: 800; letter-spacing: .02em; background: #374151; color: #d1d5db; border: 1px solid #6b7280; }
     .ready-indicator.ready { background: #16a34a; color: #ecfdf5; border-color: #86efac; box-shadow: 0 0 18px rgba(22, 163, 74, .35); }
     .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
@@ -157,14 +162,17 @@
     <div id="loginStatus" class="status"></div>
   </section>
 
-  <div id="consoleBox" class="hidden advanced-collapsed">
+  <div id="consoleBox" class="hidden basic-collapsed advanced-collapsed">
     <div id="statusOverview" class="status-overview"></div>
     <div id="quickSetupPanel" class="quick-panel">
       <div>
         <h2 id="quickSetupTitle">Быстрая настройка</h2>
         <p id="quickSetupHelp" class="small">Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.</p>
       </div>
-      <div id="quickDoneIndicator" class="ready-indicator pending">ГОТОВО</div>
+      <div class="quick-actions">
+        <button id="basicToggleButton" class="secondary" type="button" onclick="toggleBasicSettings()">Настройки</button>
+        <div id="quickDoneIndicator" class="ready-indicator pending">ГОТОВО</div>
+      </div>
     </div>
     <section id="profilesPanel" class="advanced-section">
       <h2>Профили</h2>
@@ -597,9 +605,11 @@ const UI_TEXT = {
   'ru-RU': {
     title: 'Родительский контроль Lumi',
     titleTemplate: 'Родительский контроль {toy}',
-    quickSetup: 'Быстрая настройка',
-    quickSetupHelp: 'Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.',
+    quickSetup: 'Панель управления',
+    quickSetupHelp: 'Статус игрушки и готовность настроек. Откройте нужный раздел ниже.',
     quickDone: 'ГОТОВО',
+    basicShow: 'Настройки',
+    basicHide: 'Скрыть настройки',
     advancedTitle: 'Расширенные настройки',
     advancedHelp: 'Профили, контент и тонкие параметры открываются здесь.',
     advancedShow: 'Показать расширенные настройки',
@@ -863,9 +873,11 @@ const UI_TEXT = {
   'ro-RO': {
     title: 'Control parental Lumi',
     titleTemplate: 'Control parental {toy}',
-    quickSetup: 'Setare rapida',
-    quickSetupHelp: 'Completeaza lucrurile principale: copilul, Lumi, caracterul, limba si timpul de functionare. Restul se poate deschide mai jos.',
+    quickSetup: 'Panou de control',
+    quickSetupHelp: 'Statusul jucariei si starea setarilor. Deschideti sectiunea necesara mai jos.',
     quickDone: 'GATA',
+    basicShow: 'Setari',
+    basicHide: 'Ascunde setarile',
     advancedTitle: 'Setari avansate',
     advancedHelp: 'Profilurile, continutul si setarile fine se deschid aici.',
     advancedShow: 'Arata setarile avansate',
@@ -1129,9 +1141,11 @@ const UI_TEXT = {
   'en-US': {
     title: 'Lumi Parental Control',
     titleTemplate: '{toy} Parental Control',
-    quickSetup: 'Quick setup',
-    quickSetupHelp: 'Fill in the essentials: child, Lumi, personality, language, and runtime. Everything else can be opened below.',
+    quickSetup: 'Control panel',
+    quickSetupHelp: 'Toy status and settings readiness. Open the section you need below.',
     quickDone: 'READY',
+    basicShow: 'Settings',
+    basicHide: 'Hide settings',
     advancedTitle: 'Advanced settings',
     advancedHelp: 'Profiles, content, and fine tuning are opened here.',
     advancedShow: 'Show advanced settings',
@@ -1527,6 +1541,17 @@ function updateAdvancedToggleText() {
   setText('#advancedToggleButton', collapsed ? t.advancedShow : t.advancedHide);
 }
 
+function updateBasicToggleText() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const collapsed = document.getElementById('consoleBox')?.classList.contains('basic-collapsed');
+  setText('#basicToggleButton', collapsed ? t.basicShow : t.basicHide);
+}
+
+function toggleBasicSettings() {
+  document.getElementById('consoleBox')?.classList.toggle('basic-collapsed');
+  updateBasicToggleText();
+}
+
 function toggleAdvancedSettings() {
   document.getElementById('consoleBox')?.classList.toggle('advanced-collapsed');
   updateAdvancedToggleText();
@@ -1717,6 +1742,7 @@ function applyConsoleLocale(lang) {
   setText('#quickSetupTitle', t.quickSetup);
   setText('#quickSetupHelp', t.quickSetupHelp);
   setText('#quickDoneIndicator', t.quickDone);
+  updateBasicToggleText();
   setText('#advancedTitle', t.advancedTitle);
   setText('#advancedHelp', t.advancedHelp);
   setText('#modelModeNote', t.specialistOnly);
