@@ -1516,6 +1516,10 @@ function baseProfileName() {
   return formatText(t.baseProfileTemplate || t.resetDefaults, { toy: toyDisplayName() });
 }
 
+function statusProfileName(activeProfile) {
+  return activeProfile?.profile_name || toyDisplayName();
+}
+
 function updateAdvancedToggleText() {
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   const collapsed = document.getElementById('consoleBox')?.classList.contains('advanced-collapsed');
@@ -2147,7 +2151,7 @@ function renderStatusOverview(data = window.lastParentState || {}) {
   const s = data.settings || {};
   const runtime = data.runtime || window.lastRuntime || {};
   const activeProfile = (data.saved_profiles || window.lastSavedProfiles || []).find(profile => profile.is_active);
-  const profileName = activeProfile?.profile_name || baseProfileName();
+  const profileName = statusProfileName(activeProfile);
   const chips = [
     {
       text: runtime.allowed === false ? t.statusBlocked : t.statusActive,
