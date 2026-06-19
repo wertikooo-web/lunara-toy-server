@@ -25,12 +25,13 @@
     #quickSetupPanel { order: 1; }
     #consoleBox > #childPanel { order: 2; }
     #consoleBox > #toyPanel { order: 3; }
-    #consoleBox > #characterPanel { order: 4; }
-    #consoleBox > #runtimePanel { order: 5; }
-    #consoleBox > #memoryPanel { order: 6; }
+    #consoleBox > #runtimePanel { order: 4; }
     #advancedTogglePanel { order: 20; }
     #consoleBox > #profilesPanel { order: 21; }
-    #consoleBox > #contentPanel { order: 22; }
+    #consoleBox > #technicalPanel { order: 22; }
+    #consoleBox > #characterPanel { order: 23; }
+    #consoleBox > #contentPanel { order: 24; }
+    #consoleBox > #memoryPanel { order: 25; }
     #consoleBox > #analyticsSection { order: 30; }
     #consoleBox > #logoutPanel { order: 99; }
     #consoleBox.advanced-collapsed .advanced-section,
@@ -226,15 +227,6 @@
             <option value="en-US">English</option>
           </select>
         </div>
-        <div class="advanced-field">
-          <label>Режим модели</label>
-          <select id="model_mode">
-            <option value="auto">Авто</option>
-            <option value="economy">Экономный</option>
-            <option value="smart">Умный</option>
-          </select>
-          <p id="modelModeNote" class="small advanced-note">Рекомендуется настраивать только специалистам.</p>
-        </div>
       </div>
     </section>
 
@@ -286,7 +278,7 @@
       <div id="childProfileStatus" class="status"></div>
     </section>
 
-    <section id="characterPanel">
+    <section id="characterPanel" class="advanced-section">
       <h2>Характер и голос</h2>
       <div class="grid">
         <div>
@@ -447,6 +439,7 @@
           <button type="button" class="secondary" id="restScheduleAddButton" onclick="addRestScheduleRow()">Добавить период</button>
         </div>
       </div>
+      <button id="quickSaveSettingsButton" onclick="saveSettings()">Сохранить настройки</button>
       <div id="runtimeStatus" class="small"></div>
     </section>
 
@@ -455,6 +448,21 @@
       <p id="advancedHelp" class="small">Профили, контент и тонкие параметры открываются здесь. Инженерные поля лучше менять только специалистам.</p>
       <button id="advancedToggleButton" class="secondary" onclick="toggleAdvancedSettings()">Показать расширенные настройки</button>
     </div>
+
+    <section id="technicalPanel" class="advanced-section">
+      <h2 id="technicalTitle">Технические настройки</h2>
+      <div class="grid">
+        <div>
+          <label id="modelModeLabel">Режим модели</label>
+          <select id="model_mode">
+            <option value="auto">Авто</option>
+            <option value="economy">Экономный</option>
+            <option value="smart">Умный</option>
+          </select>
+          <p id="modelModeNote" class="small advanced-note">Рекомендуется настраивать только специалистам.</p>
+        </div>
+      </div>
+    </section>
 
     <section id="contentPanel" class="advanced-section">
       <h2>Контент</h2>
@@ -486,7 +494,7 @@
       <div id="saveStatus" class="status"></div>
     </section>
 
-    <section id="memoryPanel">
+    <section id="memoryPanel" class="advanced-section">
       <h2>Память</h2>
       <button class="secondary" onclick="loadState()">Обновить</button>
       <button class="danger" onclick="clearMemory()">Очистить память</button>
@@ -588,6 +596,7 @@ const UI_TEXT = {
     advancedShow: 'Показать расширенные настройки',
     advancedHide: 'Скрыть расширенные настройки',
     specialistOnly: 'Рекомендуется настраивать только специалистам.',
+    technicalSettings: 'Технические настройки',
     heroTitle: 'Lumi под вашим контролем',
     heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
     login: 'Вход',
@@ -840,6 +849,7 @@ const UI_TEXT = {
     advancedShow: 'Arata setarile avansate',
     advancedHide: 'Ascunde setarile avansate',
     specialistOnly: 'Recomandat pentru configurare doar de catre specialisti.',
+    technicalSettings: 'Setari tehnice',
     heroTitle: 'Lumi sub controlul tau',
     heroText: 'Seteaza limba, caracterul, memoria, profilurile copiilor, continutul permis si timpul de functionare.',
     login: 'Intrare',
@@ -1092,6 +1102,7 @@ const UI_TEXT = {
     advancedShow: 'Show advanced settings',
     advancedHide: 'Hide advanced settings',
     specialistOnly: 'Recommended for specialists only.',
+    technicalSettings: 'Technical settings',
     heroTitle: 'Lumi under your control',
     heroText: 'Set language, personality, memory, child profiles, allowed content, and toy runtime.',
     login: 'Login',
@@ -1515,6 +1526,7 @@ function hasUnsavedChanges() {
 function updateUnsavedIndicator() {
   const dirty = hasUnsavedChanges();
   document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
+  document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   const ready = document.getElementById('quickDoneIndicator');
   if (ready) {
     ready.classList.toggle('ready', !dirty && Boolean(lastSavedFormSnapshot));
@@ -1639,30 +1651,32 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(2) button', t.savePassword);
   setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(2)', t.forgotPassword);
 
-  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language, t.modelMode];
-  setText('#consoleBox > section:nth-of-type(3) h2', t.toy);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
+  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language];
+  setText('#toyPanel h2', t.toy);
+  document.querySelectorAll('#toyPanel label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
   setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
   setToyTypeOptions(lang);
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
+  setText('#technicalTitle', t.technicalSettings);
+  setText('#modelModeLabel', t.modelMode);
   const modelOptions = document.querySelectorAll('#model_mode option');
   [t.modelAuto, t.modelEconomy, t.modelSmart].forEach((label, i) => { if (modelOptions[i]) modelOptions[i].textContent = label; });
 
   const childLabels = [t.childName, t.age, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
-  setText('#consoleBox > section:nth-of-type(4) h2', t.child);
-  const childHeading = document.querySelector('#consoleBox > section:nth-of-type(4) h2');
+  setText('#childPanel h2', t.child);
+  const childHeading = document.querySelector('#childPanel h2');
   if (childHeading) childHeading.title = t.childTitle || '';
-  document.querySelectorAll('#consoleBox > section:nth-of-type(4) label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
+  document.querySelectorAll('#childPanel label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
   const ageOptions = document.querySelectorAll('#age_mode option');
   [t.ageModeAuto, t.ageMode34, t.ageMode56, t.ageMode78, t.ageMode9].forEach((label, i) => { if (ageOptions[i]) ageOptions[i].textContent = label; });
-  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(1)', t.editChild);
-  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(2)', t.saveChild);
-  setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(3)', t.clearChild);
+  setText('#childPanel .row-actions button:nth-of-type(1)', t.editChild);
+  setText('#childPanel .row-actions button:nth-of-type(2)', t.saveChild);
+  setText('#childPanel .row-actions button:nth-of-type(3)', t.clearChild);
 
   const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
-  setText('#consoleBox > section:nth-of-type(5) h2', t.characterVoice);
-  document.querySelectorAll('#consoleBox > section:nth-of-type(5) > .grid > div > label, #consoleBox > section:nth-of-type(5) > label')
+  setText('#characterPanel h2', t.characterVoice);
+  document.querySelectorAll('#characterPanel > .grid > div > label, #characterPanel > label, #characterPanel > .advanced-field > label')
     .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
   const personalityLabels = [t.gentle, t.playful, t.calm, t.curious, t.fairy, t.teacher];
   document.querySelectorAll('#personalityChecks label').forEach((el, i) => {
@@ -1697,7 +1711,8 @@ function applyConsoleLocale(lang) {
   setPlaceholder('#child_address_custom', t.addressCustomPlaceholder);
   setPlaceholder('#custom_personality', t.customPersonalityPlaceholder);
 
-  setText('#consoleBox > section:nth-of-type(6) h2', t.runtime);
+  setText('#runtimePanel h2', t.runtime);
+  setText('#quickSaveSettingsButton', t.saveSettings);
   setText('#dailyLimitOffText', t.analyticsNoLimit);
   setText('#dailyLimitOnText', t.dailyLimitEnabled);
   setText('#dailyLimitLabel', t.dailyLimit);
@@ -1724,7 +1739,7 @@ function applyConsoleLocale(lang) {
   toggleBreakReminderCustom();
   relocalizeRestScheduleRows();
 
-  setText('#consoleBox > section:nth-of-type(9) button', t.analytics);
+  setText('#analyticsSection > button', t.analytics);
   const analyticsOptions = document.querySelectorAll('#analyticsPeriod option');
   [t.analyticsPeriodToday, t.analyticsPeriodYesterday, t.analyticsPeriod7d, t.analyticsPeriod30d, t.analyticsPeriodAll, t.analyticsPeriodCustom]
     .forEach((label, i) => { if (analyticsOptions[i]) analyticsOptions[i].textContent = label; });
@@ -1737,9 +1752,9 @@ function applyConsoleLocale(lang) {
   if (metricCards[4]?.firstChild) metricCards[4].firstChild.textContent = t.analyticsTurnsWeek;
   if (metricCards[5]?.firstChild) metricCards[5].firstChild.textContent = t.analyticsAnswersWeek;
 
-  setText('#consoleBox > section:nth-of-type(7) h2', t.content);
-  setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(1)', t.allowed);
-  setText('#consoleBox > section:nth-of-type(7) .small', t.contentHelp);
+  setText('#contentPanel h2', t.content);
+  setText('#contentPanel > label:nth-of-type(1)', t.allowed);
+  setText('#contentPanel > .small', t.contentHelp);
   const contentLabels = [t.riddles, t.stories, t.twisters, t.miniGames, t.learning, t.roleplay, t.speechDevelopment];
   document.querySelectorAll('#contentChecks label').forEach((el, i) => {
     const input = el.querySelector('input');
@@ -1747,25 +1762,25 @@ function applyConsoleLocale(lang) {
     el.title = t.contentTips?.[i] || '';
     if (input) el.prepend(input);
   });
-  setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(2)', t.storyLength);
+  setText('#contentPanel > label:nth-of-type(2)', t.storyLength);
   const storyLengthOptions = document.querySelectorAll('#story_length option');
   [t.story3, t.story5, t.story8].forEach((label, i) => { if (storyLengthOptions[i]) storyLengthOptions[i].textContent = label; });
-  setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(3)', t.topics);
-  setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(4)', t.blockedTopics);
+  setText('#contentPanel > label:nth-of-type(3)', t.topics);
+  setText('#contentPanel > label:nth-of-type(4)', t.blockedTopics);
   setPlaceholder('#blocked_topics', t.blockedTopicsPlaceholder);
   const memoryLabel = document.getElementById('memory_enabled')?.closest('label');
   if (memoryLabel) memoryLabel.innerHTML = `<input id="memory_enabled" type="checkbox"> <span>${escapeHtml(t.memoryEnabled)}</span>`;
   setValue('memory_enabled', memoryChecked);
-  setText('#consoleBox > section:nth-of-type(7) button', t.saveSettings);
+  setText('#saveSettingsButton', t.saveSettings);
 
-  setText('#consoleBox > section:nth-of-type(8) h2', t.memory);
-  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(1)', t.refresh);
-  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(2)', t.clearMemory);
-  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(3)', t.clearChildProfile);
-  setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(4)', t.deleteEverything);
+  setText('#memoryPanel h2', t.memory);
+  setText('#memoryPanel button:nth-of-type(1)', t.refresh);
+  setText('#memoryPanel button:nth-of-type(2)', t.clearMemory);
+  setText('#memoryPanel button:nth-of-type(3)', t.clearChildProfile);
+  setText('#memoryPanel button:nth-of-type(4)', t.deleteEverything);
   const memoryBox = document.getElementById('memoryView');
   if (memoryBox?.classList.contains('memory-empty') && !window.lastParentState?.profile) memoryBox.textContent = t.memoryNotLoaded;
-  setText('#consoleBox > section:nth-of-type(10) button', t.logout);
+  setText('#logoutPanel button', t.logout);
   relocalizeStatusMessages();
   if (window.lastParentState?.profile) renderMemoryView(window.lastParentState.profile);
   updateUnsavedIndicator();
