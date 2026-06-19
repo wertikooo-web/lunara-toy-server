@@ -323,6 +323,33 @@ app.delete('/api/parent/profiles/:id', async (req, res) => {
     }
 });
 
+app.post('/api/parent/voice-preview', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    const text = String(req.body?.text || '').trim();
+    const lang = req.body?.lang || 'ru-RU';
+    if (!text) {
+        return res.status(400).json({ error: 'text is required' });
+    }
+
+    try {
+        const settings = await parentConfig.getSettings(session.device_id);
+        const ts = Date.now();
+        const outputPath = path.join(DIR_AUDIO, `preview_${ts}.pcm`);
+        const durationMs = await tts.synthesize(text, outputPath, lang, { voiceSpeed: settings.voice_speed });
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        res.json({
+            ok: true,
+            text,
+            audio_url: `${baseUrl}/audio/preview_${ts}.wav`,
+            duration_ms: durationMs,
+        });
+    } catch (err) {
+        logger.error(`[Parent] voice preview error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';

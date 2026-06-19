@@ -25,17 +25,19 @@
     #quickSetupPanel { order: 1; }
     #consoleBox > #childPanel { order: 2; }
     #consoleBox > #toyPanel { order: 3; }
-    #consoleBox > #runtimePanel { order: 4; }
+    #consoleBox > #characterPanel { order: 4; }
+    #consoleBox > #runtimePanel { order: 5; }
     #advancedTogglePanel { order: 20; }
     #consoleBox > #profilesPanel { order: 21; }
-    #consoleBox > #characterPanel { order: 22; }
     #consoleBox > #contentPanel { order: 23; }
     #consoleBox > #memoryPanel { order: 24; }
     #consoleBox > #analyticsSection { order: 30; }
+    #consoleBox > #dataDeletionPanel { order: 95; }
     #consoleBox > #technicalPanel { order: 90; }
     #consoleBox > #logoutPanel { order: 99; }
     #consoleBox.basic-collapsed > #childPanel,
     #consoleBox.basic-collapsed > #toyPanel,
+    #consoleBox.basic-collapsed > #characterPanel,
     #consoleBox.basic-collapsed > #runtimePanel { display: none; }
     #consoleBox.advanced-collapsed .advanced-section,
     #consoleBox.advanced-collapsed .advanced-field { display: none; }
@@ -122,6 +124,9 @@
     .memory-save-row .inline-check { margin: 0; }
     .memory-save-row button { margin: 0; }
     .footer { margin-top: 28px; color: #8d7bbf; font-size: 12px; text-align: center; }
+    .data-delete-panel { border-color: #7f1d1d; background: #1c1018; }
+    .data-delete-panel h2 { color: #fecaca; }
+    .memory-info { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 10px; margin: 10px 0 12px; color: #d8ccff; line-height: 1.45; }
     .footer a { color: #c9b8ff; text-decoration: none; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
     @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid, .rest-schedule-row { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } .quick-panel { display: block; } }
@@ -181,10 +186,9 @@
       <div class="row-actions">
         <select id="savedProfiles"></select>
         <button id="chooseProfileButton" class="secondary" onclick="loadConfigProfile()">Выбрать профиль</button>
-        <button id="deleteProfileButton" class="danger" onclick="deleteConfigProfile()">Удалить профиль</button>
       </div>
       <div id="activeProfileStatus" class="small"></div>
-      <label>Сохранить текущие настройки как профиль</label>
+      <label>Имя профиля ребёнка</label>
       <div class="row-actions">
         <input id="profileName" maxlength="40" placeholder="Например: Профиль 1 или Маша">
         <button id="addProfileButton" class="secondary" onclick="addConfigProfile()">Добавить профиль</button>
@@ -293,18 +297,16 @@
       <div id="childProfileStatus" class="status"></div>
     </section>
 
-    <section id="characterPanel" class="advanced-section">
+    <section id="characterPanel">
       <h2>Характер и голос</h2>
       <div class="grid">
         <div>
           <label>Характер</label>
           <div class="checks" id="personalityChecks">
-            <label><input type="checkbox" value="gentle"> Заботливая</label>
-            <label><input type="checkbox" value="playful"> Весёлая</label>
-            <label><input type="checkbox" value="calm"> Спокойная</label>
-            <label><input type="checkbox" value="curious"> Любознательная</label>
-            <label><input type="checkbox" value="fairy"> Сказочная</label>
-            <label><input type="checkbox" value="teacher"> Учитель-помощник</label>
+            <label><input type="radio" name="personality_preset" value="gentle"> Добрый друг</label>
+            <label><input type="radio" name="personality_preset" value="playful"> Весёлый исследователь</label>
+            <label><input type="radio" name="personality_preset" value="calm"> Спокойный рассказчик</label>
+            <label><input type="radio" name="personality_preset" value="teacher"> Помощник в обучении</label>
           </div>
         </div>
         <div>
@@ -379,6 +381,10 @@
         <label>Свободное описание характера</label>
         <textarea id="custom_personality" maxlength="220" placeholder="Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности."></textarea>
       </div>
+      <div class="row-actions">
+        <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">▶ Послушать Lumi</button>
+      </div>
+      <div id="previewVoiceStatus" class="status"></div>
     </section>
 
     <section id="runtimePanel">
@@ -512,10 +518,8 @@
 
     <section id="memoryPanel" class="advanced-section">
       <h2>Память</h2>
+      <div id="memoryInfoText" class="memory-info">Lumi сохраняет только факты, которые помогают поддерживать разговор: имя, интересы, любимые темы и важные события. Аудиозаписи разговоров не сохраняются.</div>
       <button class="secondary" onclick="loadState()">Обновить</button>
-      <button class="danger" onclick="clearMemory()">Очистить память</button>
-      <button class="danger" onclick="clearChildProfile('memory')">Удалить профиль ребёнка</button>
-      <button class="danger" onclick="resetEverything()">Удалить всё</button>
       <div id="memoryStatus" class="status"></div>
       <div id="memoryView" class="memory-card memory-empty">Память ещё не загружена.</div>
     </section>
@@ -550,6 +554,16 @@
     <section id="logoutPanel">
       <button class="danger" onclick="logoutParent()">Выйти</button>
       <div id="logoutStatus" class="status"></div>
+    </section>
+
+    <section id="dataDeletionPanel" class="advanced-section data-delete-panel">
+      <h2>Удаление данных</h2>
+      <p id="deleteDataHelp" class="small">Опасные действия собраны отдельно, чтобы не нажать их случайно.</p>
+      <button id="deleteProfileButton" class="danger" onclick="deleteConfigProfile()">Удалить профиль ребёнка</button>
+      <button id="clearMemoryButton" class="danger" onclick="clearMemory()">Очистить память</button>
+      <button id="deleteChildButton" class="danger" onclick="clearChildProfile('memory')">Удалить данные ребёнка</button>
+      <button id="deleteAllButton" class="danger" onclick="resetEverything()">Удалить всё</button>
+      <div id="dataDeletionStatus" class="status"></div>
     </section>
   </div>
   <footer class="footer" id="parentFooter">© 2026 <a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a>. Все права защищены.</footer>
@@ -621,17 +635,17 @@ const UI_TEXT = {
     heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
     login: 'Вход',
     enter: 'ВОЙТИ',
-    profiles: 'Профиль пользователя',
-    profilesHelp: 'Можно сохранить текущие настройки как “Профиль 1”, “Маша”, “Петя” и быстро возвращаться к ним. Это удобно для одной игрушки у нескольких детей.',
-    saveAsProfile: 'Сохранить текущие настройки как профиль пользователя',
-    profilePlaceholder: 'Например: Профиль 1 или Маша',
-    addProfile: 'Добавить профиль',
-    saveProfile: 'Сохранить профиль',
-    savedProfiles: 'Сохранённые профили',
+    profiles: 'Профили ребёнка',
+    profilesHelp: 'Один профиль хранит данные ребёнка и все настройки Lumi: характер, контент и расписание.',
+    saveAsProfile: 'Имя профиля ребёнка',
+    profilePlaceholder: 'Например: Маша или Саша',
+    addProfile: 'Новый профиль',
+    saveProfile: 'Сохранить профиль ребёнка',
+    savedProfiles: 'Профили ребёнка',
     chooseProfile: 'Выбрать профиль',
-    deleteProfile: 'Удалить профиль',
-    activeProfile: 'Профиль пользователя',
-    noActiveProfile: 'Профиль пользователя не выбран: сейчас используются ручные настройки.',
+    deleteProfile: 'Удалить профиль ребёнка',
+    activeProfile: 'Профиль ребёнка',
+    noActiveProfile: 'Профиль ребёнка не выбран: сейчас используются ручные настройки.',
     activeSuffix: 'активен',
     profileLoaded: 'Профиль {name} активен',
     resetDefaults: 'Базовый профиль (Lumi-мишка)',
@@ -684,16 +698,19 @@ const UI_TEXT = {
     foodPlaceholder: 'Например: пицца, омлет',
     interestPlaceholder: 'Например: рисование, космос, конструктор',
     editChild: 'Редактировать',
-    saveChild: 'Сохранить профиль ребёнка',
-    clearChild: 'Очистить профиль',
+    saveChild: 'Сохранить данные ребёнка',
+    clearChild: 'Очистить данные',
     characterVoice: 'Характер и голос',
-    character: 'Характер',
-    gentle: 'Заботливая',
-    playful: 'Весёлая',
-    calm: 'Спокойная',
+    character: 'Образ Lumi',
+    gentle: 'Добрый друг',
+    playful: 'Весёлый исследователь',
+    calm: 'Спокойный рассказчик',
     curious: 'Любознательная',
     fairy: 'Сказочная',
-    teacher: 'Учитель-помощник',
+    teacher: 'Помощник в обучении',
+    listenLumi: '▶ Послушать Lumi',
+    previewChildFallback: 'дружок',
+    previewPhrase: 'Привет, {child}! Я {toy}. Хочешь сегодня придумать маленькое приключение?',
     addressMode: 'Как обращаться к ребёнку',
     addressTone: 'Тон обращения',
     addressVariants: 'Варианты обращения',
@@ -735,18 +752,18 @@ const UI_TEXT = {
     analyticsUsed: 'Сегодня использовано',
     analyticsRemaining: 'Осталось сегодня',
     analyticsStatus: 'Статус',
-    analyticsTurnsToday: 'Реплик сегодня',
-    analyticsTurnsWeek: 'Реплик за период',
-    analyticsAnswersWeek: 'Ответов за период',
+    analyticsTurnsToday: 'Сообщений сегодня',
+    analyticsTurnsWeek: 'Сообщений за период',
+    analyticsAnswersWeek: 'Ответов Lumi',
     analyticsPeriodToday: 'Сегодня',
     analyticsPeriodYesterday: 'Вчера',
     analyticsPeriod7d: '7 дней',
     analyticsPeriod30d: '30 дней',
     analyticsPeriodAll: 'Всё время',
     analyticsPeriodCustom: 'Свой период',
-    analyticsCategories: 'Категории',
+    analyticsCategories: 'Любимые форматы',
     analyticsTone: 'Тон',
-    analyticsTopics: 'Темы',
+    analyticsTopics: 'Частые темы',
     analyticsTimePeriod: 'Время за период',
     analyticsDaily: 'По дням',
     analyticsNoLimit: 'Без лимита',
@@ -834,6 +851,7 @@ const UI_TEXT = {
     memoryEnabled: 'Память включена',
     saveSettings: 'Сохранить настройки',
     memory: 'Память',
+    memoryInfo: 'Lumi сохраняет только факты, которые помогают поддерживать разговор: имя, интересы, любимые темы и важные события. Аудиозаписи разговоров не сохраняются.',
     memoryNotLoaded: 'Память ещё не загружена.',
     memoryChildProfile: 'Профиль ребёнка',
     memoryLiveTitle: 'Живая память Lumi',
@@ -859,6 +877,9 @@ const UI_TEXT = {
     clearMemory: 'Очистить память',
     clearChildProfile: 'Удалить профиль ребёнка',
     deleteEverything: 'Удалить всё',
+    dataDeletion: 'Удаление данных',
+    dataDeletionHelp: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
+    deleteChildData: 'Удалить данные ребёнка',
     logout: 'Выйти',
     loggingOut: 'Выходим...',
     loggedOut: 'Вы вышли. Для доступа войдите снова.',
@@ -889,17 +910,17 @@ const UI_TEXT = {
     heroText: 'Seteaza limba, caracterul, memoria, profilurile copiilor, continutul permis si timpul de functionare.',
     login: 'Intrare',
     enter: 'INTRA',
-    profiles: 'Profil utilizator',
-    profilesHelp: 'Poti salva setarile ca “Profil 1”, “Maria”, “Petru” si reveni rapid la ele.',
-    saveAsProfile: 'Salveaza setarile curente ca profil utilizator',
-    profilePlaceholder: 'De exemplu: Profil 1 sau Maria',
-    addProfile: 'Adauga profil',
-    saveProfile: 'Salveaza profil',
-    savedProfiles: 'Profiluri salvate',
+    profiles: 'Profiluri copil',
+    profilesHelp: 'Un profil pastreaza datele copilului si toate setarile Lumi: caracter, continut si program.',
+    saveAsProfile: 'Numele profilului copilului',
+    profilePlaceholder: 'De exemplu: Maria sau Alexandru',
+    addProfile: 'Profil nou',
+    saveProfile: 'Salveaza profilul copilului',
+    savedProfiles: 'Profiluri copil',
     chooseProfile: 'Alege profil',
-    deleteProfile: 'Sterge profil',
-    activeProfile: 'Profil utilizator',
-    noActiveProfile: 'Nu este ales un profil utilizator: acum sunt folosite setari manuale.',
+    deleteProfile: 'Sterge profilul copilului',
+    activeProfile: 'Profil copil',
+    noActiveProfile: 'Nu este ales un profil copil: acum sunt folosite setari manuale.',
     activeSuffix: 'activ',
     profileLoaded: 'Profilul {name} este activ',
     resetDefaults: 'Profil de baza (Lumi ursulet)',
@@ -952,16 +973,19 @@ const UI_TEXT = {
     foodPlaceholder: 'De exemplu: pizza, omleta',
     interestPlaceholder: 'De exemplu: desen, spatiu, constructii',
     editChild: 'Editeaza',
-    saveChild: 'Salveaza profilul copilului',
-    clearChild: 'Curata profilul',
+    saveChild: 'Salveaza datele copilului',
+    clearChild: 'Curata datele',
     characterVoice: 'Caracter si voce',
-    character: 'Caracter',
-    gentle: 'Grijulie',
-    playful: 'Vesela',
-    calm: 'Linistita',
+    character: 'Imaginea Lumi',
+    gentle: 'Prieten bland',
+    playful: 'Explorator vesel',
+    calm: 'Povestitor linistit',
     curious: 'Curioasa',
     fairy: 'De basm',
-    teacher: 'Invatator-ajutor',
+    teacher: 'Ajutor la invatare',
+    listenLumi: '▶ Asculta Lumi',
+    previewChildFallback: 'prietene',
+    previewPhrase: 'Buna, {child}! Eu sunt {toy}. Vrei sa inventam azi o mica aventura?',
     addressMode: 'Cum se adreseaza copilului',
     addressTone: 'Tonul adresarii',
     addressVariants: 'Variante de adresare',
@@ -1003,18 +1027,18 @@ const UI_TEXT = {
     analyticsUsed: 'Folosit azi',
     analyticsRemaining: 'Ramas azi',
     analyticsStatus: 'Status',
-    analyticsTurnsToday: 'Replici azi',
-    analyticsTurnsWeek: 'Replici in perioada',
-    analyticsAnswersWeek: 'Raspunsuri in perioada',
+    analyticsTurnsToday: 'Mesaje azi',
+    analyticsTurnsWeek: 'Mesaje in perioada',
+    analyticsAnswersWeek: 'Raspunsuri Lumi',
     analyticsPeriodToday: 'Azi',
     analyticsPeriodYesterday: 'Ieri',
     analyticsPeriod7d: '7 zile',
     analyticsPeriod30d: '30 zile',
     analyticsPeriodAll: 'Tot timpul',
     analyticsPeriodCustom: 'Perioada proprie',
-    analyticsCategories: 'Categorii',
+    analyticsCategories: 'Formate preferate',
     analyticsTone: 'Ton',
-    analyticsTopics: 'Teme',
+    analyticsTopics: 'Teme frecvente',
     analyticsTimePeriod: 'Timp in perioada',
     analyticsDaily: 'Pe zile',
     analyticsNoLimit: 'Fara limita',
@@ -1102,6 +1126,7 @@ const UI_TEXT = {
     memoryEnabled: 'Memoria este activa',
     saveSettings: 'Salveaza setarile',
     memory: 'Memorie',
+    memoryInfo: 'Lumi pastreaza doar fapte care ajuta conversatia: nume, interese, teme preferate si evenimente importante. Inregistrarile audio ale conversatiilor nu sunt salvate.',
     memoryNotLoaded: 'Memoria nu este inca incarcata.',
     memoryChildProfile: 'Profilul copilului',
     memoryLiveTitle: 'Memoria vie Lumi',
@@ -1127,6 +1152,9 @@ const UI_TEXT = {
     clearMemory: 'Sterge memoria',
     clearChildProfile: 'Sterge profilul copilului',
     deleteEverything: 'Sterge tot',
+    dataDeletion: 'Stergerea datelor',
+    dataDeletionHelp: 'Actiunile periculoase sunt grupate separat ca sa nu fie apasate din greseala.',
+    deleteChildData: 'Sterge datele copilului',
     logout: 'Iesi',
     loggingOut: 'Iesire...',
     loggedOut: 'Ati iesit. Pentru acces, intrati din nou.',
@@ -1157,17 +1185,17 @@ const UI_TEXT = {
     heroText: 'Set language, personality, memory, child profiles, allowed content, and toy runtime.',
     login: 'Login',
     enter: 'LOGIN',
-    profiles: 'User profile',
-    profilesHelp: 'Save current settings as “Profile 1”, “Masha”, “Pete” and switch back quickly.',
-    saveAsProfile: 'Save current settings as user profile',
-    profilePlaceholder: 'For example: Profile 1 or Masha',
-    addProfile: 'Add profile',
-    saveProfile: 'Save profile',
-    savedProfiles: 'Saved profiles',
+    profiles: 'Child profiles',
+    profilesHelp: 'One profile keeps the child data and all Lumi settings: personality, content, and schedule.',
+    saveAsProfile: 'Child profile name',
+    profilePlaceholder: 'For example: Masha or Alex',
+    addProfile: 'New profile',
+    saveProfile: 'Save child profile',
+    savedProfiles: 'Child profiles',
     chooseProfile: 'Choose profile',
-    deleteProfile: 'Delete profile',
-    activeProfile: 'User profile',
-    noActiveProfile: 'No user profile is selected: manual settings are being used.',
+    deleteProfile: 'Delete child profile',
+    activeProfile: 'Child profile',
+    noActiveProfile: 'No child profile is selected: manual settings are being used.',
     activeSuffix: 'active',
     profileLoaded: 'Profile {name} is active',
     resetDefaults: 'Base profile (Lumi bear)',
@@ -1220,16 +1248,19 @@ const UI_TEXT = {
     foodPlaceholder: 'For example: pizza, omelet',
     interestPlaceholder: 'For example: drawing, space, building blocks',
     editChild: 'Edit',
-    saveChild: 'Save child profile',
-    clearChild: 'Clear profile',
+    saveChild: 'Save child data',
+    clearChild: 'Clear data',
     characterVoice: 'Personality and voice',
-    character: 'Personality',
-    gentle: 'Caring',
-    playful: 'Playful',
-    calm: 'Calm',
+    character: 'Lumi style',
+    gentle: 'Kind friend',
+    playful: 'Cheerful explorer',
+    calm: 'Calm storyteller',
     curious: 'Curious',
     fairy: 'Fairy-tale',
-    teacher: 'Teacher-helper',
+    teacher: 'Learning helper',
+    listenLumi: '▶ Listen to Lumi',
+    previewChildFallback: 'friend',
+    previewPhrase: 'Hi, {child}! I am {toy}. Would you like to make up a little adventure today?',
     addressMode: 'How to address the child',
     addressTone: 'Address tone',
     addressVariants: 'Address variants',
@@ -1271,18 +1302,18 @@ const UI_TEXT = {
     analyticsUsed: 'Used today',
     analyticsRemaining: 'Remaining today',
     analyticsStatus: 'Status',
-    analyticsTurnsToday: 'Turns today',
-    analyticsTurnsWeek: 'Turns in period',
-    analyticsAnswersWeek: 'Answers in period',
+    analyticsTurnsToday: 'Messages today',
+    analyticsTurnsWeek: 'Messages in period',
+    analyticsAnswersWeek: 'Lumi answers',
     analyticsPeriodToday: 'Today',
     analyticsPeriodYesterday: 'Yesterday',
     analyticsPeriod7d: '7 days',
     analyticsPeriod30d: '30 days',
     analyticsPeriodAll: 'All time',
     analyticsPeriodCustom: 'Custom period',
-    analyticsCategories: 'Categories',
+    analyticsCategories: 'Favorite formats',
     analyticsTone: 'Tone',
-    analyticsTopics: 'Topics',
+    analyticsTopics: 'Frequent topics',
     analyticsTimePeriod: 'Time in period',
     analyticsDaily: 'By day',
     analyticsNoLimit: 'No limit',
@@ -1370,6 +1401,7 @@ const UI_TEXT = {
     memoryEnabled: 'Memory enabled',
     saveSettings: 'Save settings',
     memory: 'Memory',
+    memoryInfo: 'Lumi saves only facts that help the conversation: name, interests, favorite topics, and important events. Conversation audio recordings are not saved.',
     memoryNotLoaded: 'Memory is not loaded yet.',
     memoryChildProfile: 'Child profile',
     memoryLiveTitle: 'Lumi live memory',
@@ -1395,6 +1427,9 @@ const UI_TEXT = {
     clearMemory: 'Clear memory',
     clearChildProfile: 'Delete child profile',
     deleteEverything: 'Delete everything',
+    dataDeletion: 'Data deletion',
+    dataDeletionHelp: 'Dangerous actions are grouped separately to avoid accidental taps.',
+    deleteChildData: 'Delete child data',
     logout: 'Logout',
     loggingOut: 'Logging out...',
     loggedOut: 'You are logged out. Sign in again to continue.',
@@ -1435,6 +1470,9 @@ const STATUS_TEXT = {
     childDeleted: 'Профиль ребёнка удалён.',
     deletingEverything: 'Удаляю всё...',
     everythingDeleted: 'Всё удалено. Игрушка вернулась к исходным настройкам.',
+    previewLoading: 'Готовлю пример голоса...',
+    previewPlaying: 'Пример голоса воспроизводится.',
+    previewError: 'Не удалось воспроизвести пример голоса.',
   },
   'ro-RO': {
     loggingIn: 'Intram...',
@@ -1462,6 +1500,9 @@ const STATUS_TEXT = {
     childDeleted: 'Profilul copilului a fost sters.',
     deletingEverything: 'Se sterge tot...',
     everythingDeleted: 'Totul a fost sters. Jucaria a revenit la setarile initiale.',
+    previewLoading: 'Pregatesc exemplul de voce...',
+    previewPlaying: 'Exemplul de voce este redat.',
+    previewError: 'Nu am putut reda exemplul de voce.',
   },
   'en-US': {
     loggingIn: 'Logging in...',
@@ -1489,6 +1530,9 @@ const STATUS_TEXT = {
     childDeleted: 'Child profile deleted.',
     deletingEverything: 'Deleting everything...',
     everythingDeleted: 'Everything deleted. The toy returned to default settings.',
+    previewLoading: 'Preparing voice preview...',
+    previewPlaying: 'Voice preview is playing.',
+    previewError: 'Could not play the voice preview.',
   },
 };
 
@@ -1501,6 +1545,57 @@ function api(path, options = {}) {
     if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
     return data;
   });
+}
+
+let previewVoiceAudio = null;
+
+function getToyLanguage() {
+  return document.getElementById('language')?.value || 'ru-RU';
+}
+
+function normalizeLanguageKey(lang) {
+  if (String(lang).startsWith('ro')) return 'ro-RO';
+  if (String(lang).startsWith('en')) return 'en-US';
+  return 'ru-RU';
+}
+
+function buildPreviewPhrase() {
+  const langKey = normalizeLanguageKey(getToyLanguage());
+  const t = UI_TEXT[langKey] || UI_TEXT['ru-RU'];
+  const child = (document.getElementById('child_name')?.value || '').trim() || t.previewChildFallback;
+  const toy = (document.getElementById('toy_name')?.value || '').trim() || 'Lumi';
+  return formatText(t.previewPhrase, { child, toy });
+}
+
+async function previewLumiVoice() {
+  const status = document.getElementById('previewVoiceStatus');
+  const button = document.getElementById('previewVoiceButton');
+  const lang = getToyLanguage();
+  const text = buildPreviewPhrase();
+
+  if (!text.trim()) return;
+  if (button) button.disabled = true;
+  setStatus(status, 'previewLoading');
+
+  try {
+    const data = await api('/api/parent/voice-preview', {
+      method: 'POST',
+      body: JSON.stringify({ text, lang }),
+    });
+    if (!data.audio_url) throw new Error('audio_url is missing');
+    if (previewVoiceAudio) {
+      previewVoiceAudio.pause();
+      previewVoiceAudio = null;
+    }
+    previewVoiceAudio = new Audio(data.audio_url);
+    await previewVoiceAudio.play();
+    setStatus(status, 'previewPlaying');
+  } catch (err) {
+    console.warn('[Parent] voice preview failed', err);
+    setStatus(status, 'previewError', {}, true);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function setConsoleLanguageButtons(lang) {
@@ -1804,12 +1899,13 @@ function applyConsoleLocale(lang) {
   setText('#characterPanel h2', t.characterVoice);
   document.querySelectorAll('#characterPanel > .grid > div > label, #characterPanel > label, #characterPanel > .advanced-field > label')
     .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
-  const personalityLabels = [t.gentle, t.playful, t.calm, t.curious, t.fairy, t.teacher];
+  const personalityLabels = [t.gentle, t.playful, t.calm, t.teacher];
   document.querySelectorAll('#personalityChecks label').forEach((el, i) => {
     const input = el.querySelector('input');
     el.textContent = ' ' + personalityLabels[i];
     if (input) el.prepend(input);
   });
+  setText('#previewVoiceButton', t.listenLumi);
   const addressOptions = document.querySelectorAll('#child_address_mode option');
   [t.addressVaried, t.addressByName].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
   const answerOptions = document.querySelectorAll('#answer_length option');
@@ -1900,10 +1996,14 @@ function applyConsoleLocale(lang) {
   setText('#saveSettingsButton', t.saveSettings);
 
   setText('#memoryPanel h2', t.memory);
+  setText('#memoryInfoText', t.memoryInfo);
   setText('#memoryPanel button:nth-of-type(1)', t.refresh);
-  setText('#memoryPanel button:nth-of-type(2)', t.clearMemory);
-  setText('#memoryPanel button:nth-of-type(3)', t.clearChildProfile);
-  setText('#memoryPanel button:nth-of-type(4)', t.deleteEverything);
+  setText('#dataDeletionPanel h2', t.dataDeletion);
+  setText('#deleteDataHelp', t.dataDeletionHelp);
+  setText('#deleteProfileButton', t.deleteProfile);
+  setText('#clearMemoryButton', t.clearMemory);
+  setText('#deleteChildButton', t.deleteChildData);
+  setText('#deleteAllButton', t.deleteEverything);
   const memoryBox = document.getElementById('memoryView');
   if (memoryBox?.classList.contains('memory-empty') && !window.lastParentState?.profile) memoryBox.textContent = t.memoryNotLoaded;
   setText('#logoutPanel button', t.logout);
@@ -1942,7 +2042,9 @@ function setValue(id, value) {
 }
 
 function getCheckedValues(containerId) {
-  return [...document.querySelectorAll('#' + containerId + ' input[type=checkbox]:checked')].map(el => el.value);
+  const checked = [...document.querySelectorAll('#' + containerId + ' input[type=checkbox]:checked')].map(el => el.value);
+  if (checked.length) return checked;
+  return [...document.querySelectorAll('#' + containerId + ' input[type=radio]:checked')].map(el => el.value);
 }
 
 function setCheckedValues(containerId, values) {
@@ -1950,6 +2052,11 @@ function setCheckedValues(containerId, values) {
   document.querySelectorAll('#' + containerId + ' input[type=checkbox]').forEach(el => {
     el.checked = set.has(el.value);
   });
+  const radios = [...document.querySelectorAll('#' + containerId + ' input[type=radio]')];
+  if (radios.length) {
+    const selected = values?.[0] || radios[0]?.value;
+    radios.forEach(el => { el.checked = el.value === selected; });
+  }
 }
 
 function getRadioValue(name, fallback = '') {
@@ -2622,7 +2729,7 @@ async function deleteConfigProfile() {
   if (!profileId) return;
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   if (!confirm(t.confirmDeleteProfile)) return;
-  const status = document.getElementById('profileStatus');
+  const status = document.getElementById('dataDeletionStatus') || document.getElementById('profileStatus');
   setStatus(status, 'deletingProfile');
   try {
     await api('/api/parent/profiles/' + encodeURIComponent(profileId), { method: 'DELETE' });
@@ -2652,7 +2759,7 @@ async function resetDefaults() {
 async function clearMemory() {
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   if (!confirm(t.confirmClearMemory)) return;
-  const status = document.getElementById('memoryStatus');
+  const status = document.getElementById('dataDeletionStatus') || document.getElementById('memoryStatus');
   setStatus(status, 'clearingMemory');
   try {
     await api('/api/parent/memory/clear', { method: 'POST', body: '{}' });
@@ -2667,7 +2774,8 @@ async function clearMemory() {
 async function clearChildProfile(source = 'child') {
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   if (!confirm(t.confirmClearChild)) return;
-  const status = document.getElementById(source === 'memory' ? 'memoryStatus' : 'childProfileStatus');
+  const status = document.getElementById(source === 'memory' ? 'dataDeletionStatus' : 'childProfileStatus')
+    || document.getElementById(source === 'memory' ? 'memoryStatus' : 'childProfileStatus');
   setStatus(status, 'deletingChild');
   try {
     await api('/api/parent/profile/clear', { method: 'POST', body: '{}' });
@@ -2682,7 +2790,7 @@ async function clearChildProfile(source = 'child') {
 async function resetEverything() {
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   if (!confirm(t.confirmResetEverything)) return;
-  const status = document.getElementById('memoryStatus');
+  const status = document.getElementById('dataDeletionStatus') || document.getElementById('memoryStatus');
   setStatus(status, 'deletingEverything');
   try {
     await api('/api/parent/reset-all', { method: 'POST', body: '{}' });
