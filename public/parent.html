@@ -2411,11 +2411,11 @@ async function setLanguageFromTop(language) {
   const toyTypeBefore = getToyTypeValue();
   applyConsoleLocale(language);
   setToyTypeValue(toyTypeBefore);
-  applyLanguageTopicDefaults(language);
   renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
   renderStatusOverview(window.lastParentState || {});
   renderRuntime(window.lastRuntime || {});
   if (window.lastAnalytics) renderAnalytics(window.lastAnalytics);
+  updateUnsavedIndicator();
 }
 
 function setLanguageFromMain() {
