@@ -22,8 +22,19 @@
     #consoleBox.hidden { display: none; }
     #consoleBox > section { order: 10; }
     #consoleBox > section:first-child { order: 1; }
-    #childPanel { order: 2; }
-    #toyPanel { order: 3; }
+    #quickSetupPanel { order: 1; }
+    #consoleBox > #childPanel { order: 2; }
+    #consoleBox > #toyPanel { order: 3; }
+    #consoleBox > #characterPanel { order: 4; }
+    #consoleBox > #runtimePanel { order: 5; }
+    #consoleBox > #memoryPanel { order: 6; }
+    #advancedTogglePanel { order: 20; }
+    #consoleBox > #profilesPanel { order: 21; }
+    #consoleBox > #contentPanel { order: 22; }
+    #consoleBox > #analyticsSection { order: 30; }
+    #consoleBox > #logoutPanel { order: 99; }
+    #consoleBox.advanced-collapsed .advanced-section,
+    #consoleBox.advanced-collapsed .advanced-field { display: none; }
     .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
     .console-lang { display: inline-flex; gap: 6px; }
     .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
@@ -68,6 +79,13 @@
     .metric { background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
     .metric strong { display: block; font-size: 20px; margin-top: 4px; }
     .status-overview { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+    .quick-panel { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .quick-panel h2 { margin-top: 0; }
+    .quick-panel p { margin: 0; max-width: 640px; }
+    .advanced-note { border: 1px dashed #6d4fc0; background: #100c20; border-radius: 8px; padding: 10px; margin-top: 10px; color: #d8ccff; }
+    .advanced-toggle-panel { border: 1px solid #57408f; background: #151126; border-radius: 10px; padding: 16px; margin: 14px 0; }
+    .advanced-toggle-panel h2 { margin-top: 0; }
+    .advanced-toggle-panel button { margin-top: 4px; }
     .status-chip { background: #0b0914; border: 1px solid #3d2b70; border-radius: 999px; padding: 8px 11px; color: #d8ccff; font-size: 13px; }
     .status-chip.good { border-color: #16a34a; color: #bbf7d0; }
     .status-chip.warn { border-color: #f59e0b; color: #fde68a; }
@@ -90,7 +108,7 @@
     .footer { margin-top: 28px; color: #8d7bbf; font-size: 12px; text-align: center; }
     .footer a { color: #c9b8ff; text-decoration: none; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
-    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid, .rest-schedule-row { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
+    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid, .rest-schedule-row { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } .quick-panel { display: block; } }
   </style>
 </head>
 <body>
@@ -128,9 +146,16 @@
     <div id="loginStatus" class="status"></div>
   </section>
 
-  <div id="consoleBox" class="hidden">
+  <div id="consoleBox" class="hidden advanced-collapsed">
     <div id="statusOverview" class="status-overview"></div>
-    <section>
+    <div id="quickSetupPanel" class="quick-panel">
+      <div>
+        <h2 id="quickSetupTitle">Быстрая настройка</h2>
+        <p id="quickSetupHelp" class="small">Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.</p>
+      </div>
+      <button id="quickDoneButton" onclick="saveQuickSetup()">Готово</button>
+    </div>
+    <section id="profilesPanel" class="advanced-section">
       <h2>Профили</h2>
       <p class="small">Можно сохранить текущие настройки как “Профиль 1”, “Маша”, “Петя” и быстро возвращаться к ним. Это удобно для одной игрушки у нескольких детей.</p>
       <label>Сохранённые профили</label>
@@ -198,13 +223,14 @@
             <option value="en-US">English</option>
           </select>
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Режим модели</label>
           <select id="model_mode">
             <option value="auto">Авто</option>
             <option value="economy">Экономный</option>
             <option value="smart">Умный</option>
           </select>
+          <p id="modelModeNote" class="small advanced-note">Рекомендуется настраивать только специалистам.</p>
         </div>
       </div>
     </section>
@@ -257,7 +283,7 @@
       <div id="childProfileStatus" class="status"></div>
     </section>
 
-    <section>
+    <section id="characterPanel">
       <h2>Характер и голос</h2>
       <div class="grid">
         <div>
@@ -298,7 +324,7 @@
           <label>Свой вариант обращения (через запятую)</label>
           <input id="child_address_custom" maxlength="80" placeholder="Например: звёздочка, котёнок">
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Длина ответов</label>
           <select id="answer_length">
             <option value="very_short">Очень коротко</option>
@@ -306,7 +332,7 @@
             <option value="normal">Обычно</option>
           </select>
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Юмор</label>
           <select id="humor_level">
             <option value="low">Мало</option>
@@ -314,7 +340,7 @@
             <option value="high">Много</option>
           </select>
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Активность</label>
           <select id="activity_level">
             <option value="calm">Спокойная</option>
@@ -322,7 +348,7 @@
             <option value="active">Энергичная</option>
           </select>
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Вопросы ребёнку</label>
           <select id="question_frequency">
             <option value="rare">Редко</option>
@@ -330,7 +356,7 @@
             <option value="often">Часто</option>
           </select>
         </div>
-        <div>
+        <div class="advanced-field">
           <label>Скорость голоса</label>
           <select id="voice_speed">
             <option value="slow">Медленно</option>
@@ -339,11 +365,13 @@
           </select>
         </div>
       </div>
-      <label>Свободное описание характера</label>
-      <textarea id="custom_personality" maxlength="220" placeholder="Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности."></textarea>
+      <div class="advanced-field">
+        <label>Свободное описание характера</label>
+        <textarea id="custom_personality" maxlength="220" placeholder="Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности."></textarea>
+      </div>
     </section>
 
-    <section>
+    <section id="runtimePanel">
       <h2>Время работы</h2>
       <div class="runtime-grid">
         <div class="runtime-card">
@@ -405,7 +433,7 @@
             <p id="eveningCalmHelp" class="small">Lumi отвечает тише, короче и не предлагает активные игры.</p>
           </div>
         </div>
-        <div class="runtime-card rest-schedule-card">
+        <div class="runtime-card rest-schedule-card advanced-field">
           <label class="inline-check">
             <input id="rest_schedule_enabled" type="checkbox" onchange="updateRestScheduleLabel()">
             <span id="restScheduleEnabledLabel">Расписание отдыха выключено</span>
@@ -419,7 +447,13 @@
       <div id="runtimeStatus" class="small"></div>
     </section>
 
-    <section>
+    <div id="advancedTogglePanel" class="advanced-toggle-panel">
+      <h2 id="advancedTitle">Расширенные настройки</h2>
+      <p id="advancedHelp" class="small">Профили, контент и тонкие параметры открываются здесь. Инженерные поля лучше менять только специалистам.</p>
+      <button id="advancedToggleButton" class="secondary" onclick="toggleAdvancedSettings()">Показать расширенные настройки</button>
+    </div>
+
+    <section id="contentPanel" class="advanced-section">
       <h2>Контент</h2>
       <label>Что разрешено</label>
       <p class="small">По умолчанию всё включено. Родитель просто убирает галочки у того, что сейчас не нужно. Мини-игры — короткие задания. Ролевые игры — “давай представим, что мы космонавты”.</p>
@@ -449,7 +483,7 @@
       <div id="saveStatus" class="status"></div>
     </section>
 
-    <section>
+    <section id="memoryPanel">
       <h2>Память</h2>
       <button class="secondary" onclick="loadState()">Обновить</button>
       <button class="danger" onclick="clearMemory()">Очистить память</button>
@@ -459,7 +493,7 @@
       <div id="memoryView" class="memory-card memory-empty">Память ещё не загружена.</div>
     </section>
 
-    <section>
+    <section id="analyticsSection">
       <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>
       <div id="analyticsPanel" class="analytics-panel hidden">
         <div class="row-actions analytics-period-row">
@@ -486,7 +520,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="logoutPanel">
       <button class="danger" onclick="logoutParent()">Выйти</button>
       <div id="logoutStatus" class="status"></div>
     </section>
@@ -543,6 +577,14 @@ let lastSavedFormSnapshot = '';
 const UI_TEXT = {
   'ru-RU': {
     title: 'Родительский контроль Lumi',
+    quickSetup: 'Быстрая настройка',
+    quickSetupHelp: 'Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.',
+    quickDone: 'Готово',
+    advancedTitle: 'Расширенные настройки',
+    advancedHelp: 'Профили, контент и тонкие параметры открываются здесь. Инженерные поля лучше менять только специалистам.',
+    advancedShow: 'Показать расширенные настройки',
+    advancedHide: 'Скрыть расширенные настройки',
+    specialistOnly: 'Рекомендуется настраивать только специалистам.',
     heroTitle: 'Lumi под вашим контролем',
     heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
     login: 'Вход',
@@ -787,6 +829,14 @@ const UI_TEXT = {
   },
   'ro-RO': {
     title: 'Control parental Lumi',
+    quickSetup: 'Setare rapida',
+    quickSetupHelp: 'Completeaza lucrurile principale: copilul, Lumi, caracterul, limba si timpul de functionare. Restul se poate deschide mai jos.',
+    quickDone: 'Gata',
+    advancedTitle: 'Setari avansate',
+    advancedHelp: 'Profilurile, continutul si setarile fine se deschid aici. Campurile tehnice sunt recomandate doar specialistilor.',
+    advancedShow: 'Arata setarile avansate',
+    advancedHide: 'Ascunde setarile avansate',
+    specialistOnly: 'Recomandat pentru configurare doar de catre specialisti.',
     heroTitle: 'Lumi sub controlul tau',
     heroText: 'Seteaza limba, caracterul, memoria, profilurile copiilor, continutul permis si timpul de functionare.',
     login: 'Intrare',
@@ -1031,6 +1081,14 @@ const UI_TEXT = {
   },
   'en-US': {
     title: 'Lumi Parental Control',
+    quickSetup: 'Quick setup',
+    quickSetupHelp: 'Fill in the essentials: child, Lumi, personality, language, and runtime. Everything else can be opened below.',
+    quickDone: 'Done',
+    advancedTitle: 'Advanced settings',
+    advancedHelp: 'Profiles, content, and fine tuning are opened here. Technical fields should be changed only by specialists.',
+    advancedShow: 'Show advanced settings',
+    advancedHide: 'Hide advanced settings',
+    specialistOnly: 'Recommended for specialists only.',
     heroTitle: 'Lumi under your control',
     heroText: 'Set language, personality, memory, child profiles, allowed content, and toy runtime.',
     login: 'Login',
@@ -1381,6 +1439,17 @@ function setText(selector, value) {
   if (el) el.textContent = value;
 }
 
+function updateAdvancedToggleText() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const collapsed = document.getElementById('consoleBox')?.classList.contains('advanced-collapsed');
+  setText('#advancedToggleButton', collapsed ? t.advancedShow : t.advancedHide);
+}
+
+function toggleAdvancedSettings() {
+  document.getElementById('consoleBox')?.classList.toggle('advanced-collapsed');
+  updateAdvancedToggleText();
+}
+
 function setPlaceholder(selector, value) {
   const el = document.querySelector(selector);
   if (el) el.placeholder = value;
@@ -1531,6 +1600,13 @@ function applyConsoleLocale(lang) {
   setText('h1', t.title);
   setText('.hero-title', t.heroTitle);
   setText('.hero-text', t.heroText);
+  setText('#quickSetupTitle', t.quickSetup);
+  setText('#quickSetupHelp', t.quickSetupHelp);
+  setText('#quickDoneButton', t.quickDone);
+  setText('#advancedTitle', t.advancedTitle);
+  setText('#advancedHelp', t.advancedHelp);
+  setText('#modelModeNote', t.specialistOnly);
+  updateAdvancedToggleText();
   const footer = document.getElementById('parentFooter');
   if (footer) footer.innerHTML = `${escapeHtml(t.footerText).replace('lunaratoy.com', '<a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a>')}`;
   setText('#loginBox h2', t.login);
@@ -2204,6 +2280,11 @@ async function saveSettings() {
     status.textContent = err.message;
     status.className = 'status error';
   }
+}
+
+async function saveQuickSetup() {
+  await saveSettings();
+  await saveProfile();
 }
 
 async function saveProfile() {
