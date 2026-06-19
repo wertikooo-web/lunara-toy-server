@@ -76,6 +76,7 @@
     .hero-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
     .hero-text { color: #c9b8ff; line-height: 1.45; }
     .analytics-panel { margin-top: 12px; }
+    #analyticsSection > button { color: #fbbf24; border-color: #f59e0b; }
     .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .metric { background: #0b0914; border: 1px solid #2f2258; border-radius: 8px; padding: 12px; }
     .metric strong { display: block; font-size: 20px; margin-top: 4px; }
@@ -2111,9 +2112,75 @@ function renderRuntime(runtime = {}) {
   setText('#metricRuntimeStatus', status);
 }
 
+const ANALYTICS_LABELS = {
+  'ru-RU': {
+    chat: 'общение',
+    riddles: 'загадки',
+    stories: 'сказки',
+    tongue_twisters: 'скороговорки',
+    mini_games: 'мини-игры',
+    learning: 'обучающие активности',
+    roleplay: 'ролевые игры',
+    speech_development: 'развитие речи',
+    curious: 'любознательный',
+    neutral: 'нейтральный',
+    supportive: 'поддерживающий',
+    happy: 'радостный',
+    calm: 'спокойный',
+    animals: 'животные',
+    food: 'еда',
+    friendship: 'дружба',
+    space: 'космос',
+  },
+  'ro-RO': {
+    chat: 'conversatie',
+    riddles: 'ghicitori',
+    stories: 'povesti',
+    tongue_twisters: 'framanari de limba',
+    mini_games: 'mini-jocuri',
+    learning: 'activitati educative',
+    roleplay: 'jocuri de rol',
+    speech_development: 'dezvoltarea vorbirii',
+    curious: 'curios',
+    neutral: 'neutru',
+    supportive: 'sprijinitor',
+    happy: 'vesel',
+    calm: 'calm',
+    animals: 'animale',
+    food: 'mancare',
+    friendship: 'prietenie',
+    space: 'spatiu',
+  },
+  'en-US': {
+    chat: 'chat',
+    riddles: 'riddles',
+    stories: 'stories',
+    tongue_twisters: 'tongue twisters',
+    mini_games: 'mini-games',
+    learning: 'learning activities',
+    roleplay: 'role play',
+    speech_development: 'speech development',
+    curious: 'curious',
+    neutral: 'neutral',
+    supportive: 'supportive',
+    happy: 'happy',
+    calm: 'calm',
+    animals: 'animals',
+    food: 'food',
+    friendship: 'friendship',
+    space: 'space',
+  },
+};
+
+function analyticsLabel(raw) {
+  const value = String(raw || '').trim();
+  const labels = ANALYTICS_LABELS[consoleLanguage] || ANALYTICS_LABELS['ru-RU'];
+  return labels[value] || value.replaceAll('_', ' ');
+}
+
 function listSummary(rows = []) {
   return rows.length
-    ? rows.map(row => `${escapeHtml(row.category || row.tone || row.topic)}: ${Number(row.count || 0)}`).join(', ')
+    ? rows.map(row => `${escapeHtml(analyticsLabel(row.category || row.tone || row.topic))}: ${Number(row.count || 0)}`).join(', ')
     : '';
 }
 
