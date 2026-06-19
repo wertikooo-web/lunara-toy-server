@@ -136,15 +136,15 @@
       <label>Сохранённые профили</label>
       <div class="row-actions">
         <select id="savedProfiles"></select>
-        <button class="secondary" onclick="loadConfigProfile()">Выбрать профиль</button>
-        <button class="danger" onclick="deleteConfigProfile()">Удалить профиль</button>
+        <button id="chooseProfileButton" class="secondary" onclick="loadConfigProfile()">Выбрать профиль</button>
+        <button id="deleteProfileButton" class="danger" onclick="deleteConfigProfile()">Удалить профиль</button>
       </div>
       <div id="activeProfileStatus" class="small"></div>
       <label>Сохранить текущие настройки как профиль</label>
       <div class="row-actions">
         <input id="profileName" maxlength="40" placeholder="Например: Профиль 1 или Маша">
-        <button class="secondary" onclick="addConfigProfile()">Добавить профиль</button>
-        <button onclick="saveConfigProfile()">Сохранить профиль</button>
+        <button id="addProfileButton" class="secondary" onclick="addConfigProfile()">Добавить профиль</button>
+        <button id="saveProfileButton" onclick="saveConfigProfile()">Сохранить профиль</button>
       </div>
       <button class="secondary" onclick="resetDefaults()">Базовый профиль по умолчанию</button>
       <div id="defaultSummary" class="default-summary">
@@ -625,10 +625,25 @@ const UI_TEXT = {
     addressChampion: 'Чемпион',
     addressCustomPlaceholder: 'Например: звёздочка, котёнок',
     answerLength: 'Длина ответов',
+    answerVeryShort: 'Очень коротко',
+    answerShort: 'Коротко',
+    answerNormal: 'Обычно',
     humor: 'Юмор',
+    humorLow: 'Мало',
+    humorNormal: 'Нормально',
+    humorHigh: 'Много',
     activity: 'Активность',
+    activityCalm: 'Спокойная',
+    activityNormal: 'Обычная',
+    activityActive: 'Энергичная',
     questions: 'Вопросы ребёнку',
+    questionsRare: 'Редко',
+    questionsSometimes: 'Иногда',
+    questionsOften: 'Часто',
     voiceSpeed: 'Скорость голоса',
+    voiceSlow: 'Медленно',
+    voiceNormal: 'Нормально',
+    voiceFast: 'Быстро',
     customPersonality: 'Свободное описание характера',
     customPersonalityPlaceholder: 'Например: мягкая, немного смешная, любит космос и спокойные истории. (Ваш выбор не влияет на правила безопасности.)',
     runtime: 'Время работы',
@@ -725,12 +740,36 @@ const UI_TEXT = {
       'Развитие речи: звуки, слоги, рифмы, слова на букву и игра в повторение без медицинских обещаний.',
     ],
     storyLength: 'Длина сказки',
+    story3: '3 предложения',
+    story5: '5 предложений',
+    story8: '8 предложений',
     topics: 'Любимые темы через запятую',
     blockedTopics: 'Не предлагать темы через запятую',
     blockedTopicsPlaceholder: 'Например: страхи, грустные истории, монстры, оружие, интернет, покупки',
     memoryEnabled: 'Память включена',
     saveSettings: 'Сохранить настройки',
     memory: 'Память',
+    memoryNotLoaded: 'Память ещё не загружена.',
+    memoryChildProfile: 'Профиль ребёнка',
+    memoryLiveTitle: 'Живая память Lumi',
+    memoryEmptyLive: 'Живая память из разговоров пока не накоплена.',
+    memoryEmptyFull: 'Живая память из разговоров пока не накоплена. Анкета ребёнка хранится отдельно в разделе “Ребёнок”.',
+    memoryChildName: 'Имя ребёнка',
+    memoryAge: 'Возраст',
+    memoryFavoriteColor: 'Любимый цвет',
+    memoryFavoriteAnimal: 'Любимое животное',
+    memoryFavoriteGame: 'Любимая игра',
+    memoryFavoriteToy: 'Любимая игрушка',
+    memoryFavoriteFood: 'Любимая еда',
+    memoryCurrentInterest: 'Текущий интерес',
+    memoryNicknames: 'Игровые имена / прозвища',
+    memoryFavoriteColors: 'Любимые цвета',
+    memoryFavoriteAnimals: 'Любимые животные',
+    memoryFavoriteToys: 'Любимые игрушки',
+    memoryFavoriteFoods: 'Любимая еда',
+    memoryCurrentInterests: 'Интересы сейчас',
+    memoryRecentStories: 'Последние истории',
+    memorySharedWorld: 'Общий мир Lumi',
     refresh: 'Обновить',
     clearMemory: 'Очистить память',
     clearChildProfile: 'Удалить профиль ребёнка',
@@ -830,10 +869,25 @@ const UI_TEXT = {
     addressChampion: 'Campionule',
     addressCustomPlaceholder: 'De exemplu: steluta, puisor',
     answerLength: 'Lungimea raspunsurilor',
+    answerVeryShort: 'Foarte scurt',
+    answerShort: 'Scurt',
+    answerNormal: 'Normal',
     humor: 'Umor',
+    humorLow: 'Putin',
+    humorNormal: 'Normal',
+    humorHigh: 'Mult',
     activity: 'Activitate',
+    activityCalm: 'Linistita',
+    activityNormal: 'Obisnuita',
+    activityActive: 'Energica',
     questions: 'Intrebari catre copil',
+    questionsRare: 'Rar',
+    questionsSometimes: 'Uneori',
+    questionsOften: 'Des',
     voiceSpeed: 'Viteza vocii',
+    voiceSlow: 'Incet',
+    voiceNormal: 'Normal',
+    voiceFast: 'Repede',
     customPersonality: 'Descriere libera a caracterului',
     customPersonalityPlaceholder: 'De exemplu: blanda, putin amuzanta, iubeste spatiul si povestile calme. (Alegerea dvs. nu modifica regulile de siguranta.)',
     runtime: 'Timp de functionare',
@@ -930,12 +984,36 @@ const UI_TEXT = {
       'Dezvoltarea vorbirii: sunete, silabe, rime, cuvinte pe litere si jocuri de repetare, fara promisiuni medicale.',
     ],
     storyLength: 'Lungimea povestii',
+    story3: '3 propozitii',
+    story5: '5 propozitii',
+    story8: '8 propozitii',
     topics: 'Teme preferate, separate prin virgula',
     blockedTopics: 'Nu propune teme, separate prin virgula',
     blockedTopicsPlaceholder: 'De exemplu: frici, povesti triste, monstri, arme, internet, cumparaturi',
     memoryEnabled: 'Memoria este activa',
     saveSettings: 'Salveaza setarile',
     memory: 'Memorie',
+    memoryNotLoaded: 'Memoria nu este inca incarcata.',
+    memoryChildProfile: 'Profilul copilului',
+    memoryLiveTitle: 'Memoria vie Lumi',
+    memoryEmptyLive: 'Memoria vie din conversatii nu s-a acumulat inca.',
+    memoryEmptyFull: 'Memoria vie din conversatii nu s-a acumulat inca. Profilul copilului este pastrat separat in sectiunea “Copil”.',
+    memoryChildName: 'Numele copilului',
+    memoryAge: 'Varsta',
+    memoryFavoriteColor: 'Culoare preferata',
+    memoryFavoriteAnimal: 'Animal preferat',
+    memoryFavoriteGame: 'Joc preferat',
+    memoryFavoriteToy: 'Jucarie preferata',
+    memoryFavoriteFood: 'Mancare preferata',
+    memoryCurrentInterest: 'Interes curent',
+    memoryNicknames: 'Nume de joc / porecle',
+    memoryFavoriteColors: 'Culori preferate',
+    memoryFavoriteAnimals: 'Animale preferate',
+    memoryFavoriteToys: 'Jucarii preferate',
+    memoryFavoriteFoods: 'Mancare preferata',
+    memoryCurrentInterests: 'Interese acum',
+    memoryRecentStories: 'Povesti recente',
+    memorySharedWorld: 'Lumea comuna Lumi',
     refresh: 'Actualizeaza',
     clearMemory: 'Sterge memoria',
     clearChildProfile: 'Sterge profilul copilului',
@@ -1035,10 +1113,25 @@ const UI_TEXT = {
     addressChampion: 'Champion',
     addressCustomPlaceholder: 'For example: little star, sweetheart',
     answerLength: 'Answer length',
+    answerVeryShort: 'Very short',
+    answerShort: 'Short',
+    answerNormal: 'Normal',
     humor: 'Humor',
+    humorLow: 'Low',
+    humorNormal: 'Normal',
+    humorHigh: 'High',
     activity: 'Activity',
+    activityCalm: 'Calm',
+    activityNormal: 'Regular',
+    activityActive: 'Energetic',
     questions: 'Questions to child',
+    questionsRare: 'Rarely',
+    questionsSometimes: 'Sometimes',
+    questionsOften: 'Often',
     voiceSpeed: 'Voice speed',
+    voiceSlow: 'Slow',
+    voiceNormal: 'Normal',
+    voiceFast: 'Fast',
     customPersonality: 'Free personality notes',
     customPersonalityPlaceholder: 'For example: gentle, a little funny, loves space and calm stories. (Your choice does not affect safety rules.)',
     runtime: 'Runtime',
@@ -1135,12 +1228,36 @@ const UI_TEXT = {
       'Speech development: sounds, syllables, rhymes, words by letter, and echo games without medical promises.',
     ],
     storyLength: 'Story length',
+    story3: '3 sentences',
+    story5: '5 sentences',
+    story8: '8 sentences',
     topics: 'Favorite topics, comma-separated',
     blockedTopics: 'Do not suggest topics, comma-separated',
     blockedTopicsPlaceholder: 'For example: fears, sad stories, monsters, weapons, internet, purchases',
     memoryEnabled: 'Memory enabled',
     saveSettings: 'Save settings',
     memory: 'Memory',
+    memoryNotLoaded: 'Memory is not loaded yet.',
+    memoryChildProfile: 'Child profile',
+    memoryLiveTitle: 'Lumi live memory',
+    memoryEmptyLive: 'Live memory from conversations has not accumulated yet.',
+    memoryEmptyFull: 'Live memory from conversations has not accumulated yet. The child profile is stored separately in the “Child” section.',
+    memoryChildName: 'Child name',
+    memoryAge: 'Age',
+    memoryFavoriteColor: 'Favorite color',
+    memoryFavoriteAnimal: 'Favorite animal',
+    memoryFavoriteGame: 'Favorite game',
+    memoryFavoriteToy: 'Favorite toy',
+    memoryFavoriteFood: 'Favorite food',
+    memoryCurrentInterest: 'Current interest',
+    memoryNicknames: 'Play names / nicknames',
+    memoryFavoriteColors: 'Favorite colors',
+    memoryFavoriteAnimals: 'Favorite animals',
+    memoryFavoriteToys: 'Favorite toys',
+    memoryFavoriteFoods: 'Favorite food',
+    memoryCurrentInterests: 'Current interests',
+    memoryRecentStories: 'Recent stories',
+    memorySharedWorld: 'Shared Lumi world',
     refresh: 'Refresh',
     clearMemory: 'Clear memory',
     clearChildProfile: 'Delete child profile',
@@ -1173,6 +1290,7 @@ const STATUS_TEXT = {
     addProfileHint: 'Заполните данные нового ребёнка и нажмите “Сохранить профиль”.',
     savingProfile: 'Сохраняю профиль...',
     profileSaved: 'Профиль сохранён.',
+    profileLoaded: 'Профиль {name} активен',
     loadingProfile: 'Загружаю профиль...',
     profileDeleted: 'Профиль удалён.',
     deletingProfile: 'Удаляю профиль...',
@@ -1199,6 +1317,7 @@ const STATUS_TEXT = {
     addProfileHint: 'Completati datele copilului nou si apasati “Salveaza profil”.',
     savingProfile: 'Se salveaza profilul...',
     profileSaved: 'Profilul a fost salvat.',
+    profileLoaded: 'Profilul {name} este activ',
     loadingProfile: 'Se incarca profilul...',
     profileDeleted: 'Profilul a fost sters.',
     deletingProfile: 'Se sterge profilul...',
@@ -1225,6 +1344,7 @@ const STATUS_TEXT = {
     addProfileHint: 'Fill in the new child data and press “Save profile”.',
     savingProfile: 'Saving profile...',
     profileSaved: 'Profile saved.',
+    profileLoaded: 'Profile {name} is active',
     loadingProfile: 'Loading profile...',
     profileDeleted: 'Profile deleted.',
     deletingProfile: 'Deleting profile...',
@@ -1419,11 +1539,11 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(1) .small', t.profilesHelp);
   setText('#consoleBox > section:nth-of-type(1) label:nth-of-type(1)', t.savedProfiles);
   setPlaceholder('#profileName', t.profilePlaceholder);
-  setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(1) button:nth-of-type(1)', t.chooseProfile);
-  setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(1) button:nth-of-type(2)', t.deleteProfile);
+  setText('#chooseProfileButton', t.chooseProfile);
+  setText('#deleteProfileButton', t.deleteProfile);
   setText('#consoleBox > section:nth-of-type(1) label:nth-of-type(2)', t.saveAsProfile);
-  setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(2) button:nth-of-type(1)', t.addProfile);
-  setText('#consoleBox > section:nth-of-type(1) .row-actions:nth-of-type(2) button:nth-of-type(2)', t.saveProfile);
+  setText('#addProfileButton', t.addProfile);
+  setText('#saveProfileButton', t.saveProfile);
   setText('#consoleBox > section:nth-of-type(1) > button.secondary', t.resetDefaults);
   setText('#defaultSummary', t.defaultSummary);
 
@@ -1467,6 +1587,16 @@ function applyConsoleLocale(lang) {
   });
   const addressOptions = document.querySelectorAll('#child_address_mode option');
   [t.addressVaried, t.addressByName].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
+  const answerOptions = document.querySelectorAll('#answer_length option');
+  [t.answerVeryShort, t.answerShort, t.answerNormal].forEach((label, i) => { if (answerOptions[i]) answerOptions[i].textContent = label; });
+  const humorOptions = document.querySelectorAll('#humor_level option');
+  [t.humorLow, t.humorNormal, t.humorHigh].forEach((label, i) => { if (humorOptions[i]) humorOptions[i].textContent = label; });
+  const activityOptions = document.querySelectorAll('#activity_level option');
+  [t.activityCalm, t.activityNormal, t.activityActive].forEach((label, i) => { if (activityOptions[i]) activityOptions[i].textContent = label; });
+  const questionOptions = document.querySelectorAll('#question_frequency option');
+  [t.questionsRare, t.questionsSometimes, t.questionsOften].forEach((label, i) => { if (questionOptions[i]) questionOptions[i].textContent = label; });
+  const voiceSpeedOptions = document.querySelectorAll('#voice_speed option');
+  [t.voiceSlow, t.voiceNormal, t.voiceFast].forEach((label, i) => { if (voiceSpeedOptions[i]) voiceSpeedOptions[i].textContent = label; });
   const addressToneLabels = [t.addressWarm, t.addressNeutral];
   document.querySelectorAll('#childAddressToneChecks label').forEach((el, i) => {
     const input = el.querySelector('input');
@@ -1533,6 +1663,8 @@ function applyConsoleLocale(lang) {
     if (input) el.prepend(input);
   });
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(2)', t.storyLength);
+  const storyLengthOptions = document.querySelectorAll('#story_length option');
+  [t.story3, t.story5, t.story8].forEach((label, i) => { if (storyLengthOptions[i]) storyLengthOptions[i].textContent = label; });
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(3)', t.topics);
   setText('#consoleBox > section:nth-of-type(7) > label:nth-of-type(4)', t.blockedTopics);
   setPlaceholder('#blocked_topics', t.blockedTopicsPlaceholder);
@@ -1546,8 +1678,11 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(2)', t.clearMemory);
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(3)', t.clearChildProfile);
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(4)', t.deleteEverything);
+  const memoryBox = document.getElementById('memoryView');
+  if (memoryBox?.classList.contains('memory-empty') && !window.lastParentState?.profile) memoryBox.textContent = t.memoryNotLoaded;
   setText('#consoleBox > section:nth-of-type(10) button', t.logout);
   relocalizeStatusMessages();
+  if (window.lastParentState?.profile) renderMemoryView(window.lastParentState.profile);
   updateUnsavedIndicator();
 }
 
@@ -1886,36 +2021,37 @@ function addMemoryRow(rows, label, value) {
 }
 
 function renderMemoryView(profile) {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   const profileRows = [];
   const memoryRows = [];
   const memory = profile?.memory_json || {};
-  addMemoryRow(profileRows, 'Имя ребёнка', profile?.child_name);
-  addMemoryRow(profileRows, 'Возраст', profile?.age);
-  addMemoryRow(profileRows, 'Любимый цвет', profile?.favorite_color);
-  addMemoryRow(profileRows, 'Любимое животное', profile?.favorite_animal);
-  addMemoryRow(profileRows, 'Любимая игра', profile?.favorite_game);
-  addMemoryRow(profileRows, 'Любимая игрушка', profile?.favorite_toy);
-  addMemoryRow(profileRows, 'Любимая еда', profile?.favorite_food);
-  addMemoryRow(profileRows, 'Текущий интерес', profile?.current_interest);
-  addMemoryRow(memoryRows, 'Игровые имена / прозвища', memory.nicknames);
-  addMemoryRow(memoryRows, 'Любимые цвета', memory.favorite_colors);
-  addMemoryRow(memoryRows, 'Любимые животные', memory.favorite_animals);
-  addMemoryRow(memoryRows, 'Любимые игрушки', memory.favorite_toys);
-  addMemoryRow(memoryRows, 'Любимая еда', memory.favorite_foods);
-  addMemoryRow(memoryRows, 'Интересы сейчас', memory.current_interests);
-  addMemoryRow(memoryRows, 'Последние истории', memory.recent_stories);
-  addMemoryRow(memoryRows, 'Общий мир Lumi', memory.shared_world_states);
+  addMemoryRow(profileRows, t.memoryChildName, profile?.child_name);
+  addMemoryRow(profileRows, t.memoryAge, profile?.age);
+  addMemoryRow(profileRows, t.memoryFavoriteColor, profile?.favorite_color);
+  addMemoryRow(profileRows, t.memoryFavoriteAnimal, profile?.favorite_animal);
+  addMemoryRow(profileRows, t.memoryFavoriteGame, profile?.favorite_game);
+  addMemoryRow(profileRows, t.memoryFavoriteToy, profile?.favorite_toy);
+  addMemoryRow(profileRows, t.memoryFavoriteFood, profile?.favorite_food);
+  addMemoryRow(profileRows, t.memoryCurrentInterest, profile?.current_interest);
+  addMemoryRow(memoryRows, t.memoryNicknames, memory.nicknames);
+  addMemoryRow(memoryRows, t.memoryFavoriteColors, memory.favorite_colors);
+  addMemoryRow(memoryRows, t.memoryFavoriteAnimals, memory.favorite_animals);
+  addMemoryRow(memoryRows, t.memoryFavoriteToys, memory.favorite_toys);
+  addMemoryRow(memoryRows, t.memoryFavoriteFoods, memory.favorite_foods);
+  addMemoryRow(memoryRows, t.memoryCurrentInterests, memory.current_interests);
+  addMemoryRow(memoryRows, t.memoryRecentStories, memory.recent_stories);
+  addMemoryRow(memoryRows, t.memorySharedWorld, memory.shared_world_states);
 
   const box = document.getElementById('memoryView');
   if (!profileRows.length && !memoryRows.length) {
     box.className = 'memory-card memory-empty';
-    box.textContent = 'Живая память из разговоров пока не накоплена. Анкета ребёнка хранится отдельно в разделе “Ребёнок”.';
+    box.textContent = t.memoryEmptyFull;
     return;
   }
   box.className = 'memory-card';
   box.innerHTML = [
-    profileRows.length ? `<h3>Профиль ребёнка</h3>${profileRows.join('')}` : '',
-    `<h3>Живая память Lumi</h3>${memoryRows.length ? memoryRows.join('') : '<div class="memory-empty">Живая память из разговоров пока не накоплена.</div>'}`,
+    profileRows.length ? `<h3>${escapeHtml(t.memoryChildProfile)}</h3>${profileRows.join('')}` : '',
+    `<h3>${escapeHtml(t.memoryLiveTitle)}</h3>${memoryRows.length ? memoryRows.join('') : `<div class="memory-empty">${escapeHtml(t.memoryEmptyLive)}</div>`}`,
   ].join('');
 }
 
@@ -2168,7 +2304,7 @@ async function loadConfigProfile() {
       body: '{}',
     });
     const activeProfile = (data.saved_profiles || []).find(profile => profile.is_active);
-    status.textContent = profileLoadedText(activeProfileName(data.profile, activeProfile));
+    setStatus(status, 'profileLoaded', { name: activeProfileName(data.profile, activeProfile) || (UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU']).statusManual });
     await loadState();
   } catch (err) {
     status.textContent = err.message;

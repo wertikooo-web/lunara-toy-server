@@ -592,6 +592,41 @@ function randomPhrase() {
 let recognition = null;
 let isRecording = false;
 let finalTranscript = '';
+let bubbleBeforeMic = '';
+
+function micText(key) {
+  const langKey = currentLang === 'ro-RO' ? 'ro-RO' : currentLang === 'en-US' ? 'en-US' : 'ru-RU';
+  const dict = {
+    'ru-RU': {
+      listening: '🎤 Слушаю...',
+      placeholder: 'Напиши Луми...',
+      holdToTalk: 'Держи кнопку и говори...',
+      noSpeech: 'Я не расслышала. Попробуй ещё раз.',
+      micAllowed: '🎤 Разреши доступ к микрофону в браузере',
+      micError: '🎤 Ошибка: ',
+      threeSeconds: '⚠️ Ещё 3 секунды...',
+    },
+    'ro-RO': {
+      listening: '🎤 Te ascult...',
+      placeholder: 'Scrie-i lui Lumi...',
+      holdToTalk: 'Tine butonul si vorbeste...',
+      noSpeech: 'Nu am auzit bine. Incearca inca o data.',
+      micAllowed: '🎤 Permite accesul la microfon in browser',
+      micError: '🎤 Eroare: ',
+      threeSeconds: '⚠️ Inca 3 secunde...',
+    },
+    'en-US': {
+      listening: '🎤 Listening...',
+      placeholder: 'Write to Lumi...',
+      holdToTalk: 'Hold the button and speak...',
+      noSpeech: 'I did not hear that. Try again.',
+      micAllowed: '🎤 Allow microphone access in the browser',
+      micError: '🎤 Error: ',
+      threeSeconds: '⚠️ 3 seconds left...',
+    },
+  };
+  return dict[langKey][key] || dict['ru-RU'][key] || '';
+}
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -605,6 +640,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
     r.onstart = () => {
       isRecording = true; micStarted = true; finalTranscript = '';
+      bubbleBeforeMic = bubbleText.textContent || '';
       // Auto-stop if no speech for 10 seconds
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
@@ -615,9 +651,9 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       }, 10000);
       micBtn.classList.add('recording');
       micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="pointer-events:none;user-select:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
-      msgInput.placeholder = 'Держи кнопку и говори...';
+      msgInput.placeholder = micText('holdToTalk');
       msgInput.value = '';
-      bubbleText.textContent = '🎤 Слушаю...';
+      bubbleText.textContent = micText('listening');
     };
 
     r.onresult = (e) => {
@@ -644,20 +680,21 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       isRecording = false; micStarted = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-      msgInput.placeholder = 'Напиши Луми...';
+      msgInput.placeholder = micText('placeholder');
       const text = (finalTranscript || msgInput.value).trim();
       msgInput.blur();
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
-      else bubbleText.textContent = 'Привет! Я — Луми! ✨\nНапиши или скажи что-нибудь!';
+      else bubbleText.textContent = micText('noSpeech') || bubbleBeforeMic;
     };
 
     r.onerror = (e) => {
       isRecording = false; micStarted = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-      msgInput.placeholder = 'Напиши Луми...';
-      if (e.error === 'not-allowed') bubbleText.textContent = '🎤 Разреши доступ к микрофону в браузере';
-      else if (e.error !== 'no-speech' && e.error !== 'aborted') bubbleText.textContent = '🎤 Ошибка: ' + e.error;
+      msgInput.placeholder = micText('placeholder');
+      if (e.error === 'not-allowed') bubbleText.textContent = micText('micAllowed');
+      else if (e.error === 'no-speech') bubbleText.textContent = micText('noSpeech') || bubbleBeforeMic;
+      else if (e.error !== 'aborted') bubbleText.textContent = micText('micError') + e.error;
     };
     return r;
   }
@@ -703,7 +740,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micWarnTimer = setTimeout(() => {
         playBeep(880, 0.15, 0.4); // first beep
         setTimeout(() => playBeep(880, 0.15, 0.4), 300); // second beep
-        bubbleText.textContent = '⚠️ Ещё 3 секунды...';
+        bubbleText.textContent = micText('threeSeconds');
       }, MAX_REC_MS);
       // Auto-stop at 23s
       micTimer = setTimeout(() => {
