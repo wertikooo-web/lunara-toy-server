@@ -838,6 +838,13 @@ async function deleteProfileSnapshot(deviceId, profileId) {
     return getParentState(id);
 }
 
+async function loadBaseProfile(deviceId) {
+    const id = await ensureDevice(deviceId);
+    if (!id) throw new Error('Parent config is not ready');
+    await setActiveProfile(id, null);
+    return getParentState(id);
+}
+
 async function updateChildProfile(deviceId, raw = {}) {
     const id = await ensureDevice(deviceId);
     const fields = ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_game', 'favorite_toy', 'favorite_food', 'current_interest'];
@@ -1264,6 +1271,7 @@ module.exports = {
     listProfiles,
     saveProfileSnapshot,
     loadProfileSnapshot,
+    loadBaseProfile,
     deleteProfileSnapshot,
     touchDevice,
     getRuntimeState,

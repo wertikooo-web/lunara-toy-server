@@ -28,11 +28,11 @@
     #consoleBox > #runtimePanel { order: 4; }
     #advancedTogglePanel { order: 20; }
     #consoleBox > #profilesPanel { order: 21; }
-    #consoleBox > #technicalPanel { order: 22; }
-    #consoleBox > #characterPanel { order: 23; }
-    #consoleBox > #contentPanel { order: 24; }
-    #consoleBox > #memoryPanel { order: 25; }
+    #consoleBox > #characterPanel { order: 22; }
+    #consoleBox > #contentPanel { order: 23; }
+    #consoleBox > #memoryPanel { order: 24; }
     #consoleBox > #analyticsSection { order: 30; }
+    #consoleBox > #technicalPanel { order: 90; }
     #consoleBox > #logoutPanel { order: 99; }
     #consoleBox.advanced-collapsed .advanced-section,
     #consoleBox.advanced-collapsed .advanced-field { display: none; }
@@ -88,8 +88,9 @@
     .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
     .advanced-note { border: 1px dashed #6d4fc0; background: #100c20; border-radius: 8px; padding: 10px; margin-top: 10px; color: #d8ccff; }
     .advanced-toggle-panel { border: 1px solid #57408f; background: #151126; border-radius: 10px; padding: 16px; margin: 14px 0; }
-    .advanced-toggle-panel h2 { margin-top: 0; }
+    .advanced-toggle-panel h2 { margin-top: 0; color: #c084fc; }
     .advanced-toggle-panel button { margin-top: 4px; }
+    input::placeholder, textarea::placeholder { color: #9ca3af; opacity: 1; }
     .status-chip { background: #0b0914; border: 1px solid #3d2b70; border-radius: 999px; padding: 8px 11px; color: #d8ccff; font-size: 13px; }
     .status-chip.good { border-color: #16a34a; color: #bbf7d0; }
     .status-chip.warn { border-color: #f59e0b; color: #fde68a; }
@@ -99,6 +100,11 @@
     .inline-check input[type="checkbox"] { width: 24px; height: 24px; accent-color: #8b5cf6; }
     .runtime-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
     .runtime-card { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 14px; min-height: 190px; }
+    .runtime-card.active-setting { border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245, 158, 11, .18); }
+    .runtime-card.active-setting > label,
+    .runtime-card.active-setting > label span,
+    .runtime-card.active-setting #breakReminderTitle,
+    .runtime-card.active-setting #restScheduleTitle { color: #fbbf24; }
     .runtime-card .inline-check { margin: 0 0 12px; color: #f7f3ff; }
     .runtime-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .runtime-fields label { margin-top: 0; }
@@ -440,6 +446,7 @@
         </div>
       </div>
       <button id="quickSaveSettingsButton" onclick="saveSettings()">Сохранить настройки</button>
+      <div id="quickSaveStatus" class="status"></div>
       <div id="runtimeStatus" class="small"></div>
     </section>
 
@@ -588,6 +595,7 @@ let lastSavedFormSnapshot = '';
 const UI_TEXT = {
   'ru-RU': {
     title: 'Родительский контроль Lumi',
+    titleTemplate: 'Родительский контроль {toy}',
     quickSetup: 'Быстрая настройка',
     quickSetupHelp: 'Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.',
     quickDone: 'ГОТОВО',
@@ -598,6 +606,7 @@ const UI_TEXT = {
     specialistOnly: 'Рекомендуется настраивать только специалистам.',
     technicalSettings: 'Технические настройки',
     heroTitle: 'Lumi под вашим контролем',
+    heroTitleTemplate: '{toy} под вашим контролем',
     heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
     login: 'Вход',
     enter: 'ВОЙТИ',
@@ -615,6 +624,9 @@ const UI_TEXT = {
     activeSuffix: 'активен',
     profileLoaded: 'Профиль {name} активен',
     resetDefaults: 'Базовый профиль (Lumi-мишка)',
+    baseProfileTemplate: 'Базовый профиль ({toy})',
+    baseProfileActive: 'Базовый профиль активен',
+    baseProfileOption: 'Базовый профиль (активен)',
     defaultSummary: 'По умолчанию: Lumi-мишка, русский язык, мягкий характер, короткие ответы, нормальный юмор, весь детский контент включён, память включена, без дневного лимита и без ночного режима.',
     parentPassword: 'Пароль родителя',
     parentPasswordHelp: 'PIN нужен для входа в родительский контроль. Он хранится в защищённом виде и не показывается обратно.',
@@ -652,7 +664,14 @@ const UI_TEXT = {
     animal: 'Любимое животное',
     favoriteToy: 'Любимая игрушка',
     food: 'Любимая еда',
-    currentInterest: 'Текущий интерес',
+    currentInterest: 'Чем интересуется',
+    childNamePlaceholder: 'Например: Женя',
+    agePlaceholder: 'Например: 5',
+    colorPlaceholder: 'Например: зелёный, белый',
+    animalPlaceholder: 'Например: крокодил, кот',
+    favoriteToyPlaceholder: 'Например: кукла Маша, машинка',
+    foodPlaceholder: 'Например: пицца, омлет',
+    interestPlaceholder: 'Например: рисование, космос, конструктор',
     editChild: 'Редактировать',
     saveChild: 'Сохранить профиль ребёнка',
     clearChild: 'Очистить профиль',
@@ -770,6 +789,7 @@ const UI_TEXT = {
     statusRestOn: 'расписание отдыха',
     statusRestNow: 'отдых до',
     statusCalmOn: 'спокойный вечер',
+    statusBreakReminder: 'отдых через',
     quietEnabled: 'Ночное время включено',
     quietDisabled: 'Ночное время выключено',
     offFrom: 'Не работает с',
@@ -815,7 +835,7 @@ const UI_TEXT = {
     memoryFavoriteGame: 'Любимая игра',
     memoryFavoriteToy: 'Любимая игрушка',
     memoryFavoriteFood: 'Любимая еда',
-    memoryCurrentInterest: 'Текущий интерес',
+    memoryCurrentInterest: 'Чем интересуется',
     memoryNicknames: 'Игровые имена / прозвища',
     memoryFavoriteColors: 'Любимые цвета',
     memoryFavoriteAnimals: 'Любимые животные',
@@ -841,6 +861,7 @@ const UI_TEXT = {
   },
   'ro-RO': {
     title: 'Control parental Lumi',
+    titleTemplate: 'Control parental {toy}',
     quickSetup: 'Setare rapida',
     quickSetupHelp: 'Completeaza lucrurile principale: copilul, Lumi, caracterul, limba si timpul de functionare. Restul se poate deschide mai jos.',
     quickDone: 'GATA',
@@ -851,6 +872,7 @@ const UI_TEXT = {
     specialistOnly: 'Recomandat pentru configurare doar de catre specialisti.',
     technicalSettings: 'Setari tehnice',
     heroTitle: 'Lumi sub controlul tau',
+    heroTitleTemplate: '{toy} sub controlul tau',
     heroText: 'Seteaza limba, caracterul, memoria, profilurile copiilor, continutul permis si timpul de functionare.',
     login: 'Intrare',
     enter: 'INTRA',
@@ -868,6 +890,9 @@ const UI_TEXT = {
     activeSuffix: 'activ',
     profileLoaded: 'Profilul {name} este activ',
     resetDefaults: 'Profil de baza (Lumi ursulet)',
+    baseProfileTemplate: 'Profil de baza ({toy})',
+    baseProfileActive: 'Profilul de baza este activ',
+    baseProfileOption: 'Profil de baza (activ)',
     defaultSummary: 'Implicit: Lumi ursulet, limba rusa, caracter bland, raspunsuri scurte, umor normal, tot continutul pentru copii activ, memorie activa, fara limita zilnica si fara mod de noapte.',
     parentPassword: 'Parola parintelui',
     parentPasswordHelp: 'PIN-ul este necesar pentru intrarea in controlul parental. Este pastrat protejat si nu se afiseaza inapoi.',
@@ -905,7 +930,14 @@ const UI_TEXT = {
     animal: 'Animal preferat',
     favoriteToy: 'Jucarie preferata',
     food: 'Mancare preferata',
-    currentInterest: 'Interes curent',
+    currentInterest: 'Ce il/o intereseaza',
+    childNamePlaceholder: 'De exemplu: Maria',
+    agePlaceholder: 'De exemplu: 5',
+    colorPlaceholder: 'De exemplu: verde, alb',
+    animalPlaceholder: 'De exemplu: crocodil, pisica',
+    favoriteToyPlaceholder: 'De exemplu: papusa Masha, masinuta',
+    foodPlaceholder: 'De exemplu: pizza, omleta',
+    interestPlaceholder: 'De exemplu: desen, spatiu, constructii',
     editChild: 'Editeaza',
     saveChild: 'Salveaza profilul copilului',
     clearChild: 'Curata profilul',
@@ -1023,6 +1055,7 @@ const UI_TEXT = {
     statusRestOn: 'program de odihna',
     statusRestNow: 'odihna pana la',
     statusCalmOn: 'seara linistita',
+    statusBreakReminder: 'pauza dupa',
     quietEnabled: 'Timp de noapte activ',
     quietDisabled: 'Timp de noapte oprit',
     offFrom: 'Nu functioneaza de la',
@@ -1068,7 +1101,7 @@ const UI_TEXT = {
     memoryFavoriteGame: 'Joc preferat',
     memoryFavoriteToy: 'Jucarie preferata',
     memoryFavoriteFood: 'Mancare preferata',
-    memoryCurrentInterest: 'Interes curent',
+    memoryCurrentInterest: 'Ce il/o intereseaza',
     memoryNicknames: 'Nume de joc / porecle',
     memoryFavoriteColors: 'Culori preferate',
     memoryFavoriteAnimals: 'Animale preferate',
@@ -1094,6 +1127,7 @@ const UI_TEXT = {
   },
   'en-US': {
     title: 'Lumi Parental Control',
+    titleTemplate: '{toy} Parental Control',
     quickSetup: 'Quick setup',
     quickSetupHelp: 'Fill in the essentials: child, Lumi, personality, language, and runtime. Everything else can be opened below.',
     quickDone: 'READY',
@@ -1104,6 +1138,7 @@ const UI_TEXT = {
     specialistOnly: 'Recommended for specialists only.',
     technicalSettings: 'Technical settings',
     heroTitle: 'Lumi under your control',
+    heroTitleTemplate: '{toy} under your control',
     heroText: 'Set language, personality, memory, child profiles, allowed content, and toy runtime.',
     login: 'Login',
     enter: 'LOGIN',
@@ -1121,6 +1156,9 @@ const UI_TEXT = {
     activeSuffix: 'active',
     profileLoaded: 'Profile {name} is active',
     resetDefaults: 'Base profile (Lumi bear)',
+    baseProfileTemplate: 'Base profile ({toy})',
+    baseProfileActive: 'Base profile is active',
+    baseProfileOption: 'Base profile (active)',
     defaultSummary: 'Default: Lumi bear, Russian language, gentle personality, short replies, normal humor, all child content enabled, memory enabled, no daily limit, and no night mode.',
     parentPassword: 'Parent password',
     parentPasswordHelp: 'PIN is used to enter parental control. It is stored securely and is not shown back.',
@@ -1158,7 +1196,14 @@ const UI_TEXT = {
     animal: 'Favorite animal',
     favoriteToy: 'Favorite toy',
     food: 'Favorite food',
-    currentInterest: 'Current interest',
+    currentInterest: 'What the child enjoys',
+    childNamePlaceholder: 'For example: Jenny',
+    agePlaceholder: 'For example: 5',
+    colorPlaceholder: 'For example: green, white',
+    animalPlaceholder: 'For example: crocodile, cat',
+    favoriteToyPlaceholder: 'For example: Masha doll, toy car',
+    foodPlaceholder: 'For example: pizza, omelet',
+    interestPlaceholder: 'For example: drawing, space, building blocks',
     editChild: 'Edit',
     saveChild: 'Save child profile',
     clearChild: 'Clear profile',
@@ -1276,6 +1321,7 @@ const UI_TEXT = {
     statusRestOn: 'rest schedule',
     statusRestNow: 'rest until',
     statusCalmOn: 'calm evening',
+    statusBreakReminder: 'break after',
     quietEnabled: 'Quiet hours enabled',
     quietDisabled: 'Quiet hours disabled',
     offFrom: 'Off from',
@@ -1321,7 +1367,7 @@ const UI_TEXT = {
     memoryFavoriteGame: 'Favorite game',
     memoryFavoriteToy: 'Favorite toy',
     memoryFavoriteFood: 'Favorite food',
-    memoryCurrentInterest: 'Current interest',
+    memoryCurrentInterest: 'What the child enjoys',
     memoryNicknames: 'Play names / nicknames',
     memoryFavoriteColors: 'Favorite colors',
     memoryFavoriteAnimals: 'Favorite animals',
@@ -1453,6 +1499,23 @@ function setText(selector, value) {
   if (el) el.textContent = value;
 }
 
+function toyDisplayName() {
+  return String(document.getElementById('toy_name')?.value || 'Lumi').trim() || 'Lumi';
+}
+
+function updateToyBranding() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const toy = toyDisplayName();
+  document.title = formatText(t.titleTemplate || t.title, { toy });
+  setText('h1', formatText(t.titleTemplate || t.title, { toy }));
+  setText('.hero-title', formatText(t.heroTitleTemplate || t.heroTitle, { toy }));
+}
+
+function baseProfileName() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  return formatText(t.baseProfileTemplate || t.resetDefaults, { toy: toyDisplayName() });
+}
+
 function updateAdvancedToggleText() {
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   const collapsed = document.getElementById('consoleBox')?.classList.contains('advanced-collapsed');
@@ -1519,6 +1582,20 @@ function markFormClean() {
   updateUnsavedIndicator();
 }
 
+function readyStorageKey() {
+  const deviceId = document.getElementById('loginDevice')?.value || 'default';
+  return `lumi_parent_ready_${deviceId}`;
+}
+
+function isReadyConfirmed() {
+  return localStorage.getItem(readyStorageKey()) === '1';
+}
+
+function markReadyConfirmed() {
+  localStorage.setItem(readyStorageKey(), '1');
+  updateUnsavedIndicator();
+}
+
 function hasUnsavedChanges() {
   return Boolean(lastSavedFormSnapshot) && parentFormSnapshot() !== lastSavedFormSnapshot;
 }
@@ -1528,10 +1605,23 @@ function updateUnsavedIndicator() {
   document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   const ready = document.getElementById('quickDoneIndicator');
+  const readyConfirmed = !dirty && isReadyConfirmed();
   if (ready) {
-    ready.classList.toggle('ready', !dirty && Boolean(lastSavedFormSnapshot));
-    ready.classList.toggle('pending', dirty || !lastSavedFormSnapshot);
+    ready.classList.toggle('ready', readyConfirmed);
+    ready.classList.toggle('pending', !readyConfirmed);
   }
+  updateRuntimeActiveCards();
+  updateToyBranding();
+  if (window.lastParentState) renderStatusOverview(window.lastParentState);
+}
+
+function updateRuntimeActiveCards() {
+  document.getElementById('daily_limit_enabled')?.closest('.runtime-card')?.classList.toggle('active-setting', document.getElementById('daily_limit_enabled')?.checked === true);
+  document.getElementById('quiet_hours_enabled')?.closest('.runtime-card')?.classList.toggle('active-setting', document.getElementById('quiet_hours_enabled')?.checked === true);
+  document.getElementById('evening_calm_enabled')?.closest('.runtime-card')?.classList.toggle('active-setting', document.getElementById('evening_calm_enabled')?.checked === true);
+  document.getElementById('rest_schedule_enabled')?.closest('.runtime-card')?.classList.toggle('active-setting', document.getElementById('rest_schedule_enabled')?.checked === true);
+  const breakActive = Number(document.getElementById('break_reminder_minutes')?.value || document.getElementById('break_reminder_preset')?.value || 0) > 0;
+  document.getElementById('break_reminder_preset')?.closest('.runtime-card')?.classList.toggle('active-setting', breakActive);
 }
 
 function setToyTypeOptions(lang) {
@@ -1617,9 +1707,7 @@ function applyConsoleLocale(lang) {
   const quietChecked = document.getElementById('quiet_hours_enabled')?.checked || false;
   const memoryChecked = document.getElementById('memory_enabled')?.checked || false;
   document.documentElement.lang = lang.slice(0, 2);
-  document.title = t.title;
-  setText('h1', t.title);
-  setText('.hero-title', t.heroTitle);
+  updateToyBranding();
   setText('.hero-text', t.heroText);
   setText('#quickSetupTitle', t.quickSetup);
   setText('#quickSetupHelp', t.quickSetupHelp);
@@ -1668,6 +1756,13 @@ function applyConsoleLocale(lang) {
   const childHeading = document.querySelector('#childPanel h2');
   if (childHeading) childHeading.title = t.childTitle || '';
   document.querySelectorAll('#childPanel label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
+  setPlaceholder('#child_name', t.childNamePlaceholder);
+  setPlaceholder('#age', t.agePlaceholder);
+  setPlaceholder('#favorite_color', t.colorPlaceholder);
+  setPlaceholder('#favorite_animal', t.animalPlaceholder);
+  setPlaceholder('#favorite_toy', t.favoriteToyPlaceholder);
+  setPlaceholder('#favorite_food', t.foodPlaceholder);
+  setPlaceholder('#current_interest', t.interestPlaceholder);
   const ageOptions = document.querySelectorAll('#age_mode option');
   [t.ageModeAuto, t.ageMode34, t.ageMode56, t.ageMode78, t.ageMode9].forEach((label, i) => { if (ageOptions[i]) ageOptions[i].textContent = label; });
   setText('#childPanel .row-actions button:nth-of-type(1)', t.editChild);
@@ -2052,14 +2147,15 @@ function renderStatusOverview(data = window.lastParentState || {}) {
   const s = data.settings || {};
   const runtime = data.runtime || window.lastRuntime || {};
   const activeProfile = (data.saved_profiles || window.lastSavedProfiles || []).find(profile => profile.is_active);
+  const profileName = activeProfile?.profile_name || baseProfileName();
   const chips = [
     {
       text: runtime.allowed === false ? t.statusBlocked : t.statusActive,
       cls: runtime.allowed === false ? 'warn' : 'good',
     },
     {
-      text: `${t.statusProfile}: ${activeProfile?.profile_name || t.statusManual}`,
-      cls: activeProfile ? 'good' : 'off',
+      text: `${t.statusProfile}: ${profileName}`,
+      cls: 'good',
     },
     {
       text: s.memory_enabled === false ? t.statusMemoryOff : t.statusMemoryOn,
@@ -2074,6 +2170,9 @@ function renderStatusOverview(data = window.lastParentState || {}) {
       cls: s.quiet_hours_enabled ? 'warn' : 'off',
     },
   ];
+  if (Number(s.break_reminder_minutes || 0) > 0) {
+    chips.push({ text: `${t.statusBreakReminder}: ${s.break_reminder_minutes} ${t.minUnit}`, cls: 'warn' });
+  }
   if (s.evening_calm_enabled) chips.push({ text: `${t.statusCalmOn}: ${s.evening_calm_start}`, cls: 'good' });
   if (s.rest_schedule_enabled) {
     chips.push({
@@ -2177,16 +2276,14 @@ function renderSavedProfiles(profiles, childProfile = null) {
   const status = document.getElementById('activeProfileStatus');
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   select.innerHTML = '';
-  if (!profiles || profiles.length === 0) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = 'Профилей пока нет';
-    select.appendChild(option);
-    if (status) status.textContent = t.noActiveProfile;
-    return;
-  }
-  const activeProfile = profiles.find(profile => profile.is_active);
-  profiles.forEach(profile => {
+  const list = Array.isArray(profiles) ? profiles : [];
+  const activeProfile = list.find(profile => profile.is_active);
+  const baseOption = document.createElement('option');
+  baseOption.value = '';
+  baseOption.textContent = activeProfile ? baseProfileName() : `${baseProfileName()} (${t.activeSuffix})`;
+  baseOption.selected = !activeProfile;
+  select.appendChild(baseOption);
+  list.forEach(profile => {
     const option = document.createElement('option');
     option.value = profile.id;
     option.textContent = profile.is_active ? `${profile.profile_name} (${t.activeSuffix})` : profile.profile_name;
@@ -2197,7 +2294,7 @@ function renderSavedProfiles(profiles, childProfile = null) {
     const name = activeProfileName(childProfile, activeProfile);
     status.textContent = activeProfile
       ? profileLoadedText(name)
-      : t.noActiveProfile;
+      : t.baseProfileActive;
   }
 }
 
@@ -2259,7 +2356,9 @@ function setLanguageFromMain() {
 
 async function saveSettings() {
   const status = document.getElementById('saveStatus');
+  const quickStatus = document.getElementById('quickSaveStatus');
   setStatus(status, 'savingSettings');
+  setStatus(quickStatus, 'savingSettings');
   try {
     await api('/api/parent/settings', {
       method: 'POST',
@@ -2300,9 +2399,15 @@ async function saveSettings() {
     });
     await loadState();
     setStatus(status, 'settingsSaved');
+    setStatus(quickStatus, 'settingsSaved');
+    markReadyConfirmed();
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
+    if (quickStatus) {
+      quickStatus.textContent = err.message;
+      quickStatus.className = 'status error';
+    }
   }
 }
 
@@ -2330,6 +2435,7 @@ async function saveProfile() {
     });
     await loadState();
     setStatus(status, 'childSaved');
+    markReadyConfirmed();
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -2387,6 +2493,7 @@ async function saveConfigProfile() {
     setStatus(status, 'profileSaved');
     document.getElementById('profileName').value = '';
     await loadState();
+    markReadyConfirmed();
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -2395,17 +2502,20 @@ async function saveConfigProfile() {
 
 async function loadConfigProfile() {
   const profileId = document.getElementById('savedProfiles').value;
-  if (!profileId) return;
   const status = document.getElementById('profileStatus');
   setStatus(status, 'loadingProfile');
   try {
-    const data = await api('/api/parent/profiles/' + encodeURIComponent(profileId) + '/load', {
+    const url = profileId
+      ? '/api/parent/profiles/' + encodeURIComponent(profileId) + '/load'
+      : '/api/parent/profiles/base/load';
+    const data = await api(url, {
       method: 'POST',
       body: '{}',
     });
     const activeProfile = (data.saved_profiles || []).find(profile => profile.is_active);
-    setStatus(status, 'profileLoaded', { name: activeProfileName(data.profile, activeProfile) || (UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU']).statusManual });
+    setStatus(status, 'profileLoaded', { name: activeProfileName(data.profile, activeProfile) || baseProfileName() });
     await loadState();
+    markReadyConfirmed();
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';

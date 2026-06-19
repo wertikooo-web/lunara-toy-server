@@ -286,6 +286,19 @@ app.post('/api/parent/profiles', async (req, res) => {
     }
 });
 
+app.post('/api/parent/profiles/base/load', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const state = await parentConfig.loadBaseProfile(session.device_id);
+        clearDemoSession(session.device_id);
+        res.json({ ...state, session_reset: true });
+    } catch (err) {
+        logger.error(`[Parent] base profile load error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/parent/profiles/:id/load', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;

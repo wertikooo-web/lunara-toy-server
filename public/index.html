@@ -504,9 +504,19 @@ checkServer();
 setInterval(checkServer, 15000);
 
 // ── Send message ──────────────────────────────────────────────────────────────
+function ignoreEmptyTranscript() {
+  console.log('[Demo] empty transcript ignored');
+  bubbleText.textContent = micText('noSpeech') || 'Скажи что-нибудь';
+  setBear('');
+}
+
 async function sendMessage() {
   const text = msgInput.value.trim();
-  if (!text || isProcessing) return;
+  if (!text) {
+    ignoreEmptyTranscript();
+    return;
+  }
+  if (isProcessing) return;
   const base = serverUrl.value.trim().replace(/\/$/, '');
 
   isProcessing = true;
@@ -684,7 +694,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const text = (finalTranscript || msgInput.value).trim();
       msgInput.blur();
       if (text) { msgInput.value = text; setTimeout(() => sendMessage(), 200); }
-      else bubbleText.textContent = micText('noSpeech') || bubbleBeforeMic;
+      else ignoreEmptyTranscript();
     };
 
     r.onerror = (e) => {
