@@ -20,6 +20,7 @@ const parentConfig = require('./modules/parentConfig');
 
 let server = null;
 let shuttingDown = false;
+const breakReminderSent = new Set();
 
 function formatFatalError(err) {
     if (err instanceof Error) return err.stack || err.message;
@@ -174,7 +175,7 @@ app.get('/api/parent/analytics', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;
     try {
-        res.json(await parentConfig.getAnalytics(session.device_id));
+        res.json(await parentConfig.getAnalytics(session.device_id, req.query || {}));
     } catch (err) {
         logger.error(`[Parent] analytics error: ${err.message}`);
         res.status(500).json({ error: err.message });
@@ -343,6 +344,20 @@ app.post('/chat', async (req, res) => {
                 ...cachedModelMeta(),
             });
         }
+        if (shouldSendBreakReminder(deviceId, runtime, settings)) {
+            const reply = breakReminderReply(effectiveLang);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, text, reply, { type: 'break_reminder', durationMs: audio.durationMs, provider: 'system' });
+            return res.json({
+                reply,
+                audio_url: audio.audioUrl,
+                duration_ms: audio.durationMs,
+                device_id: deviceId,
+                runtime,
+                ...cachedModelMeta(),
+            });
+        }
         const pendingAnswer = content.checkPendingAnswer(sessionRef.pendingContent, text);
         if (pendingAnswer?.nextRiddle) {
             sessionRef.pendingContent = null;
@@ -466,12 +481,13 @@ app.post('/chat', async (req, res) => {
         const followupContext = !story && sessionRef.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(text)
             : '';
+        const requestedContentContext = contentModeContext(requestedContentType);
 
         // LLM
         const llmResult = story
             ? await llm.chat(sessionRef, story.prompt, effectiveLang, {
                 memoryContext,
-                contentContext: [settingsContext, story.contentContext].filter(Boolean).join('\n\n'),
+                contentContext: [settingsContext, story.contentContext, requestedContentContext].filter(Boolean).join('\n\n'),
                 maxTokens: story.maxTokens,
                 model: modelName,
                 routingText: text,
@@ -480,7 +496,7 @@ app.post('/chat', async (req, res) => {
             })
             : await llm.chat(sessionRef, text, effectiveLang, {
                 memoryContext,
-                contentContext: [settingsContext, followupContext].filter(Boolean).join('\n\n'),
+                contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
                 model: modelName,
                 routingText: text,
                 returnMeta: true,
@@ -491,7 +507,7 @@ app.post('/chat', async (req, res) => {
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const durationMs = await tts.synthesize(reply, outputPath, effectiveLang, { voiceSpeed: settings.voice_speed });
         recordUsageSafe(deviceId, durationMs);
-        recordAnalyticsSafe(deviceId, text, reply, { type: story ? 'story' : undefined, durationMs, provider: 'llm' });
+        recordAnalyticsSafe(deviceId, text, reply, { type: story ? 'story' : requestedContentType, durationMs, provider: 'llm' });
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
 
         res.json({
@@ -535,6 +551,7 @@ function isContentTypeAllowed(settings, type) {
     if (type === 'riddle') return enabled.includes('riddle');
     if (type === 'tongue_twister') return enabled.includes('tongue_twister');
     if (type === 'mini_game') return enabled.includes('mini_game');
+    if (type === 'speech_development') return enabled.includes('speech_development');
     if (type === 'story' || type === 'story_template' || type === 'fairytale_template') return enabled.includes('story');
     return true;
 }
@@ -546,18 +563,21 @@ function disabledContentReply(type, lang = 'ru-RU') {
             riddle: 'загадки',
             tongue_twister: 'скороговорки',
             mini_game: 'игры',
+            speech_development: 'развитие речи',
             story: 'сказки',
         },
         ro: {
             riddle: 'ghicitorile',
             tongue_twister: 'framantarile de limba',
             mini_game: 'jocurile',
+            speech_development: 'dezvoltarea vorbirii',
             story: 'povestile',
         },
         en: {
             riddle: 'riddles',
             tongue_twister: 'tongue twisters',
             mini_game: 'games',
+            speech_development: 'speech development',
             story: 'stories',
         },
     };
@@ -568,6 +588,17 @@ function disabledContentReply(type, lang = 'ru-RU') {
         en: `${label[0].toUpperCase()}${label.slice(1)} are turned off in settings right now. Let us chat or choose something else.`,
     };
     return replies[key];
+}
+
+function contentModeContext(type) {
+    if (type !== 'speech_development') return '';
+    return [
+        'SPEECH DEVELOPMENT MODE:',
+        '- This is playful speech development, not therapy or medical advice.',
+        '- Offer one short voice exercise: repeat a sound/syllable, find a rhyme, name words starting with a letter, or say a short phrase slowly.',
+        '- Keep it warm, simple, and easy to pronounce. Do not mention diagnosis or treatment.',
+        '- Ask the child to try one small step, then wait.',
+    ].join('\n');
 }
 
 // Demo session storage (in-memory, keyed by x-session-id header)
@@ -602,6 +633,41 @@ function runtimeLimitReply(runtime, lang = 'ru-RU') {
     }[key];
 }
 
+function breakReminderReply(lang = 'ru-RU') {
+    const key = String(lang).startsWith('ro') ? 'ro' : String(lang).startsWith('en') ? 'en' : 'ru';
+    const variants = {
+        ru: [
+            'Я немного устала. Давай сделаем маленький перерыв, а потом продолжим.',
+            'Мне кажется, пора чуть-чуть отдохнуть. Поставим Lumi на паузу?',
+            'Давай дадим ушкам и голове передышку. Я буду ждать рядом.',
+        ],
+        ro: [
+            'Am obosit putin. Hai sa facem o pauza mica, apoi continuam.',
+            'Cred ca e timpul sa ne odihnim putin. Punem Lumi pe pauza?',
+            'Hai sa dam urechilor si capului o pauza. Eu astept aici.',
+        ],
+        en: [
+            'I am a little tired. Let us take a small break, then continue.',
+            'I think it is time for a tiny rest. Shall we pause Lumi?',
+            'Let us give our ears and heads a short break. I will wait right here.',
+        ],
+    };
+    const list = variants[key] || variants.ru;
+    return list[Math.floor(Math.random() * list.length)];
+}
+
+function shouldSendBreakReminder(deviceId, runtime = {}, settings = {}) {
+    const minutes = Number(settings.break_reminder_minutes || 0);
+    if (!Number.isFinite(minutes) || minutes <= 0) return false;
+    const used = Number(runtime.used_minutes || 0);
+    if (used < minutes) return false;
+    const today = new Date(Date.now() + Number(process.env.RUNTIME_TIMEZONE_OFFSET_MINUTES || 180) * 60 * 1000).toISOString().slice(0, 10);
+    const key = `${today}:${deviceId}:${minutes}`;
+    if (breakReminderSent.has(key)) return false;
+    breakReminderSent.add(key);
+    return true;
+}
+
 function recordUsageSafe(deviceId, durationMs) {
     parentConfig.recordRuntimeUsage(deviceId, durationMs)
         .catch(err => logger.warn(`[Parent] usage record failed: ${err.message}`));
@@ -613,11 +679,14 @@ function analyticsCategory(type, text = '') {
     if (type === 'tongue_twister') return 'tongue_twisters';
     if (type === 'mini_game') return 'mini_games';
     if (type === 'learning') return 'learning';
+    if (type === 'speech_development') return 'speech_development';
     if (type === 'runtime_limit') return 'limits';
+    if (type === 'break_reminder') return 'wellbeing';
     const normalized = String(text || '').toLowerCase();
     if (/загад|riddle|ghic/i.test(normalized)) return 'riddles';
     if (/сказ|истор|story|povest/i.test(normalized)) return 'stories';
     if (/скороговор|tongue|framant/i.test(normalized)) return 'tongue_twisters';
+    if (/реч|слог|рифм|букв|звук|speech|syllable|rhyme|letter|sound|vorbir|silab|rima|sunet/i.test(normalized)) return 'speech_development';
     if (/игр|game|joac/i.test(normalized)) return 'mini_games';
     return 'chat';
 }
@@ -908,6 +977,25 @@ async function handlePipeline(
             recordAnalyticsSafe(deviceId, transcript, reply, { type: 'runtime_limit', durationMs: audio.durationMs, provider: 'system' });
             return;
         }
+        if (shouldSendBreakReminder(deviceId, runtime, settings)) {
+            logger.info('[Pipeline] soft break reminder');
+            const reply = breakReminderReply(effectiveLang);
+            const audio = await content.ensureCachedReply(reply, {
+                baseUrl,
+                lang: effectiveLang,
+                key: 'break_reminder',
+            });
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after break reminder - discarding');
+                return;
+            }
+
+            sendAudio(audio.audioUrl, audio.durationMs);
+            recordUsageSafe(deviceId, audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, reply, { type: 'break_reminder', durationMs: audio.durationMs, provider: 'system' });
+            return;
+        }
         const pendingAnswer = content.checkPendingAnswer(state.pendingContent, transcript);
         if (pendingAnswer?.nextRiddle) {
             state.pendingContent = null;
@@ -1033,10 +1121,11 @@ async function handlePipeline(
         const followupContext = !story && state.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(transcript)
             : '';
+        const requestedContentContext = contentModeContext(requestedContentType);
         const reply = story
             ? await llm.chat(ws, story.prompt, effectiveLang, {
                 memoryContext,
-                contentContext: [settingsContext, story.contentContext].filter(Boolean).join('\n\n'),
+                contentContext: [settingsContext, story.contentContext, requestedContentContext].filter(Boolean).join('\n\n'),
                 maxTokens: story.maxTokens,
                 model: modelName,
                 routingText: transcript,
@@ -1044,7 +1133,7 @@ async function handlePipeline(
             })
             : await llm.chat(ws, transcript, effectiveLang, {
                 memoryContext,
-                contentContext: [settingsContext, followupContext].filter(Boolean).join('\n\n'),
+                contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
                 model: modelName,
                 routingText: transcript,
             });
@@ -1072,7 +1161,7 @@ async function handlePipeline(
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
         recordUsageSafe(deviceId, durationMs);
-        recordAnalyticsSafe(deviceId, transcript, reply, { type: story ? 'story' : undefined, durationMs, provider: 'llm' });
+        recordAnalyticsSafe(deviceId, transcript, reply, { type: story ? 'story' : requestedContentType, durationMs, provider: 'llm' });
         state.lastContentMode = story ? 'story' : null;
         if (settings.memory_enabled !== false) {
             memory.rememberFromText(deviceId, transcript, profile)

@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS = {
     personality_preset: 'gentle',
     child_address_mode: 'varied',
     child_address_names: ['sunshine', 'friend'],
+    age_mode: 'auto',
     answer_length: 'short',
     humor_level: 'normal',
     activity_level: 'normal',
@@ -45,10 +46,13 @@ const DEFAULT_SETTINGS = {
     custom_toy_type: '',
     custom_personality: '',
     daily_limit_minutes: 0,
+    break_reminder_minutes: 0,
+    evening_calm_enabled: false,
+    evening_calm_start: '20:00',
     quiet_hours_enabled: false,
     quiet_hours_start: '22:00',
     quiet_hours_end: '07:00',
-    content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'],
+    content_enabled: ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay', 'speech_development'],
     allowed_topics: ['животные', 'космос', 'сказки', 'дружба'],
     blocked_topics: [],
     memory_enabled: true,
@@ -112,6 +116,10 @@ function normalizeSettingsPatch(raw = {}) {
         const values = cleanStringArray(raw.child_address_names, null, 8);
         patch.child_address_names = values.length ? values : DEFAULT_SETTINGS.child_address_names;
     }
+    if ('age_mode' in raw) {
+        const value = safeText(raw.age_mode, 8);
+        patch.age_mode = ['auto', '3-4', '5-6', '7-8', '9+'].includes(value) ? value : DEFAULT_SETTINGS.age_mode;
+    }
     if ('answer_length' in raw) {
         const value = safeText(raw.answer_length, 16);
         patch.answer_length = ['very_short', 'short', 'normal'].includes(value) ? value : DEFAULT_SETTINGS.answer_length;
@@ -143,11 +151,17 @@ function normalizeSettingsPatch(raw = {}) {
         const minutes = Number(raw.daily_limit_minutes);
         patch.daily_limit_minutes = Number.isFinite(minutes) ? Math.max(0, Math.min(1440, Math.round(minutes))) : DEFAULT_SETTINGS.daily_limit_minutes;
     }
+    if ('break_reminder_minutes' in raw) {
+        const minutes = Number(raw.break_reminder_minutes);
+        patch.break_reminder_minutes = Number.isFinite(minutes) ? Math.max(0, Math.min(360, Math.round(minutes))) : DEFAULT_SETTINGS.break_reminder_minutes;
+    }
+    if ('evening_calm_enabled' in raw) patch.evening_calm_enabled = raw.evening_calm_enabled === true || raw.evening_calm_enabled === 'true' || raw.evening_calm_enabled === 'on';
+    if ('evening_calm_start' in raw) patch.evening_calm_start = normalizeTime(raw.evening_calm_start, DEFAULT_SETTINGS.evening_calm_start);
     if ('quiet_hours_enabled' in raw) patch.quiet_hours_enabled = raw.quiet_hours_enabled === true || raw.quiet_hours_enabled === 'true' || raw.quiet_hours_enabled === 'on';
     if ('quiet_hours_start' in raw) patch.quiet_hours_start = normalizeTime(raw.quiet_hours_start, DEFAULT_SETTINGS.quiet_hours_start);
     if ('quiet_hours_end' in raw) patch.quiet_hours_end = normalizeTime(raw.quiet_hours_end, DEFAULT_SETTINGS.quiet_hours_end);
     if ('content_enabled' in raw) {
-        patch.content_enabled = cleanStringArray(raw.content_enabled, ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay'], 8);
+        patch.content_enabled = cleanStringArray(raw.content_enabled, ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay', 'speech_development'], 8);
     }
     if ('allowed_topics' in raw) patch.allowed_topics = cleanStringArray(raw.allowed_topics, null, 12);
     if ('blocked_topics' in raw) patch.blocked_topics = cleanStringArray(raw.blocked_topics, null, 12);
@@ -187,6 +201,7 @@ async function init() {
             personality_preset TEXT NOT NULL DEFAULT 'gentle',
             child_address_mode TEXT NOT NULL DEFAULT 'varied',
             child_address_names JSONB NOT NULL DEFAULT '["sunshine","friend"]'::jsonb,
+            age_mode TEXT NOT NULL DEFAULT 'auto',
             answer_length TEXT NOT NULL DEFAULT 'short',
             humor_level TEXT NOT NULL DEFAULT 'normal',
             activity_level TEXT NOT NULL DEFAULT 'normal',
@@ -197,10 +212,13 @@ async function init() {
             custom_toy_type TEXT NOT NULL DEFAULT '',
             custom_personality TEXT NOT NULL DEFAULT '',
             daily_limit_minutes INTEGER NOT NULL DEFAULT 0,
+            break_reminder_minutes INTEGER NOT NULL DEFAULT 0,
+            evening_calm_enabled BOOLEAN NOT NULL DEFAULT false,
+            evening_calm_start TEXT NOT NULL DEFAULT '20:00',
             quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false,
             quiet_hours_start TEXT NOT NULL DEFAULT '22:00',
             quiet_hours_end TEXT NOT NULL DEFAULT '07:00',
-            content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game","learning","roleplay"]'::jsonb,
+            content_enabled JSONB NOT NULL DEFAULT '["riddle","story","tongue_twister","mini_game","learning","roleplay","speech_development"]'::jsonb,
             allowed_topics JSONB NOT NULL DEFAULT '["животные","космос","сказки","дружба"]'::jsonb,
             blocked_topics JSONB NOT NULL DEFAULT '[]'::jsonb,
             memory_enabled BOOLEAN NOT NULL DEFAULT true,
@@ -211,7 +229,11 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_mode TEXT NOT NULL DEFAULT 'varied'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"sunshine\",\"friend\"]'::jsonb");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS age_mode TEXT NOT NULL DEFAULT 'auto'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS break_reminder_minutes INTEGER NOT NULL DEFAULT 0");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS evening_calm_enabled BOOLEAN NOT NULL DEFAULT false");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS evening_calm_start TEXT NOT NULL DEFAULT '20:00'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_start TEXT NOT NULL DEFAULT '22:00'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'");
@@ -432,6 +454,34 @@ function localDateKey(date = localNow()) {
     return date.toISOString().slice(0, 10);
 }
 
+function localDateOffset(days = 0) {
+    return localDateKey(new Date(localNow().getTime() + days * 24 * 60 * 60 * 1000));
+}
+
+function cleanDateKey(value, fallback) {
+    const text = safeText(value, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
+}
+
+function analyticsRange(options = {}) {
+    const today = localDateKey();
+    const period = safeText(options.period || '7d', 16);
+    if (period === 'today') return { period, from: today, to: today, label: 'today' };
+    if (period === 'yesterday') {
+        const yesterday = localDateOffset(-1);
+        return { period, from: yesterday, to: yesterday, label: 'yesterday' };
+    }
+    if (period === '30d') return { period, from: localDateOffset(-29), to: today, label: '30d' };
+    if (period === 'all') return { period, from: '1970-01-01', to: today, label: 'all' };
+    if (period === 'custom') {
+        let from = cleanDateKey(options.from, localDateOffset(-6));
+        let to = cleanDateKey(options.to, today);
+        if (from > to) [from, to] = [to, from];
+        return { period, from, to, label: 'custom' };
+    }
+    return { period: '7d', from: localDateOffset(-6), to: today, label: '7d' };
+}
+
 function minutesOfDay(value) {
     const [hours, minutes] = normalizeTime(value, '00:00').split(':').map(Number);
     return hours * 60 + minutes;
@@ -450,6 +500,12 @@ function isQuietTime(settings = {}) {
     if (start === end) return false;
     if (start < end) return current >= start && current < end;
     return current >= start || current < end;
+}
+
+function isEveningCalmActive(settings = {}) {
+    if (settings.evening_calm_enabled !== true) return false;
+    const start = minutesOfDay(settings.evening_calm_start || DEFAULT_SETTINGS.evening_calm_start);
+    return nowMinutes() >= start;
 }
 
 async function getUsedSeconds(deviceId) {
@@ -523,19 +579,19 @@ async function recordConversation(deviceId, event = {}) {
     return { ok: true };
 }
 
-async function getAnalytics(deviceId) {
+async function getAnalytics(deviceId, options = {}) {
     const id = await ensureDevice(deviceId);
     if (!id) throw new Error('Parent config is not ready');
     const today = localDateKey();
     const usage = await getRuntimeState(id);
-    const since = new Date(localNow().getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const range = analyticsRange(options);
     const totals = await pool.query(
         `SELECT COALESCE(sum(turns_count), 0)::int AS turns,
                 COALESCE(sum(answers_count), 0)::int AS answers,
                 COALESCE(sum(duration_seconds), 0)::int AS duration_seconds
          FROM device_conversation_daily
-         WHERE device_id = $1 AND usage_date >= $2`,
-        [id, since]
+         WHERE device_id = $1 AND usage_date >= $2 AND usage_date <= $3`,
+        [id, range.from, range.to]
     );
     const todayRows = await pool.query(
         `SELECT COALESCE(sum(turns_count), 0)::int AS turns,
@@ -547,42 +603,62 @@ async function getAnalytics(deviceId) {
     const categories = await pool.query(
         `SELECT category, sum(turns_count)::int AS count
          FROM device_conversation_daily
-         WHERE device_id = $1 AND usage_date >= $2
+         WHERE device_id = $1 AND usage_date >= $2 AND usage_date <= $3
          GROUP BY category
          ORDER BY count DESC, category
          LIMIT 8`,
-        [id, since]
+        [id, range.from, range.to]
     );
     const tones = await pool.query(
         `SELECT tone, sum(turns_count)::int AS count
          FROM device_conversation_daily
-         WHERE device_id = $1 AND usage_date >= $2
+         WHERE device_id = $1 AND usage_date >= $2 AND usage_date <= $3
          GROUP BY tone
          ORDER BY count DESC, tone
          LIMIT 5`,
-        [id, since]
+        [id, range.from, range.to]
     );
     const topics = await pool.query(
         `SELECT topic, sum(turns_count)::int AS count
          FROM device_conversation_daily
-         WHERE device_id = $1 AND usage_date >= $2 AND topic <> ''
+         WHERE device_id = $1 AND usage_date >= $2 AND usage_date <= $3 AND topic <> ''
          GROUP BY topic
          ORDER BY count DESC, topic
          LIMIT 8`,
-        [id, since]
+        [id, range.from, range.to]
+    );
+    const daily = await pool.query(
+        `SELECT usage_date,
+                COALESCE(sum(turns_count), 0)::int AS turns,
+                COALESCE(sum(answers_count), 0)::int AS answers,
+                COALESCE(sum(duration_seconds), 0)::int AS duration_seconds
+         FROM device_conversation_daily
+         WHERE device_id = $1 AND usage_date >= $2 AND usage_date <= $3
+         GROUP BY usage_date
+         ORDER BY usage_date DESC
+         LIMIT 31`,
+        [id, range.from, range.to]
     );
     return {
         today,
-        period_days: 7,
+        period: range.period,
+        period_from: range.from,
+        period_to: range.to,
         usage,
         today_turns: todayRows.rows[0]?.turns || 0,
         today_answers: todayRows.rows[0]?.answers || 0,
-        turns_7d: totals.rows[0]?.turns || 0,
-        answers_7d: totals.rows[0]?.answers || 0,
-        duration_minutes_7d: Math.ceil(Number(totals.rows[0]?.duration_seconds || 0) / 60),
+        turns_period: totals.rows[0]?.turns || 0,
+        answers_period: totals.rows[0]?.answers || 0,
+        duration_minutes_period: Math.ceil(Number(totals.rows[0]?.duration_seconds || 0) / 60),
         categories: categories.rows,
         tones: tones.rows,
         topics: topics.rows,
+        daily: daily.rows.map(row => ({
+            usage_date: row.usage_date,
+            turns: row.turns,
+            answers: row.answers,
+            duration_minutes: Math.ceil(Number(row.duration_seconds || 0) / 60),
+        })),
     };
 }
 
@@ -738,23 +814,27 @@ async function resetToDefaults(deviceId) {
              personality_preset = $4,
              child_address_mode = $5,
              child_address_names = $6::jsonb,
-             answer_length = $7,
-             humor_level = $8,
-             activity_level = $9,
-             question_frequency = $10,
-             voice = $11,
-             voice_speed = $12,
-             story_length = $13,
-             custom_toy_type = $14,
-             custom_personality = $15,
-             daily_limit_minutes = $16,
-             quiet_hours_enabled = $17,
-             quiet_hours_start = $18,
-             quiet_hours_end = $19,
-             content_enabled = $20::jsonb,
-             allowed_topics = $21::jsonb,
-             blocked_topics = $22::jsonb,
-             memory_enabled = $23,
+             age_mode = $7,
+             answer_length = $8,
+             humor_level = $9,
+             activity_level = $10,
+             question_frequency = $11,
+             voice = $12,
+             voice_speed = $13,
+             story_length = $14,
+             custom_toy_type = $15,
+             custom_personality = $16,
+             daily_limit_minutes = $17,
+             break_reminder_minutes = $18,
+             evening_calm_enabled = $19,
+             evening_calm_start = $20,
+             quiet_hours_enabled = $21,
+             quiet_hours_start = $22,
+             quiet_hours_end = $23,
+             content_enabled = $24::jsonb,
+             allowed_topics = $25::jsonb,
+             blocked_topics = $26::jsonb,
+             memory_enabled = $27,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -764,6 +844,7 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.personality_preset,
             DEFAULT_SETTINGS.child_address_mode,
             JSON.stringify(DEFAULT_SETTINGS.child_address_names),
+            DEFAULT_SETTINGS.age_mode,
             DEFAULT_SETTINGS.answer_length,
             DEFAULT_SETTINGS.humor_level,
             DEFAULT_SETTINGS.activity_level,
@@ -774,6 +855,9 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.custom_toy_type,
             DEFAULT_SETTINGS.custom_personality,
             DEFAULT_SETTINGS.daily_limit_minutes,
+            DEFAULT_SETTINGS.break_reminder_minutes,
+            DEFAULT_SETTINGS.evening_calm_enabled,
+            DEFAULT_SETTINGS.evening_calm_start,
             DEFAULT_SETTINGS.quiet_hours_enabled,
             DEFAULT_SETTINGS.quiet_hours_start,
             DEFAULT_SETTINGS.quiet_hours_end,
@@ -829,6 +913,14 @@ const QUESTION_PROMPTS = {
     often: 'often invite the child with one small question or choice, but not after every sentence',
 };
 
+const AGE_MODE_PROMPTS = {
+    auto: 'auto: adapt to the saved child age if known; otherwise use simple preschool-safe language',
+    '3-4': 'age 3-4: very simple words, 1-2 ideas, gentle tone, no tricky logic, very easy riddles',
+    '5-6': 'age 5-6: simple playful words, short explanations, easy riddles and choices',
+    '7-8': 'age 7-8: slightly richer vocabulary, clear cause-and-effect, modest challenge in games',
+    '9+': 'age 9+: more thoughtful explanations and wordplay, still concise and child-safe',
+};
+
 const ADDRESS_MODE_PROMPTS = {
     neutral: 'use no special address most of the time',
     name: 'prefer addressing the child by name, but not in every reply',
@@ -859,12 +951,14 @@ function formatSettingsForPrompt(settings = {}) {
         `- Toy character type: ${toyType}`,
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
+        `- Age mode: ${AGE_MODE_PROMPTS[s.age_mode] || AGE_MODE_PROMPTS.auto}`,
         `- Child address rule: ${addressMode}${addressNames ? `; allowed address variants: ${addressNames}` : ''}.`,
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
         `- Answer length rule: ${ANSWER_LENGTH_PROMPTS[s.answer_length] || ANSWER_LENGTH_PROMPTS.short}`,
         `- Humor rule: ${HUMOR_PROMPTS[s.humor_level] || HUMOR_PROMPTS.normal}`,
         `- Activity rule: ${ACTIVITY_PROMPTS[s.activity_level] || ACTIVITY_PROMPTS.normal}`,
         `- Follow-up question rule: ${QUESTION_PROMPTS[s.question_frequency] || QUESTION_PROMPTS.sometimes}`,
+        isEveningCalmActive(s) ? '- Evening calm mode is active now: use a quieter bedtime-friendly tone, avoid energetic games, and prefer calm stories, gentle questions, or rest.' : '',
         `- Enabled content: ${cleanStringArray(s.content_enabled).join(', ') || 'none'}`,
         `- Preferred topics: ${cleanStringArray(s.allowed_topics).join(', ') || 'not set'}`,
         `- Avoid topics: ${cleanStringArray(s.blocked_topics).join(', ') || 'not set'}`,

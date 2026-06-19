@@ -284,6 +284,10 @@ const REQUEST_PATTERNS = [
         re: /(?:скажи|дай|хочу|давай|можно|придумай|повтори).{0,30}скороговорк|(?:say|tell|give|want|try).{0,30}tongue\s+twister|(?:spune|zi|vreau|hai).{0,35}(?:framantare|frământare|limba|limbă|dictie|dicție)/i,
     },
     {
+        type: 'speech_development',
+        re: /(?:развитие\s+речи|упражнен.{0,20}реч|поиграем.{0,20}(?:в\s+слова|со\s+словами)|(?:рифм|слог|букв|звук).{0,30}(?:игр|упраж|повтор)|speech\s+development|speech\s+game|rhyme|syllable|letter\s+game|dezvoltarea\s+vorbirii|joc.{0,20}(?:cuvinte|rime|silabe)|sunet.{0,20}silab)/iu,
+    },
+    {
         type: 'mini_game',
         re: /(?:давай\s+поиграем|^поиграем$|^сыграем$|(?:хочу|можно|давай|будем).{0,30}(?:поиграть|играть|игру(?:[^\p{L}0-9]|$)|мини-?игру)|(?:let'?s|lets|can we|want to|play).{0,30}(?:play|game)|^(?:play|game)$|(?:hai|vreau|putem|sa|să).{0,30}(?:jucam|jucăm|joc|joaca|joacă))/iu,
     },
