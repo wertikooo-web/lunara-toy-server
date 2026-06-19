@@ -1727,6 +1727,12 @@ async function saveProfile() {
   status.textContent = 'Сохраняю профиль ребёнка...';
   status.className = 'status';
   try {
+    await api('/api/parent/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        age_mode: document.getElementById('age_mode').value,
+      }),
+    });
     await api('/api/parent/profile', {
       method: 'POST',
       body: JSON.stringify({
