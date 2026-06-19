@@ -1,14 +1,14 @@
-'use strict';
+ 'use strict';
 
-const fs      = require('fs');
-const OpenAI  = require('openai');
-const Groq    = require('groq-sdk');
-const logger  = require('./logger');
+const fs = require('fs');
+const OpenAI = require('openai');
+const Groq = require('groq-sdk');
+const logger = require('./logger');
 
 let openaiClient = null;
 let groqClient = null;
 
-const STT_PROVIDER   = process.env.STT_PROVIDER || 'openai';
+const STT_PROVIDER = process.env.STT_PROVIDER || 'openai';
 const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 
 const SAMPLE_RATE = 16000;
@@ -53,11 +53,11 @@ async function transcribe(pcmPath) {
         if (STT_PROVIDER === 'groq') {
             if (!process.env.GROQ_API_KEY) {
                 throw new Error('GROQ_API_KEY is not set');
-
             }
- if (!groqClient) {
-    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-}
+
+            if (!groqClient) {
+                groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+            }
 
             response = await groqClient.audio.transcriptions.create({
                 file: fs.createReadStream(wavPath),
@@ -68,6 +68,14 @@ async function transcribe(pcmPath) {
 
             logger.info(`[STT] provider=groq model=${GROQ_STT_MODEL} duration_ms=${Date.now() - startedAt}`);
         } else {
+            if (!process.env.OPENAI_API_KEY) {
+                throw new Error('OPENAI_API_KEY is not set');
+            }
+
+            if (!openaiClient) {
+                openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            }
+
             response = await openaiClient.audio.transcriptions.create({
                 file: fs.createReadStream(wavPath),
                 model: 'whisper-1',
