@@ -82,6 +82,9 @@
     .quick-panel { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
     .quick-panel h2 { margin-top: 0; }
     .quick-panel p { margin: 0; max-width: 640px; }
+    .ready-indicator { border-radius: 999px; padding: 10px 16px; min-width: 88px; text-align: center; font-weight: 800; letter-spacing: .02em; background: #374151; color: #d1d5db; border: 1px solid #6b7280; }
+    .ready-indicator.ready { background: #16a34a; color: #ecfdf5; border-color: #86efac; box-shadow: 0 0 18px rgba(22, 163, 74, .35); }
+    .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
     .advanced-note { border: 1px dashed #6d4fc0; background: #100c20; border-radius: 8px; padding: 10px; margin-top: 10px; color: #d8ccff; }
     .advanced-toggle-panel { border: 1px solid #57408f; background: #151126; border-radius: 10px; padding: 16px; margin: 14px 0; }
     .advanced-toggle-panel h2 { margin-top: 0; }
@@ -153,7 +156,7 @@
         <h2 id="quickSetupTitle">Быстрая настройка</h2>
         <p id="quickSetupHelp" class="small">Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.</p>
       </div>
-      <button id="quickDoneButton" onclick="saveQuickSetup()">Готово</button>
+      <div id="quickDoneIndicator" class="ready-indicator pending">ГОТОВО</div>
     </div>
     <section id="profilesPanel" class="advanced-section">
       <h2>Профили</h2>
@@ -579,7 +582,7 @@ const UI_TEXT = {
     title: 'Родительский контроль Lumi',
     quickSetup: 'Быстрая настройка',
     quickSetupHelp: 'Заполните главное: ребёнок, Lumi, характер, язык и время работы. Остальное можно открыть ниже.',
-    quickDone: 'Готово',
+    quickDone: 'ГОТОВО',
     advancedTitle: 'Расширенные настройки',
     advancedHelp: 'Профили, контент и тонкие параметры открываются здесь. Инженерные поля лучше менять только специалистам.',
     advancedShow: 'Показать расширенные настройки',
@@ -831,7 +834,7 @@ const UI_TEXT = {
     title: 'Control parental Lumi',
     quickSetup: 'Setare rapida',
     quickSetupHelp: 'Completeaza lucrurile principale: copilul, Lumi, caracterul, limba si timpul de functionare. Restul se poate deschide mai jos.',
-    quickDone: 'Gata',
+    quickDone: 'GATA',
     advancedTitle: 'Setari avansate',
     advancedHelp: 'Profilurile, continutul si setarile fine se deschid aici. Campurile tehnice sunt recomandate doar specialistilor.',
     advancedShow: 'Arata setarile avansate',
@@ -1083,7 +1086,7 @@ const UI_TEXT = {
     title: 'Lumi Parental Control',
     quickSetup: 'Quick setup',
     quickSetupHelp: 'Fill in the essentials: child, Lumi, personality, language, and runtime. Everything else can be opened below.',
-    quickDone: 'Done',
+    quickDone: 'READY',
     advancedTitle: 'Advanced settings',
     advancedHelp: 'Profiles, content, and fine tuning are opened here. Technical fields should be changed only by specialists.',
     advancedShow: 'Show advanced settings',
@@ -1510,7 +1513,13 @@ function hasUnsavedChanges() {
 }
 
 function updateUnsavedIndicator() {
-  document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', hasUnsavedChanges());
+  const dirty = hasUnsavedChanges();
+  document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
+  const ready = document.getElementById('quickDoneIndicator');
+  if (ready) {
+    ready.classList.toggle('ready', !dirty && Boolean(lastSavedFormSnapshot));
+    ready.classList.toggle('pending', dirty || !lastSavedFormSnapshot);
+  }
 }
 
 function setToyTypeOptions(lang) {
@@ -1602,7 +1611,7 @@ function applyConsoleLocale(lang) {
   setText('.hero-text', t.heroText);
   setText('#quickSetupTitle', t.quickSetup);
   setText('#quickSetupHelp', t.quickSetupHelp);
-  setText('#quickDoneButton', t.quickDone);
+  setText('#quickDoneIndicator', t.quickDone);
   setText('#advancedTitle', t.advancedTitle);
   setText('#advancedHelp', t.advancedHelp);
   setText('#modelModeNote', t.specialistOnly);
@@ -2280,11 +2289,6 @@ async function saveSettings() {
     status.textContent = err.message;
     status.className = 'status error';
   }
-}
-
-async function saveQuickSetup() {
-  await saveSettings();
-  await saveProfile();
 }
 
 async function saveProfile() {
