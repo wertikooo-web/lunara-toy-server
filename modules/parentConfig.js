@@ -22,6 +22,8 @@ const PERSONALITY_PRESETS = {
 const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
 const ADDRESS_MODES = ['name', 'varied'];
 const ADDRESS_TONES = ['warm', 'neutral'];
+const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const ADDRESS_PRESETS = {
     ru: {
         name: 'имя ребёнка',
@@ -65,6 +67,8 @@ const DEFAULT_SETTINGS = {
     custom_personality: '',
     daily_limit_minutes: 0,
     break_reminder_minutes: 0,
+    rest_schedule_enabled: false,
+    rest_schedule_json: [],
     evening_calm_enabled: false,
     evening_calm_start: '20:00',
     quiet_hours_enabled: false,
@@ -110,6 +114,20 @@ function cleanStringArray(value, allowed = null, maxItems = 12) {
         result.push(text);
     }
     return result.slice(0, maxItems);
+}
+
+function normalizeRestSchedule(value) {
+    const raw = Array.isArray(value) ? value : [];
+    const result = [];
+    for (const item of raw) {
+        const day = safeText(item?.day || 'everyday', 12);
+        const start = normalizeTime(item?.start, '');
+        const end = normalizeTime(item?.end, '');
+        if (!REST_SCHEDULE_DAYS.includes(day) || !start || !end || start === end) continue;
+        result.push({ day, start, end });
+        if (result.length >= 16) break;
+    }
+    return result;
 }
 
 function normalizeSettingsPatch(raw = {}) {
@@ -182,6 +200,8 @@ function normalizeSettingsPatch(raw = {}) {
         const minutes = Number(raw.break_reminder_minutes);
         patch.break_reminder_minutes = Number.isFinite(minutes) ? Math.max(0, Math.min(360, Math.round(minutes))) : DEFAULT_SETTINGS.break_reminder_minutes;
     }
+    if ('rest_schedule_enabled' in raw) patch.rest_schedule_enabled = raw.rest_schedule_enabled === true || raw.rest_schedule_enabled === 'true' || raw.rest_schedule_enabled === 'on';
+    if ('rest_schedule_json' in raw) patch.rest_schedule_json = normalizeRestSchedule(raw.rest_schedule_json);
     if ('evening_calm_enabled' in raw) patch.evening_calm_enabled = raw.evening_calm_enabled === true || raw.evening_calm_enabled === 'true' || raw.evening_calm_enabled === 'on';
     if ('evening_calm_start' in raw) patch.evening_calm_start = normalizeTime(raw.evening_calm_start, DEFAULT_SETTINGS.evening_calm_start);
     if ('quiet_hours_enabled' in raw) patch.quiet_hours_enabled = raw.quiet_hours_enabled === true || raw.quiet_hours_enabled === 'true' || raw.quiet_hours_enabled === 'on';
@@ -241,6 +261,8 @@ async function init() {
             custom_personality TEXT NOT NULL DEFAULT '',
             daily_limit_minutes INTEGER NOT NULL DEFAULT 0,
             break_reminder_minutes INTEGER NOT NULL DEFAULT 0,
+            rest_schedule_enabled BOOLEAN NOT NULL DEFAULT false,
+            rest_schedule_json JSONB NOT NULL DEFAULT '[]'::jsonb,
             evening_calm_enabled BOOLEAN NOT NULL DEFAULT false,
             evening_calm_start TEXT NOT NULL DEFAULT '20:00',
             quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false,
@@ -261,6 +283,8 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS age_mode TEXT NOT NULL DEFAULT 'auto'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS break_reminder_minutes INTEGER NOT NULL DEFAULT 0");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS rest_schedule_enabled BOOLEAN NOT NULL DEFAULT false");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS rest_schedule_json JSONB NOT NULL DEFAULT '[]'::jsonb");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS evening_calm_enabled BOOLEAN NOT NULL DEFAULT false");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS evening_calm_start TEXT NOT NULL DEFAULT '20:00'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
@@ -396,6 +420,8 @@ function normalizeSettingsRow(row = {}) {
     settings.allowed_topics = cleanStringArray(settings.allowed_topics, null, 12);
     settings.blocked_topics = cleanStringArray(settings.blocked_topics, null, 12);
     settings.child_address_names = cleanStringArray(settings.child_address_names, null, 8);
+    settings.rest_schedule_json = normalizeRestSchedule(settings.rest_schedule_json);
+    settings.rest_schedule_enabled = settings.rest_schedule_enabled === true;
     if (!settings.child_address_names.length) settings.child_address_names = DEFAULT_SETTINGS.child_address_names;
     if (settings.child_address_mode === 'neutral') settings.child_address_tone = 'neutral';
     if (settings.child_address_mode === 'warm') settings.child_address_tone = 'warm';
@@ -534,6 +560,25 @@ function isQuietTime(settings = {}) {
     return current >= start || current < end;
 }
 
+function getActiveRestSchedule(settings = {}) {
+    if (settings.rest_schedule_enabled !== true) return null;
+    const schedule = normalizeRestSchedule(settings.rest_schedule_json);
+    if (!schedule.length) return null;
+    const now = localNow();
+    const today = WEEKDAY_KEYS[now.getUTCDay()];
+    const current = now.getUTCHours() * 60 + now.getUTCMinutes();
+    for (const rule of schedule) {
+        if (rule.day !== 'everyday' && rule.day !== today) continue;
+        const start = minutesOfDay(rule.start);
+        const end = minutesOfDay(rule.end);
+        const active = start < end
+            ? current >= start && current < end
+            : current >= start || current < end;
+        if (active) return { ...rule, until: rule.end };
+    }
+    return null;
+}
+
 function isEveningCalmActive(settings = {}) {
     if (settings.evening_calm_enabled !== true) return false;
     const start = minutesOfDay(settings.evening_calm_start || DEFAULT_SETTINGS.evening_calm_start);
@@ -559,13 +604,16 @@ async function getRuntimeState(deviceId, settings = null) {
     const limitMinutes = Number(s.daily_limit_minutes || 0);
     const usedMinutes = Math.ceil(usedSeconds / 60);
     const quiet = isQuietTime(s);
+    const rest = getActiveRestSchedule(s);
     const dailyExceeded = limitMinutes > 0 && usedSeconds >= limitMinutes * 60;
     return {
-        allowed: !quiet && !dailyExceeded,
-        reason: quiet ? 'quiet_hours' : dailyExceeded ? 'daily_limit' : 'ok',
+        allowed: !quiet && !rest && !dailyExceeded,
+        reason: rest ? 'rest_schedule' : quiet ? 'quiet_hours' : dailyExceeded ? 'daily_limit' : 'ok',
         used_minutes: usedMinutes,
         daily_limit_minutes: limitMinutes,
         remaining_minutes: limitMinutes > 0 ? Math.max(0, limitMinutes - usedMinutes) : null,
+        rest_schedule_enabled: s.rest_schedule_enabled === true,
+        rest_until: rest?.until || null,
         quiet_hours_enabled: s.quiet_hours_enabled === true,
         quiet_hours_start: s.quiet_hours_start,
         quiet_hours_end: s.quiet_hours_end,
@@ -859,15 +907,17 @@ async function resetToDefaults(deviceId) {
              custom_personality = $17,
              daily_limit_minutes = $18,
              break_reminder_minutes = $19,
-             evening_calm_enabled = $20,
-             evening_calm_start = $21,
-             quiet_hours_enabled = $22,
-             quiet_hours_start = $23,
-             quiet_hours_end = $24,
-             content_enabled = $25::jsonb,
-             allowed_topics = $26::jsonb,
-             blocked_topics = $27::jsonb,
-             memory_enabled = $28,
+             rest_schedule_enabled = $20,
+             rest_schedule_json = $21::jsonb,
+             evening_calm_enabled = $22,
+             evening_calm_start = $23,
+             quiet_hours_enabled = $24,
+             quiet_hours_start = $25,
+             quiet_hours_end = $26,
+             content_enabled = $27::jsonb,
+             allowed_topics = $28::jsonb,
+             blocked_topics = $29::jsonb,
+             memory_enabled = $30,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -890,6 +940,8 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.custom_personality,
             DEFAULT_SETTINGS.daily_limit_minutes,
             DEFAULT_SETTINGS.break_reminder_minutes,
+            DEFAULT_SETTINGS.rest_schedule_enabled,
+            JSON.stringify(DEFAULT_SETTINGS.rest_schedule_json),
             DEFAULT_SETTINGS.evening_calm_enabled,
             DEFAULT_SETTINGS.evening_calm_start,
             DEFAULT_SETTINGS.quiet_hours_enabled,

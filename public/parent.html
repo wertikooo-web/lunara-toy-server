@@ -40,6 +40,8 @@
     }
     button.secondary { background: #374151; }
     button.danger { background: #dc2626; }
+    @keyframes unsavedPulse { 0%, 100% { background: #8b5cf6; box-shadow: none; } 50% { background: #a855f7; box-shadow: 0 0 18px rgba(168, 85, 247, .55); } }
+    button.unsaved-save { animation: unsavedPulse 2.2s ease-in-out infinite; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
@@ -78,13 +80,17 @@
     .runtime-card .inline-check { margin: 0 0 12px; color: #f7f3ff; }
     .runtime-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .runtime-fields label { margin-top: 0; }
+    .rest-schedule-card { grid-column: 1 / -1; min-height: auto; }
+    .rest-schedule-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 10px; align-items: end; margin-top: 10px; }
+    .rest-schedule-row label { margin: 0 0 5px; }
+    .rest-schedule-row button { margin: 0; }
     .memory-save-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; }
     .memory-save-row .inline-check { margin: 0; }
     .memory-save-row button { margin: 0; }
     .footer { margin-top: 28px; color: #8d7bbf; font-size: 12px; text-align: center; }
     .footer a { color: #c9b8ff; text-decoration: none; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
-    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
+    @media (max-width: 700px) { .grid, .checks, .memory-row, .hero, .analytics-grid, .runtime-grid, .rest-schedule-row { grid-template-columns: 1fr; } .hero img { width: 120px; height: 120px; } }
   </style>
 </head>
 <body>
@@ -399,6 +405,16 @@
             <p id="eveningCalmHelp" class="small">Lumi отвечает тише, короче и не предлагает активные игры.</p>
           </div>
         </div>
+        <div class="runtime-card rest-schedule-card">
+          <label class="inline-check">
+            <input id="rest_schedule_enabled" type="checkbox" onchange="updateRestScheduleLabel()">
+            <span id="restScheduleEnabledLabel">Расписание отдыха выключено</span>
+          </label>
+          <label id="restScheduleTitle">Расписание отдыха</label>
+          <p id="restScheduleHelp" class="small">В эти периоды Lumi мягко отвечает, что отдыхает, и говорит, когда снова сможет общаться.</p>
+          <div id="restScheduleRows"></div>
+          <button type="button" class="secondary" id="restScheduleAddButton" onclick="addRestScheduleRow()">Добавить период</button>
+        </div>
       </div>
       <div id="runtimeStatus" class="small"></div>
     </section>
@@ -428,7 +444,7 @@
       <input id="blocked_topics" placeholder="monsters, sad stories">
       <div class="memory-save-row">
         <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Память включена</span></label>
-        <button onclick="saveSettings()">Сохранить настройки</button>
+        <button id="saveSettingsButton" onclick="saveSettings()">Сохранить настройки</button>
       </div>
       <div id="saveStatus" class="status"></div>
     </section>
@@ -471,7 +487,7 @@
     </section>
 
     <section>
-      <button class="secondary" onclick="logoutParent()">Выйти</button>
+      <button class="danger" onclick="logoutParent()">Выйти</button>
       <div id="logoutStatus" class="status"></div>
     </section>
   </div>
@@ -519,8 +535,10 @@ const LEGACY_TOY_TYPES = {
   custom: '',
 };
 const CUSTOM_TOY_VALUE = '__custom__';
+const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 let consoleLanguage = localStorage.getItem('lumi_parent_console_lang') || 'ru-RU';
+let lastSavedFormSnapshot = '';
 
 const UI_TEXT = {
   'ru-RU': {
@@ -559,7 +577,13 @@ const UI_TEXT = {
     customToyPlaceholder: 'Например: Чебурашка, единорог, робот',
     customToyOption: 'Свой тип',
     language: 'Язык',
+    langRu: 'Русский',
+    langRo: 'Румынский',
+    langEn: 'Английский',
     modelMode: 'Режим модели',
+    modelAuto: 'Авто',
+    modelEconomy: 'Экономный',
+    modelSmart: 'Умный',
     child: 'Ребёнок (заполняется по желанию)',
     childTitle: 'Эти поля необязательные. Родитель отвечает за то, какие данные о ребёнке он добавляет. Не вводите фамилию, адрес, телефон, школу, точное место проживания, публичные аккаунты и другие чувствительные данные ребёнка.',
     childName: 'Имя ребёнка',
@@ -644,6 +668,23 @@ const UI_TEXT = {
     customMinutesPlaceholder: '0 = без ограничений',
     breakReminderTitle: 'Напоминание об отдыхе',
     breakReminderHelp: 'Lumi мягко предложит сделать паузу, но не заблокирует разговор.',
+    restSchedule: 'Расписание отдыха',
+    restScheduleEnabled: 'Расписание отдыха включено',
+    restScheduleDisabled: 'Расписание отдыха выключено',
+    restScheduleHelp: 'В эти периоды Lumi мягко отвечает, что отдыхает, и говорит, когда снова сможет общаться.',
+    restAddPeriod: 'Добавить период',
+    restDay: 'День',
+    restFrom: 'Не работает с',
+    restUntil: 'Не работает до',
+    restRemove: 'Удалить',
+    restEveryday: 'Каждый день',
+    restMon: 'Понедельник',
+    restTue: 'Вторник',
+    restWed: 'Среда',
+    restThu: 'Четверг',
+    restFri: 'Пятница',
+    restSat: 'Суббота',
+    restSun: 'Воскресенье',
     eveningCalm: 'Спокойный вечерний режим',
     eveningCalmStart: 'Спокойнее после',
     eveningCalmHelp: 'Lumi отвечает тише, короче и не предлагает активные игры.',
@@ -657,6 +698,8 @@ const UI_TEXT = {
     statusLimitOn: 'лимит',
     statusNightOn: 'ночной режим',
     statusNightOff: 'ночной режим выключен',
+    statusRestOn: 'расписание отдыха',
+    statusRestNow: 'отдых до',
     statusCalmOn: 'спокойный вечер',
     quietEnabled: 'Ночное время включено',
     quietDisabled: 'Ночное время выключено',
@@ -695,6 +738,12 @@ const UI_TEXT = {
     logout: 'Выйти',
     loggingOut: 'Выходим...',
     loggedOut: 'Вы вышли. Для доступа войдите снова.',
+    unsavedExit: 'У вас есть несохранённые изменения. Вы точно хотите выйти?',
+    confirmDeleteProfile: 'Удалить этот сохранённый профиль?',
+    confirmResetDefaults: 'Сбросить настройки, профиль ребёнка и память к исходному состоянию? Сохранённые профили останутся.',
+    confirmClearMemory: 'Очистить память этой игрушки?',
+    confirmClearChild: 'Удалить профиль ребёнка: имя, возраст, предпочтения и живую память? Настройки игрушки останутся.',
+    confirmResetEverything: 'Удалить всё для этой игрушки: настройки, профиль ребёнка, память, сохранённые профили и дневную статистику? Вход lumi_001 останется.',
     footerText: '© 2026 lunaratoy.com. Все права защищены.',
   },
   'ro-RO': {
@@ -733,7 +782,13 @@ const UI_TEXT = {
     customToyPlaceholder: 'De exemplu: robot, unicorn, personaj propriu',
     customToyOption: 'Tip propriu',
     language: 'Limba',
+    langRu: 'Rusa',
+    langRo: 'Romana',
+    langEn: 'Engleza',
     modelMode: 'Mod model',
+    modelAuto: 'Auto',
+    modelEconomy: 'Economic',
+    modelSmart: 'Inteligent',
     child: 'Copil (se completeaza optional)',
     childTitle: 'Aceste campuri sunt optionale. Parintele este responsabil pentru datele despre copil pe care le adauga. Nu introduceti numele de familie, adresa, telefonul, scoala, locul exact de trai, conturi publice sau alte date sensibile ale copilului.',
     childName: 'Numele copilului',
@@ -818,6 +873,23 @@ const UI_TEXT = {
     customMinutesPlaceholder: '0 = fara limita',
     breakReminderTitle: 'Pauza blanda',
     breakReminderHelp: 'Lumi va propune bland o pauza, fara sa blocheze conversatia.',
+    restSchedule: 'Program de odihna',
+    restScheduleEnabled: 'Program de odihna activ',
+    restScheduleDisabled: 'Program de odihna oprit',
+    restScheduleHelp: 'In aceste perioade Lumi raspunde bland ca se odihneste si spune cand poate vorbi din nou.',
+    restAddPeriod: 'Adauga perioada',
+    restDay: 'Zi',
+    restFrom: 'Nu functioneaza de la',
+    restUntil: 'Nu functioneaza pana la',
+    restRemove: 'Sterge',
+    restEveryday: 'In fiecare zi',
+    restMon: 'Luni',
+    restTue: 'Marti',
+    restWed: 'Miercuri',
+    restThu: 'Joi',
+    restFri: 'Vineri',
+    restSat: 'Sambata',
+    restSun: 'Duminica',
     eveningCalm: 'Mod linistit de seara',
     eveningCalmStart: 'Mai linistit dupa',
     eveningCalmHelp: 'Lumi raspunde mai calm, mai scurt si nu propune jocuri active.',
@@ -831,6 +903,8 @@ const UI_TEXT = {
     statusLimitOn: 'limita',
     statusNightOn: 'mod de noapte',
     statusNightOff: 'mod de noapte oprit',
+    statusRestOn: 'program de odihna',
+    statusRestNow: 'odihna pana la',
     statusCalmOn: 'seara linistita',
     quietEnabled: 'Timp de noapte activ',
     quietDisabled: 'Timp de noapte oprit',
@@ -869,6 +943,12 @@ const UI_TEXT = {
     logout: 'Iesi',
     loggingOut: 'Iesire...',
     loggedOut: 'Ati iesit. Pentru acces, intrati din nou.',
+    unsavedExit: 'Aveti modificari nesalvate. Sigur doriti sa iesiti?',
+    confirmDeleteProfile: 'Stergeti acest profil salvat?',
+    confirmResetDefaults: 'Resetati setarile, profilul copilului si memoria la starea initiala? Profilurile salvate raman.',
+    confirmClearMemory: 'Stergeti memoria acestei jucarii?',
+    confirmClearChild: 'Stergeti profilul copilului: nume, varsta, preferinte si memoria vie? Setarile jucariei raman.',
+    confirmResetEverything: 'Stergeti totul pentru aceasta jucarie: setari, profilul copilului, memoria, profilurile salvate si statistica zilnica? Intrarea lumi_001 ramane.',
     footerText: '© 2026 lunaratoy.com. Toate drepturile rezervate.',
   },
   'en-US': {
@@ -907,7 +987,13 @@ const UI_TEXT = {
     customToyPlaceholder: 'For example: robot, unicorn, your own character',
     customToyOption: 'Custom type',
     language: 'Language',
+    langRu: 'Russian',
+    langRo: 'Romanian',
+    langEn: 'English',
     modelMode: 'Model mode',
+    modelAuto: 'Auto',
+    modelEconomy: 'Economy',
+    modelSmart: 'Smart',
     child: 'Child (optional)',
     childTitle: 'These fields are optional. The parent is responsible for what child data they add. Do not enter the child surname, address, phone number, school, exact home location, public accounts, or other sensitive child data.',
     childName: 'Child name',
@@ -992,6 +1078,23 @@ const UI_TEXT = {
     customMinutesPlaceholder: '0 = no limit',
     breakReminderTitle: 'Soft break reminder',
     breakReminderHelp: 'Lumi will gently suggest a break without blocking the conversation.',
+    restSchedule: 'Rest schedule',
+    restScheduleEnabled: 'Rest schedule enabled',
+    restScheduleDisabled: 'Rest schedule disabled',
+    restScheduleHelp: 'During these periods Lumi gently says that she is resting and tells when she can talk again.',
+    restAddPeriod: 'Add period',
+    restDay: 'Day',
+    restFrom: 'Off from',
+    restUntil: 'Off until',
+    restRemove: 'Delete',
+    restEveryday: 'Every day',
+    restMon: 'Monday',
+    restTue: 'Tuesday',
+    restWed: 'Wednesday',
+    restThu: 'Thursday',
+    restFri: 'Friday',
+    restSat: 'Saturday',
+    restSun: 'Sunday',
     eveningCalm: 'Calm evening mode',
     eveningCalmStart: 'Calmer after',
     eveningCalmHelp: 'Lumi replies more calmly, more briefly, and avoids active games.',
@@ -1005,6 +1108,8 @@ const UI_TEXT = {
     statusLimitOn: 'limit',
     statusNightOn: 'night mode',
     statusNightOff: 'night mode off',
+    statusRestOn: 'rest schedule',
+    statusRestNow: 'rest until',
     statusCalmOn: 'calm evening',
     quietEnabled: 'Quiet hours enabled',
     quietDisabled: 'Quiet hours disabled',
@@ -1043,7 +1148,94 @@ const UI_TEXT = {
     logout: 'Logout',
     loggingOut: 'Logging out...',
     loggedOut: 'You are logged out. Sign in again to continue.',
+    unsavedExit: 'You have unsaved changes. Are you sure you want to log out?',
+    confirmDeleteProfile: 'Delete this saved profile?',
+    confirmResetDefaults: 'Reset settings, child profile, and memory to defaults? Saved profiles will remain.',
+    confirmClearMemory: 'Clear this toy memory?',
+    confirmClearChild: 'Delete the child profile: name, age, preferences, and live memory? Toy settings will remain.',
+    confirmResetEverything: 'Delete everything for this toy: settings, child profile, memory, saved profiles, and daily statistics? The lumi_001 login will remain.',
     footerText: '© 2026 lunaratoy.com. All rights reserved.',
+  },
+};
+
+const STATUS_TEXT = {
+  'ru-RU': {
+    loggingIn: 'Входим...',
+    loginDone: 'Вход выполнен: {device}',
+    savingSettings: 'Сохраняю...',
+    settingsSaved: 'Настройки сохранены.',
+    savingChild: 'Сохраняю профиль ребёнка...',
+    childSaved: 'Профиль ребёнка сохранён.',
+    editChild: 'Измените нужные поля и нажмите “Сохранить профиль ребёнка”.',
+    savingPassword: 'Сохраняю пароль...',
+    pinMismatch: 'Новый PIN и повтор не совпадают.',
+    passwordSaved: 'Пароль сохранён.',
+    addProfileHint: 'Заполните данные нового ребёнка и нажмите “Сохранить профиль”.',
+    savingProfile: 'Сохраняю профиль...',
+    profileSaved: 'Профиль сохранён.',
+    loadingProfile: 'Загружаю профиль...',
+    profileDeleted: 'Профиль удалён.',
+    deletingProfile: 'Удаляю профиль...',
+    resetting: 'Сбрасываю...',
+    defaultsRestored: 'Исходные настройки восстановлены.',
+    clearingMemory: 'Очищаю память...',
+    memoryCleared: 'Память очищена. Профиль ребёнка оставлен.',
+    deletingChild: 'Удаляю профиль ребёнка...',
+    childDeleted: 'Профиль ребёнка удалён.',
+    deletingEverything: 'Удаляю всё...',
+    everythingDeleted: 'Всё удалено. Игрушка вернулась к исходным настройкам.',
+  },
+  'ro-RO': {
+    loggingIn: 'Intram...',
+    loginDone: 'Intrare reusita: {device}',
+    savingSettings: 'Se salveaza...',
+    settingsSaved: 'Setarile au fost salvate.',
+    savingChild: 'Se salveaza profilul copilului...',
+    childSaved: 'Profilul copilului a fost salvat.',
+    editChild: 'Modificati campurile necesare si apasati “Salveaza profilul copilului”.',
+    savingPassword: 'Se salveaza parola...',
+    pinMismatch: 'PIN-ul nou si repetarea nu coincid.',
+    passwordSaved: 'Parola a fost salvata.',
+    addProfileHint: 'Completati datele copilului nou si apasati “Salveaza profil”.',
+    savingProfile: 'Se salveaza profilul...',
+    profileSaved: 'Profilul a fost salvat.',
+    loadingProfile: 'Se incarca profilul...',
+    profileDeleted: 'Profilul a fost sters.',
+    deletingProfile: 'Se sterge profilul...',
+    resetting: 'Se reseteaza...',
+    defaultsRestored: 'Setarile initiale au fost restabilite.',
+    clearingMemory: 'Se sterge memoria...',
+    memoryCleared: 'Memoria a fost stearsa. Profilul copilului a ramas.',
+    deletingChild: 'Se sterge profilul copilului...',
+    childDeleted: 'Profilul copilului a fost sters.',
+    deletingEverything: 'Se sterge tot...',
+    everythingDeleted: 'Totul a fost sters. Jucaria a revenit la setarile initiale.',
+  },
+  'en-US': {
+    loggingIn: 'Logging in...',
+    loginDone: 'Login complete: {device}',
+    savingSettings: 'Saving...',
+    settingsSaved: 'Settings saved.',
+    savingChild: 'Saving child profile...',
+    childSaved: 'Child profile saved.',
+    editChild: 'Change the needed fields and press “Save child profile”.',
+    savingPassword: 'Saving password...',
+    pinMismatch: 'New PIN and repeat PIN do not match.',
+    passwordSaved: 'Password saved.',
+    addProfileHint: 'Fill in the new child data and press “Save profile”.',
+    savingProfile: 'Saving profile...',
+    profileSaved: 'Profile saved.',
+    loadingProfile: 'Loading profile...',
+    profileDeleted: 'Profile deleted.',
+    deletingProfile: 'Deleting profile...',
+    resetting: 'Resetting...',
+    defaultsRestored: 'Default settings restored.',
+    clearingMemory: 'Clearing memory...',
+    memoryCleared: 'Memory cleared. Child profile kept.',
+    deletingChild: 'Deleting child profile...',
+    childDeleted: 'Child profile deleted.',
+    deletingEverything: 'Deleting everything...',
+    everythingDeleted: 'Everything deleted. The toy returned to default settings.',
   },
 };
 
@@ -1072,6 +1264,64 @@ function setText(selector, value) {
 function setPlaceholder(selector, value) {
   const el = document.querySelector(selector);
   if (el) el.placeholder = value;
+}
+
+function formatText(template, params = {}) {
+  return String(template || '').replace(/\{(\w+)\}/g, (_, key) => params[key] ?? '');
+}
+
+function setStatus(idOrEl, key, params = {}, isError = false) {
+  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+  if (!el) return;
+  const dict = STATUS_TEXT[consoleLanguage] || STATUS_TEXT['ru-RU'];
+  el.dataset.statusKey = key;
+  el.dataset.statusParams = JSON.stringify(params || {});
+  el.textContent = formatText(dict[key] || key, params);
+  el.className = isError ? 'status error' : 'status';
+}
+
+function clearStatus(idOrEl) {
+  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+  if (!el) return;
+  delete el.dataset.statusKey;
+  delete el.dataset.statusParams;
+  el.textContent = '';
+  el.className = 'status';
+}
+
+function relocalizeStatusMessages() {
+  const dict = STATUS_TEXT[consoleLanguage] || STATUS_TEXT['ru-RU'];
+  document.querySelectorAll('.status[data-status-key]').forEach(el => {
+    const key = el.dataset.statusKey;
+    let params = {};
+    try { params = JSON.parse(el.dataset.statusParams || '{}'); } catch (_err) {}
+    el.textContent = formatText(dict[key] || key, params);
+  });
+}
+
+function parentFormSnapshot() {
+  const box = document.getElementById('consoleBox');
+  if (!box || box.classList.contains('hidden')) return '';
+  return [...box.querySelectorAll('input, select, textarea')]
+    .filter(el => !['profileName', 'current_parent_pin', 'new_parent_pin', 'repeat_parent_pin'].includes(el.id))
+    .map(el => {
+      if (el.type === 'checkbox' || el.type === 'radio') return `${el.id || el.name}:${el.value}:${el.checked}`;
+      return `${el.id || el.name}:${el.value}`;
+    })
+    .join('|');
+}
+
+function markFormClean() {
+  lastSavedFormSnapshot = parentFormSnapshot();
+  updateUnsavedIndicator();
+}
+
+function hasUnsavedChanges() {
+  return Boolean(lastSavedFormSnapshot) && parentFormSnapshot() !== lastSavedFormSnapshot;
+}
+
+function updateUnsavedIndicator() {
+  document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', hasUnsavedChanges());
 }
 
 function setToyTypeOptions(lang) {
@@ -1189,6 +1439,10 @@ function applyConsoleLocale(lang) {
   document.querySelectorAll('#consoleBox > section:nth-of-type(3) label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
   setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
   setToyTypeOptions(lang);
+  const languageOptions = document.querySelectorAll('#language option');
+  [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
+  const modelOptions = document.querySelectorAll('#model_mode option');
+  [t.modelAuto, t.modelEconomy, t.modelSmart].forEach((label, i) => { if (modelOptions[i]) modelOptions[i].textContent = label; });
 
   const childLabels = [t.childName, t.age, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
   setText('#consoleBox > section:nth-of-type(4) h2', t.child);
@@ -1242,6 +1496,9 @@ function applyConsoleLocale(lang) {
   setText('#breakReminderTitle', t.breakReminderTitle);
   setText('#breakCustomMinutesLabel', t.customMinutes);
   setText('#breakReminderHelp', t.breakReminderHelp);
+  setText('#restScheduleTitle', t.restSchedule);
+  setText('#restScheduleHelp', t.restScheduleHelp);
+  setText('#restScheduleAddButton', t.restAddPeriod);
   setText('#eveningCalmLabel', t.eveningCalm);
   setText('#eveningCalmStartLabel', t.eveningCalmStart);
   setText('#eveningCalmHelp', t.eveningCalmHelp);
@@ -1250,6 +1507,7 @@ function applyConsoleLocale(lang) {
   setPlaceholder('#break_reminder_minutes', t.customMinutesPlaceholder);
   toggleDailyLimit();
   toggleBreakReminderCustom();
+  relocalizeRestScheduleRows();
 
   setText('#consoleBox > section:nth-of-type(9) button', t.analytics);
   const analyticsOptions = document.querySelectorAll('#analyticsPeriod option');
@@ -1289,12 +1547,13 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(3)', t.clearChildProfile);
   setText('#consoleBox > section:nth-of-type(8) button:nth-of-type(4)', t.deleteEverything);
   setText('#consoleBox > section:nth-of-type(10) button', t.logout);
+  relocalizeStatusMessages();
+  updateUnsavedIndicator();
 }
 
 async function login() {
   const status = document.getElementById('loginStatus');
-  status.textContent = 'Входим...';
-  status.className = 'status';
+  setStatus(status, 'loggingIn');
   try {
     const data = await api('/api/parent/login', {
       method: 'POST',
@@ -1304,7 +1563,7 @@ async function login() {
       }),
     });
     token = data.token;
-    status.textContent = 'Вход выполнен: ' + data.device_id;
+    setStatus(status, 'loginDone', { device: data.device_id });
     document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('consoleBox').classList.remove('hidden');
     await loadState();
@@ -1400,6 +1659,75 @@ function updateQuietHoursLabel() {
   setText('#quietHoursLabel', enabled ? t.quietEnabled : t.quietDisabled);
 }
 
+function updateRestScheduleLabel() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const enabled = document.getElementById('rest_schedule_enabled')?.checked === true;
+  setText('#restScheduleEnabledLabel', enabled ? t.restScheduleEnabled : t.restScheduleDisabled);
+}
+
+function restDayLabel(day, t) {
+  const labels = {
+    everyday: t.restEveryday,
+    mon: t.restMon,
+    tue: t.restTue,
+    wed: t.restWed,
+    thu: t.restThu,
+    fri: t.restFri,
+    sat: t.restSat,
+    sun: t.restSun,
+  };
+  return labels[day] || labels.everyday;
+}
+
+function addRestScheduleRow(rule = {}) {
+  const rows = document.getElementById('restScheduleRows');
+  if (!rows) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const row = document.createElement('div');
+  row.className = 'rest-schedule-row';
+  const selectedDay = REST_SCHEDULE_DAYS.includes(rule.day) ? rule.day : 'everyday';
+  row.innerHTML = `
+    <div>
+      <label>${escapeHtml(t.restDay)}</label>
+      <select class="rest-day">
+        ${REST_SCHEDULE_DAYS.map(day => `<option value="${day}" ${day === selectedDay ? 'selected' : ''}>${escapeHtml(restDayLabel(day, t))}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label>${escapeHtml(t.restFrom)}</label>
+      <input class="rest-start" type="time" value="${escapeHtml(rule.start || '10:00')}">
+    </div>
+    <div>
+      <label>${escapeHtml(t.restUntil)}</label>
+      <input class="rest-end" type="time" value="${escapeHtml(rule.end || '13:00')}">
+    </div>
+    <button type="button" class="danger" onclick="this.closest('.rest-schedule-row').remove(); updateUnsavedIndicator();">${escapeHtml(t.restRemove)}</button>
+  `;
+  rows.appendChild(row);
+  updateUnsavedIndicator();
+}
+
+function getRestScheduleRows() {
+  return [...document.querySelectorAll('.rest-schedule-row')].map(row => ({
+    day: row.querySelector('.rest-day')?.value || 'everyday',
+    start: row.querySelector('.rest-start')?.value || '',
+    end: row.querySelector('.rest-end')?.value || '',
+  })).filter(rule => rule.start && rule.end && rule.start !== rule.end);
+}
+
+function renderRestScheduleRows(rules = []) {
+  const rows = document.getElementById('restScheduleRows');
+  if (!rows) return;
+  rows.innerHTML = '';
+  (Array.isArray(rules) ? rules : []).forEach(rule => addRestScheduleRow(rule));
+}
+
+function relocalizeRestScheduleRows() {
+  const rules = getRestScheduleRows();
+  renderRestScheduleRows(rules);
+  updateRestScheduleLabel();
+}
+
 function setBreakReminderPreset() {
   const preset = document.getElementById('break_reminder_preset').value;
   if (preset !== 'custom') document.getElementById('break_reminder_minutes').value = preset;
@@ -1440,9 +1768,10 @@ function renderRuntime(runtime = {}) {
   const used = Number(runtime.used_minutes || 0);
   const remaining = runtime.remaining_minutes;
   const status = runtime.allowed === false ? t.analyticsBlocked : t.analyticsWorks;
-  setText('#runtimeStatus', runtime.daily_limit_minutes
-    ? `${t.analyticsUsed}: ${used} ${t.minUnit}. ${t.analyticsRemaining}: ${Math.max(0, remaining || 0)} ${t.minUnit}.`
-    : '');
+  const details = [];
+  if (runtime.reason === 'rest_schedule' && runtime.rest_until) details.push(`${t.statusRestNow}: ${runtime.rest_until}.`);
+  if (runtime.daily_limit_minutes) details.push(`${t.analyticsUsed}: ${used} ${t.minUnit}. ${t.analyticsRemaining}: ${Math.max(0, remaining || 0)} ${t.minUnit}.`);
+  setText('#runtimeStatus', details.join(' '));
   setText('#metricUsedToday', `${used} ${t.minUnit}`);
   setText('#metricRemainingToday', remaining == null ? t.analyticsNoLimit : `${Math.max(0, remaining)} ${t.minUnit}`);
   setText('#metricRuntimeStatus', status);
@@ -1511,6 +1840,14 @@ function renderStatusOverview(data = window.lastParentState || {}) {
     },
   ];
   if (s.evening_calm_enabled) chips.push({ text: `${t.statusCalmOn}: ${s.evening_calm_start}`, cls: 'good' });
+  if (s.rest_schedule_enabled) {
+    chips.push({
+      text: runtime.reason === 'rest_schedule' && runtime.rest_until
+        ? `${t.statusRestNow}: ${runtime.rest_until}`
+        : t.statusRestOn,
+      cls: runtime.reason === 'rest_schedule' ? 'warn' : 'off',
+    });
+  }
   const box = document.getElementById('statusOverview');
   if (box) {
     box.innerHTML = chips.map(chip => `<span class="status-chip ${chip.cls}">${escapeHtml(chip.text)}</span>`).join('');
@@ -1644,6 +1981,8 @@ async function loadState() {
   setChildAddressNames(s.child_address_names || ['sunshine', 'friend']);
   syncDailyLimitPreset(s.daily_limit_minutes);
   syncBreakReminderPreset(s.break_reminder_minutes);
+  setValue('rest_schedule_enabled', s.rest_schedule_enabled === true);
+  renderRestScheduleRows(s.rest_schedule_json || []);
   setValue('evening_calm_enabled', s.evening_calm_enabled === true);
   setValue('quiet_hours_enabled', s.quiet_hours_enabled === true);
   updateQuietHoursLabel();
@@ -1662,6 +2001,7 @@ async function loadState() {
   renderStatusOverview(data);
   renderRuntime(data.runtime || {});
   renderMemoryView(p);
+  markFormClean();
   loadAnalytics().catch(() => {});
 }
 
@@ -1683,8 +2023,7 @@ function setLanguageFromMain() {
 
 async function saveSettings() {
   const status = document.getElementById('saveStatus');
-  status.textContent = 'Сохраняю...';
-  status.className = 'status';
+  setStatus(status, 'savingSettings');
   try {
     await api('/api/parent/settings', {
       method: 'POST',
@@ -1710,6 +2049,8 @@ async function saveSettings() {
         break_reminder_minutes: document.getElementById('break_reminder_preset').value === 'custom'
           ? document.getElementById('break_reminder_minutes').value
           : document.getElementById('break_reminder_preset').value,
+        rest_schedule_enabled: document.getElementById('rest_schedule_enabled').checked,
+        rest_schedule_json: getRestScheduleRows(),
         evening_calm_enabled: document.getElementById('evening_calm_enabled').checked,
         evening_calm_start: document.getElementById('evening_calm_start').value,
         quiet_hours_enabled: document.getElementById('quiet_hours_enabled').checked,
@@ -1721,8 +2062,8 @@ async function saveSettings() {
         memory_enabled: document.getElementById('memory_enabled').checked,
       }),
     });
-    status.textContent = 'Настройки сохранены.';
     await loadState();
+    setStatus(status, 'settingsSaved');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1731,8 +2072,7 @@ async function saveSettings() {
 
 async function saveProfile() {
   const status = document.getElementById('childProfileStatus');
-  status.textContent = 'Сохраняю профиль ребёнка...';
-  status.className = 'status';
+  setStatus(status, 'savingChild');
   try {
     await api('/api/parent/settings', {
       method: 'POST',
@@ -1752,8 +2092,8 @@ async function saveProfile() {
         current_interest: document.getElementById('current_interest').value,
       }),
     });
-    status.textContent = 'Профиль ребёнка сохранён.';
     await loadState();
+    setStatus(status, 'childSaved');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1763,8 +2103,7 @@ async function saveProfile() {
 
 function editChildProfile() {
   const status = document.getElementById('childProfileStatus');
-  status.textContent = 'Измените нужные поля и нажмите “Сохранить профиль ребёнка”.';
-  status.className = 'status';
+  setStatus(status, 'editChild');
   document.getElementById('child_name').focus();
 }
 
@@ -1773,11 +2112,9 @@ async function changeParentPin() {
   const currentPin = document.getElementById('current_parent_pin').value;
   const newPin = document.getElementById('new_parent_pin').value;
   const repeatPin = document.getElementById('repeat_parent_pin').value;
-  status.textContent = 'Сохраняю пароль...';
-  status.className = 'status';
+  setStatus(status, 'savingPassword');
   if (newPin !== repeatPin) {
-    status.textContent = 'Новый PIN и повтор не совпадают.';
-    status.className = 'status error';
+    setStatus(status, 'pinMismatch', {}, true);
     return;
   }
   try {
@@ -1786,7 +2123,7 @@ async function changeParentPin() {
       body: JSON.stringify({ current_pin: currentPin, new_pin: newPin }),
     });
     ['current_parent_pin', 'new_parent_pin', 'repeat_parent_pin'].forEach(id => setValue(id, ''));
-    status.textContent = 'Пароль сохранён.';
+    setStatus(status, 'passwordSaved');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1798,14 +2135,12 @@ function addConfigProfile() {
   ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest']
     .forEach(id => setValue(id, ''));
   const status = document.getElementById('profileStatus');
-  status.textContent = 'Заполните данные нового ребёнка и нажмите “Сохранить профиль”.';
-  status.className = 'status';
+  setStatus(status, 'addProfileHint');
 }
 
 async function saveConfigProfile() {
   const status = document.getElementById('profileStatus');
-  status.textContent = 'Сохраняю профиль...';
-  status.className = 'status';
+  setStatus(status, 'savingProfile');
   try {
     await saveSettings();
     await saveProfile();
@@ -1813,7 +2148,7 @@ async function saveConfigProfile() {
       method: 'POST',
       body: JSON.stringify({ profile_name: document.getElementById('profileName').value }),
     });
-    status.textContent = 'Профиль сохранён.';
+    setStatus(status, 'profileSaved');
     document.getElementById('profileName').value = '';
     await loadState();
   } catch (err) {
@@ -1826,8 +2161,7 @@ async function loadConfigProfile() {
   const profileId = document.getElementById('savedProfiles').value;
   if (!profileId) return;
   const status = document.getElementById('profileStatus');
-  status.textContent = 'Загружаю профиль...';
-  status.className = 'status';
+  setStatus(status, 'loadingProfile');
   try {
     const data = await api('/api/parent/profiles/' + encodeURIComponent(profileId) + '/load', {
       method: 'POST',
@@ -1845,13 +2179,13 @@ async function loadConfigProfile() {
 async function deleteConfigProfile() {
   const profileId = document.getElementById('savedProfiles').value;
   if (!profileId) return;
-  if (!confirm('Удалить этот сохранённый профиль?')) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!confirm(t.confirmDeleteProfile)) return;
   const status = document.getElementById('profileStatus');
-  status.textContent = 'Удаляю профиль...';
-  status.className = 'status';
+  setStatus(status, 'deletingProfile');
   try {
     await api('/api/parent/profiles/' + encodeURIComponent(profileId), { method: 'DELETE' });
-    status.textContent = 'Профиль удалён.';
+    setStatus(status, 'profileDeleted');
     await loadState();
   } catch (err) {
     status.textContent = err.message;
@@ -1860,14 +2194,14 @@ async function deleteConfigProfile() {
 }
 
 async function resetDefaults() {
-  if (!confirm('Сбросить настройки, профиль ребёнка и память к исходному состоянию? Сохранённые профили останутся.')) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!confirm(t.confirmResetDefaults)) return;
   const status = document.getElementById('profileStatus');
-  status.textContent = 'Сбрасываю...';
-  status.className = 'status';
+  setStatus(status, 'resetting');
   try {
     await api('/api/parent/reset', { method: 'POST', body: '{}' });
-    status.textContent = 'Исходные настройки восстановлены.';
     await loadState();
+    setStatus(status, 'defaultsRestored');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1875,14 +2209,14 @@ async function resetDefaults() {
 }
 
 async function clearMemory() {
-  if (!confirm('Очистить память этой игрушки?')) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!confirm(t.confirmClearMemory)) return;
   const status = document.getElementById('memoryStatus');
-  status.textContent = 'Очищаю память...';
-  status.className = 'status';
+  setStatus(status, 'clearingMemory');
   try {
     await api('/api/parent/memory/clear', { method: 'POST', body: '{}' });
-    status.textContent = 'Память очищена. Профиль ребёнка оставлен.';
     await loadState();
+    setStatus(status, 'memoryCleared');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1890,14 +2224,14 @@ async function clearMemory() {
 }
 
 async function clearChildProfile(source = 'child') {
-  if (!confirm('Удалить профиль ребёнка: имя, возраст, предпочтения и живую память? Настройки игрушки останутся.')) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!confirm(t.confirmClearChild)) return;
   const status = document.getElementById(source === 'memory' ? 'memoryStatus' : 'childProfileStatus');
-  status.textContent = 'Удаляю профиль ребёнка...';
-  status.className = 'status';
+  setStatus(status, 'deletingChild');
   try {
     await api('/api/parent/profile/clear', { method: 'POST', body: '{}' });
-    status.textContent = 'Профиль ребёнка удалён.';
     await loadState();
+    setStatus(status, 'childDeleted');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1905,14 +2239,14 @@ async function clearChildProfile(source = 'child') {
 }
 
 async function resetEverything() {
-  if (!confirm('Удалить всё для этой игрушки: настройки, профиль ребёнка, память, сохранённые профили и дневную статистику? Вход lumi_001 останется.')) return;
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!confirm(t.confirmResetEverything)) return;
   const status = document.getElementById('memoryStatus');
-  status.textContent = 'Удаляю всё...';
-  status.className = 'status';
+  setStatus(status, 'deletingEverything');
   try {
     await api('/api/parent/reset-all', { method: 'POST', body: '{}' });
-    status.textContent = 'Всё удалено. Игрушка вернулась к исходным настройкам.';
     await loadState();
+    setStatus(status, 'everythingDeleted');
   } catch (err) {
     status.textContent = err.message;
     status.className = 'status error';
@@ -1922,6 +2256,7 @@ async function resetEverything() {
 async function logoutParent() {
   const status = document.getElementById('logoutStatus');
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (hasUnsavedChanges() && !confirm(t.unsavedExit)) return;
   status.textContent = t.loggingOut;
   status.className = 'status';
   try {
@@ -1935,9 +2270,12 @@ async function logoutParent() {
   document.getElementById('consoleBox').classList.add('hidden');
   document.getElementById('loginBox').classList.remove('hidden');
   document.getElementById('loginStatus').textContent = t.loggedOut;
-  status.textContent = '';
+  clearStatus(status);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+document.getElementById('consoleBox')?.addEventListener('input', updateUnsavedIndicator);
+document.getElementById('consoleBox')?.addEventListener('change', updateUnsavedIndicator);
 
 applyConsoleLocale(consoleLanguage);
 </script>

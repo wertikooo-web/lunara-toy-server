@@ -634,6 +634,19 @@ async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal') 
 
 function runtimeLimitReply(runtime, lang = 'ru-RU') {
     const key = String(lang).startsWith('ro') ? 'ro' : String(lang).startsWith('en') ? 'en' : 'ru';
+    if (runtime?.reason === 'rest_schedule') {
+        const until = runtime?.rest_until || '';
+        const timeText = until ? {
+            ru: ` в ${until}`,
+            ro: ` la ${until}`,
+            en: ` at ${until}`,
+        }[key] : '';
+        return {
+            ru: `Ой, я сейчас отдыхаю. Я смогу поговорить с тобой${timeText}.`,
+            ro: `Of, acum ma odihnesc. Pot vorbi cu tine${timeText}.`,
+            en: `Oops, I am resting now. I can talk with you${timeText}.`,
+        }[key];
+    }
     if (runtime?.reason === 'daily_limit') {
         return {
             ru: 'На сегодня время Lumi закончилось. Давай отдохнём, а завтра снова поговорим.',
