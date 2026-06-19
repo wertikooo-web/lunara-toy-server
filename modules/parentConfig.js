@@ -20,7 +20,8 @@ const PERSONALITY_PRESETS = {
     teacher: 'kind teacher-helper',
 };
 const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
-const ADDRESS_MODES = ['neutral', 'name', 'warm', 'varied'];
+const ADDRESS_MODES = ['name', 'varied'];
+const ADDRESS_TONES = ['warm', 'neutral'];
 const ADDRESS_PRESETS = {
     name: 'the child name',
     sunshine: 'sunshine',
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS = {
     model_mode: 'auto',
     personality_preset: 'gentle',
     child_address_mode: 'varied',
+    child_address_tone: 'warm',
     child_address_names: ['sunshine', 'friend'],
     age_mode: 'auto',
     answer_length: 'short',
@@ -110,7 +112,16 @@ function normalizeSettingsPatch(raw = {}) {
     }
     if ('child_address_mode' in raw) {
         const value = safeText(raw.child_address_mode, 16);
-        patch.child_address_mode = ADDRESS_MODES.includes(value) ? value : DEFAULT_SETTINGS.child_address_mode;
+        if (ADDRESS_MODES.includes(value)) {
+            patch.child_address_mode = value;
+        } else {
+            patch.child_address_mode = DEFAULT_SETTINGS.child_address_mode;
+            if (ADDRESS_TONES.includes(value)) patch.child_address_tone = value;
+        }
+    }
+    if ('child_address_tone' in raw) {
+        const value = safeText(raw.child_address_tone, 16);
+        patch.child_address_tone = ADDRESS_TONES.includes(value) ? value : DEFAULT_SETTINGS.child_address_tone;
     }
     if ('child_address_names' in raw) {
         const values = cleanStringArray(raw.child_address_names, null, 8);
@@ -200,6 +211,7 @@ async function init() {
             model_mode TEXT NOT NULL DEFAULT 'auto',
             personality_preset TEXT NOT NULL DEFAULT 'gentle',
             child_address_mode TEXT NOT NULL DEFAULT 'varied',
+            child_address_tone TEXT NOT NULL DEFAULT 'warm',
             child_address_names JSONB NOT NULL DEFAULT '["sunshine","friend"]'::jsonb,
             age_mode TEXT NOT NULL DEFAULT 'auto',
             answer_length TEXT NOT NULL DEFAULT 'short',
@@ -228,6 +240,7 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_toy_type TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS custom_personality TEXT NOT NULL DEFAULT ''");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_mode TEXT NOT NULL DEFAULT 'varied'");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_tone TEXT NOT NULL DEFAULT 'warm'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"sunshine\",\"friend\"]'::jsonb");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS age_mode TEXT NOT NULL DEFAULT 'auto'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
@@ -368,7 +381,10 @@ function normalizeSettingsRow(row = {}) {
     settings.blocked_topics = cleanStringArray(settings.blocked_topics, null, 12);
     settings.child_address_names = cleanStringArray(settings.child_address_names, null, 8);
     if (!settings.child_address_names.length) settings.child_address_names = DEFAULT_SETTINGS.child_address_names;
+    if (settings.child_address_mode === 'neutral') settings.child_address_tone = 'neutral';
+    if (settings.child_address_mode === 'warm') settings.child_address_tone = 'warm';
     if (!ADDRESS_MODES.includes(settings.child_address_mode)) settings.child_address_mode = DEFAULT_SETTINGS.child_address_mode;
+    if (!ADDRESS_TONES.includes(settings.child_address_tone)) settings.child_address_tone = DEFAULT_SETTINGS.child_address_tone;
     if (!['ru-RU', 'ro-RO', 'en-US'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
     settings.memory_enabled = settings.memory_enabled !== false;
     return settings;
@@ -813,28 +829,29 @@ async function resetToDefaults(deviceId) {
              model_mode = $3,
              personality_preset = $4,
              child_address_mode = $5,
-             child_address_names = $6::jsonb,
-             age_mode = $7,
-             answer_length = $8,
-             humor_level = $9,
-             activity_level = $10,
-             question_frequency = $11,
-             voice = $12,
-             voice_speed = $13,
-             story_length = $14,
-             custom_toy_type = $15,
-             custom_personality = $16,
-             daily_limit_minutes = $17,
-             break_reminder_minutes = $18,
-             evening_calm_enabled = $19,
-             evening_calm_start = $20,
-             quiet_hours_enabled = $21,
-             quiet_hours_start = $22,
-             quiet_hours_end = $23,
-             content_enabled = $24::jsonb,
-             allowed_topics = $25::jsonb,
-             blocked_topics = $26::jsonb,
-             memory_enabled = $27,
+             child_address_tone = $6,
+             child_address_names = $7::jsonb,
+             age_mode = $8,
+             answer_length = $9,
+             humor_level = $10,
+             activity_level = $11,
+             question_frequency = $12,
+             voice = $13,
+             voice_speed = $14,
+             story_length = $15,
+             custom_toy_type = $16,
+             custom_personality = $17,
+             daily_limit_minutes = $18,
+             break_reminder_minutes = $19,
+             evening_calm_enabled = $20,
+             evening_calm_start = $21,
+             quiet_hours_enabled = $22,
+             quiet_hours_start = $23,
+             quiet_hours_end = $24,
+             content_enabled = $25::jsonb,
+             allowed_topics = $26::jsonb,
+             blocked_topics = $27::jsonb,
+             memory_enabled = $28,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -843,6 +860,7 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.model_mode,
             DEFAULT_SETTINGS.personality_preset,
             DEFAULT_SETTINGS.child_address_mode,
+            DEFAULT_SETTINGS.child_address_tone,
             JSON.stringify(DEFAULT_SETTINGS.child_address_names),
             DEFAULT_SETTINGS.age_mode,
             DEFAULT_SETTINGS.answer_length,
@@ -922,10 +940,13 @@ const AGE_MODE_PROMPTS = {
 };
 
 const ADDRESS_MODE_PROMPTS = {
-    neutral: 'use no special address most of the time',
     name: 'prefer addressing the child by name, but not in every reply',
-    warm: 'use parent-approved warm addresses sometimes, but not in every reply',
-    varied: 'vary naturally between the child name and parent-approved warm addresses, but do not overuse them',
+    varied: 'vary naturally: sometimes use the child name, sometimes use no direct address, and do not overuse addresses',
+};
+
+const ADDRESS_TONE_PROMPTS = {
+    warm: 'warm tone: gentle and affectionate; parent-approved warm addresses may be used sometimes',
+    neutral: 'neutral tone: friendly but not sugary; avoid pet names and use the child name only when natural',
 };
 
 function addressNameForPrompt(value) {
@@ -940,11 +961,12 @@ function formatSettingsForPrompt(settings = {}) {
         .join(', ') || PERSONALITY_PRESETS.gentle;
     const toyType = safeText(s.toy_type || 'bear', 40);
     const addressMode = ADDRESS_MODE_PROMPTS[s.child_address_mode] || ADDRESS_MODE_PROMPTS.varied;
-    const addressNames = cleanStringArray(s.child_address_names, null, 8)
+    const addressTone = ADDRESS_TONE_PROMPTS[s.child_address_tone] || ADDRESS_TONE_PROMPTS.warm;
+    const addressNames = s.child_address_tone === 'warm' ? cleanStringArray(s.child_address_names, null, 8)
         .filter((value) => value !== 'name')
         .map(addressNameForPrompt)
         .filter(Boolean)
-        .join(', ');
+        .join(', ') : '';
     const lines = [
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
@@ -952,7 +974,7 @@ function formatSettingsForPrompt(settings = {}) {
         `- Main language setting: ${s.language}`,
         `- Personality preset: ${personality}`,
         `- Age mode: ${AGE_MODE_PROMPTS[s.age_mode] || AGE_MODE_PROMPTS.auto}`,
-        `- Child address rule: ${addressMode}${addressNames ? `; allowed address variants: ${addressNames}` : ''}.`,
+        `- Child address rule: ${addressMode}; ${addressTone}${addressNames ? `; allowed address variants: ${addressNames}` : ''}.`,
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
         `- Answer length rule: ${ANSWER_LENGTH_PROMPTS[s.answer_length] || ANSWER_LENGTH_PROMPTS.short}`,
         `- Humor rule: ${HUMOR_PROMPTS[s.humor_level] || HUMOR_PROMPTS.normal}`,

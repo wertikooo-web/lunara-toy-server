@@ -270,9 +270,14 @@
           <select id="child_address_mode">
             <option value="varied">Вариативно</option>
             <option value="name">По имени</option>
-            <option value="warm">Ласково</option>
-            <option value="neutral">Нейтрально</option>
           </select>
+        </div>
+        <div>
+          <label>Тон обращения</label>
+          <div class="checks" id="childAddressToneChecks">
+            <label><input type="radio" name="child_address_tone" value="warm" checked> Ласково</label>
+            <label><input type="radio" name="child_address_tone" value="neutral"> Нейтрально</label>
+          </div>
         </div>
         <div>
           <label>Варианты обращения</label>
@@ -581,6 +586,7 @@ const UI_TEXT = {
     fairy: 'Сказочная',
     teacher: 'Учитель-помощник',
     addressMode: 'Как обращаться к ребёнку',
+    addressTone: 'Тон обращения',
     addressVariants: 'Варианты обращения',
     addressCustom: 'Свой вариант обращения (через запятую)',
     addressVaried: 'Вариативно',
@@ -753,6 +759,7 @@ const UI_TEXT = {
     fairy: 'De basm',
     teacher: 'Invatator-ajutor',
     addressMode: 'Cum se adreseaza copilului',
+    addressTone: 'Tonul adresarii',
     addressVariants: 'Variante de adresare',
     addressCustom: 'Varianta proprie de adresare (separate prin virgula)',
     addressVaried: 'Variat',
@@ -925,6 +932,7 @@ const UI_TEXT = {
     fairy: 'Fairy-tale',
     teacher: 'Teacher-helper',
     addressMode: 'How to address the child',
+    addressTone: 'Address tone',
     addressVariants: 'Address variants',
     addressCustom: 'Custom address variant (comma-separated)',
     addressVaried: 'Varied',
@@ -1188,7 +1196,7 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(2)', t.saveChild);
   setText('#consoleBox > section:nth-of-type(4) .row-actions button:nth-of-type(3)', t.clearChild);
 
-  const characterLabels = [t.character, t.addressMode, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
+  const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
   setText('#consoleBox > section:nth-of-type(5) h2', t.characterVoice);
   document.querySelectorAll('#consoleBox > section:nth-of-type(5) > .grid > div > label, #consoleBox > section:nth-of-type(5) > label')
     .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
@@ -1199,7 +1207,13 @@ function applyConsoleLocale(lang) {
     if (input) el.prepend(input);
   });
   const addressOptions = document.querySelectorAll('#child_address_mode option');
-  [t.addressVaried, t.addressByName, t.addressWarm, t.addressNeutral].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
+  [t.addressVaried, t.addressByName].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
+  const addressToneLabels = [t.addressWarm, t.addressNeutral];
+  document.querySelectorAll('#childAddressToneChecks label').forEach((el, i) => {
+    const input = el.querySelector('input');
+    el.textContent = ' ' + addressToneLabels[i];
+    if (input) el.prepend(input);
+  });
   const addressLabels = [t.addressSunshine, t.addressLittleOne, t.addressFriend, t.addressChampion];
   document.querySelectorAll('#childAddressChecks label').forEach((el, i) => {
     const input = el.querySelector('input');
@@ -1311,6 +1325,16 @@ function setCheckedValues(containerId, values) {
   document.querySelectorAll('#' + containerId + ' input[type=checkbox]').forEach(el => {
     el.checked = set.has(el.value);
   });
+}
+
+function getRadioValue(name, fallback = '') {
+  return document.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
+}
+
+function setRadioValue(name, value, fallback = '') {
+  const target = document.querySelector(`input[name="${name}"][value="${value}"]`)
+    || document.querySelector(`input[name="${name}"][value="${fallback}"]`);
+  if (target) target.checked = true;
 }
 
 function isKnownTopicPreset(values, allowEmpty = false) {
@@ -1609,6 +1633,7 @@ async function loadState() {
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   setToyTypeValue(s.toy_type);
   setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
+  setRadioValue('child_address_tone', s.child_address_tone || 'warm', 'warm');
   setChildAddressNames(s.child_address_names || ['sunshine', 'friend']);
   syncDailyLimitPreset(s.daily_limit_minutes);
   syncBreakReminderPreset(s.break_reminder_minutes);
@@ -1664,6 +1689,7 @@ async function saveSettings() {
         age_mode: document.getElementById('age_mode').value,
         personality_preset: getCheckedValues('personalityChecks'),
         child_address_mode: document.getElementById('child_address_mode').value,
+        child_address_tone: getRadioValue('child_address_tone', 'warm'),
         child_address_names: getChildAddressNames(),
         answer_length: document.getElementById('answer_length').value,
         humor_level: document.getElementById('humor_level').value,
