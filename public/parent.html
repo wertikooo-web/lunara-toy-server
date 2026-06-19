@@ -2174,12 +2174,10 @@ function renderStatusOverview(data = window.lastParentState || {}) {
     chips.push({ text: `${t.statusBreakReminder}: ${s.break_reminder_minutes} ${t.minUnit}`, cls: 'warn' });
   }
   if (s.evening_calm_enabled) chips.push({ text: `${t.statusCalmOn}: ${s.evening_calm_start}`, cls: 'good' });
-  if (s.rest_schedule_enabled) {
+  if (runtime.reason === 'rest_schedule' && runtime.rest_until) {
     chips.push({
-      text: runtime.reason === 'rest_schedule' && runtime.rest_until
-        ? `${t.statusRestNow}: ${runtime.rest_until}`
-        : t.statusRestOn,
-      cls: runtime.reason === 'rest_schedule' ? 'warn' : 'off',
+      text: `${t.statusRestNow}: ${runtime.rest_until}`,
+      cls: 'warn',
     });
   }
   const box = document.getElementById('statusOverview');
