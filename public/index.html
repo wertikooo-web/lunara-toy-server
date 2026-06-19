@@ -603,6 +603,7 @@ let recognition = null;
 let isRecording = false;
 let finalTranscript = '';
 let bubbleBeforeMic = '';
+let suppressMouseUntil = 0;
 
 function micText(key) {
   const langKey = currentLang === 'ro-RO' ? 'ro-RO' : currentLang === 'en-US' ? 'en-US' : 'ru-RU';
@@ -649,7 +650,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     r.lang = (currentLang === 'auto') ? '' : currentLang;
 
     r.onstart = () => {
-      isRecording = true; micStarted = true; finalTranscript = '';
+      isRecording = true; micStarted = true;
       bubbleBeforeMic = bubbleText.textContent || '';
       // Auto-stop if no speech for 10 seconds
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -662,15 +663,22 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micBtn.classList.add('recording');
       micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26" style="pointer-events:none;user-select:none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
       msgInput.placeholder = micText('holdToTalk');
-      msgInput.value = '';
+      msgInput.value = finalTranscript || '';
       bubbleText.textContent = micText('listening');
     };
 
     r.onresult = (e) => {
       // Speech detected — reset silence timer
       if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-      if (e.results.length > 0 && e.results[0].isFinal) {
-        finalTranscript = e.results[0][0].transcript;
+      let heard = '';
+      for (let i = e.resultIndex || 0; i < e.results.length; i += 1) {
+        if (e.results[i].isFinal && e.results[i][0]?.transcript) {
+          heard += ' ' + e.results[i][0].transcript;
+        }
+      }
+      heard = heard.trim();
+      if (heard) {
+        finalTranscript = `${finalTranscript} ${heard}`.trim();
         msgInput.value = finalTranscript;
       }
     };
@@ -743,6 +751,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     if (isProcessing || isRecording || micStarted) return;
     micHeld = true;
     micStarted = true;
+    finalTranscript = '';
+    msgInput.value = '';
     recognition = createRec();
     try {
       recognition.start();
@@ -756,7 +766,15 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micTimer = setTimeout(() => {
         stopMic();
       }, STOP_REC_MS);
-    } catch(e) { micStarted = false; }
+    } catch(e) {
+      console.warn('[Demo] speech recognition start failed', e);
+      micHeld = false;
+      micStarted = false;
+      isRecording = false;
+      if (micTimer)     { clearTimeout(micTimer);     micTimer = null; }
+      if (micWarnTimer) { clearTimeout(micWarnTimer); micWarnTimer = null; }
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    }
   }
 
   function stopMic() {
@@ -769,15 +787,40 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     try { recognition.stop(); } catch(e) {}
   }
 
-  // Desktop: hold mouse
-  micBtn.addEventListener('mousedown', (e) => { e.preventDefault(); startMic(); });
-  micBtn.addEventListener('mouseup',   (e) => { e.preventDefault(); stopMic(); });
-  micBtn.addEventListener('mouseleave',(e) => { stopMic(); });
+  // Desktop: hold mouse. Mobile browsers may emit synthetic mouse events after touch,
+  // so ignore mouse input briefly after touch to avoid a second empty recording cycle.
+  micBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (Date.now() < suppressMouseUntil) return;
+    startMic();
+  });
+  micBtn.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    if (Date.now() < suppressMouseUntil) return;
+    stopMic();
+  });
+  micBtn.addEventListener('mouseleave', (e) => {
+    if (Date.now() < suppressMouseUntil) return;
+    stopMic();
+  });
 
   // Mobile: hold touch — passive:false to allow preventDefault
-  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startMic(); }, { passive: false });
-  micBtn.addEventListener('touchend',   (e) => { e.preventDefault(); stopMic(); document.activeElement && document.activeElement.blur(); }, { passive: false });
-  micBtn.addEventListener('touchcancel',(e) => { e.preventDefault(); stopMic(); }, { passive: false });
+  micBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    suppressMouseUntil = Date.now() + 900;
+    startMic();
+  }, { passive: false });
+  micBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    suppressMouseUntil = Date.now() + 900;
+    stopMic();
+    document.activeElement && document.activeElement.blur();
+  }, { passive: false });
+  micBtn.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    suppressMouseUntil = Date.now() + 900;
+    stopMic();
+  }, { passive: false });
 
 } else {
   micBtn.disabled = true;
