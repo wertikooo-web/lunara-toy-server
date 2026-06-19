@@ -23,11 +23,27 @@ const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
 const ADDRESS_MODES = ['name', 'varied'];
 const ADDRESS_TONES = ['warm', 'neutral'];
 const ADDRESS_PRESETS = {
-    name: 'the child name',
-    sunshine: 'sunshine',
-    little_one: 'little one',
-    friend: 'buddy',
-    champion: 'champion',
+    ru: {
+        name: 'имя ребёнка',
+        sunshine: 'солнышко',
+        little_one: 'малыш',
+        friend: 'дружок',
+        champion: 'чемпион',
+    },
+    ro: {
+        name: 'numele copilului',
+        sunshine: 'soarele meu',
+        little_one: 'dragul meu',
+        friend: 'prieten drag',
+        champion: 'campionule',
+    },
+    en: {
+        name: 'the child name',
+        sunshine: 'sunshine',
+        little_one: 'little one',
+        friend: 'buddy',
+        champion: 'champion',
+    },
 };
 
 const DEFAULT_SETTINGS = {
@@ -907,81 +923,271 @@ function modelModeToModelName(settings = {}) {
     return 'auto';
 }
 
-const ANSWER_LENGTH_PROMPTS = {
-    very_short: 'very short: 1-2 short sentences, with pauses, no long monologues',
-    short: 'short: 2-4 short sentences, finish the thought completely',
-    normal: 'normal: up to 5 short sentences, still voice-first and not lecture-like',
+const PROMPT_TEXT = {
+    ru: {
+        personality: {
+            gentle: 'заботливая и мягкая',
+            playful: 'весёлая и игривая',
+            calm: 'спокойная, подходит для вечера',
+            curious: 'любознательная и развивающая',
+            fairy: 'сказочная рассказчица',
+            teacher: 'добрый учитель-помощник',
+        },
+        toyType: {
+            bear: 'мишка',
+            bunny: 'зайчик',
+            cat: 'котик',
+            dragon: 'дракончик',
+        },
+        answerLength: {
+            very_short: 'очень коротко: 1-2 коротких предложения, с паузами, без длинных монологов',
+            short: 'коротко: 2-4 коротких предложения, мысль должна завершаться полностью',
+            normal: 'обычно: до 5 коротких предложений, голосом и без лекции',
+        },
+        humor: {
+            low: 'мало юмора: тепло и просто, почти без шуток',
+            normal: 'нормальный юмор: иногда лёгкая добрая шутка',
+            high: 'больше юмора: мягкая детская игривость, но без ухода от темы',
+        },
+        activity: {
+            calm: 'спокойно: тише, медленнее, подходит для отдыха',
+            normal: 'обычно: дружелюбно и ровно, не слишком энергично',
+            active: 'активно: более бодро и игрово, но всё равно коротко',
+        },
+        question: {
+            rare: 'редко задавать вопросы: обычно отвечай без встречного вопроса',
+            sometimes: 'иногда задавать один маленький вопрос, если это естественно',
+            often: 'чаще приглашать ребёнка одним маленьким вопросом или выбором, но не после каждой фразы',
+        },
+        ageMode: {
+            auto: 'авто: подстраиваться под сохранённый возраст ребёнка; если возраст неизвестен, говорить простым дошкольным языком',
+            '3-4': '3-4 года: очень простые слова, 1-2 мысли, мягкий тон, без сложной логики, очень лёгкие загадки',
+            '5-6': '5-6 лет: простые игровые слова, короткие объяснения, лёгкие загадки и выборы',
+            '7-8': '7-8 лет: чуть богаче словарь, понятные причины и следствия, умеренная сложность в играх',
+            '9+': '9+ лет: можно чуть больше рассуждений и игры слов, но всё равно кратко и безопасно',
+        },
+        addressMode: {
+            name: 'предпочитать имя ребёнка, но не в каждом ответе',
+            varied: 'чередовать естественно: иногда имя ребёнка, иногда без прямого обращения, не злоупотреблять обращениями',
+        },
+        addressTone: {
+            warm: 'ласковый тон: мягко и тепло; иногда можно использовать разрешённые ласковые обращения',
+            neutral: 'нейтральный тон: дружелюбно, но без слащавости; не использовать ласковые прозвища',
+        },
+        content: {
+            riddle: 'загадки',
+            story: 'сказки',
+            tongue_twister: 'скороговорки',
+            mini_game: 'мини-игры',
+            learning: 'обучающие мини-активности',
+            roleplay: 'ролевые игры',
+            speech_development: 'развитие речи',
+        },
+    },
+    ro: {
+        personality: {
+            gentle: 'grijulie si blanda',
+            playful: 'vesela si jucausa',
+            calm: 'linistita, potrivita pentru seara',
+            curious: 'curioasa si educativa',
+            fairy: 'povestitoare de basm',
+            teacher: 'invatator-ajutor bland',
+        },
+        toyType: {
+            bear: 'ursulet',
+            bunny: 'iepuras',
+            cat: 'pisica',
+            dragon: 'dragonas',
+        },
+        answerLength: {
+            very_short: 'foarte scurt: 1-2 propozitii scurte, cu pauze, fara monologuri lungi',
+            short: 'scurt: 2-4 propozitii scurte, ideea trebuie terminata complet',
+            normal: 'normal: pana la 5 propozitii scurte, potrivit pentru voce si fara lectie lunga',
+        },
+        humor: {
+            low: 'putin umor: cald si simplu, aproape fara glume',
+            normal: 'umor normal: uneori o gluma usoara si blanda',
+            high: 'mai mult umor: joaca blanda pentru copii, fara abatere de la subiect',
+        },
+        activity: {
+            calm: 'linistit: mai incet si mai calm, potrivit pentru odihna',
+            normal: 'normal: prietenos si echilibrat, nu prea energic',
+            active: 'activ: mai vioi si mai jucaus, dar tot scurt',
+        },
+        question: {
+            rare: 'intrebari rare: de obicei raspunde fara intrebare inapoi',
+            sometimes: 'uneori pune o intrebare mica, cand este natural',
+            often: 'mai des invita copilul cu o intrebare mica sau o alegere, dar nu dupa fiecare fraza',
+        },
+        ageMode: {
+            auto: 'auto: adapteaza-te la varsta salvata; daca nu este cunoscuta, foloseste limbaj simplu pentru prescolari',
+            '3-4': '3-4 ani: cuvinte foarte simple, 1-2 idei, ton bland, fara logica grea, ghicitori foarte usoare',
+            '5-6': '5-6 ani: cuvinte simple si jucause, explicatii scurte, ghicitori usoare si alegeri',
+            '7-8': '7-8 ani: vocabular putin mai bogat, cauze si efecte clare, provocari moderate in jocuri',
+            '9+': '9+ ani: poti folosi explicatii mai gandite si jocuri de cuvinte, dar ramai scurt si sigur',
+        },
+        addressMode: {
+            name: 'prefera numele copilului, dar nu in fiecare raspuns',
+            varied: 'variaza natural: uneori numele copilului, uneori fara adresare directa, fara exces',
+        },
+        addressTone: {
+            warm: 'ton cald: bland si afectuos; uneori poti folosi adresarile calde aprobate',
+            neutral: 'ton neutru: prietenos, dar fara diminutive dulci; nu folosi porecle afectuoase',
+        },
+        content: {
+            riddle: 'ghicitori',
+            story: 'povesti',
+            tongue_twister: 'framantari de limba',
+            mini_game: 'mini-jocuri',
+            learning: 'mini-activitati educative',
+            roleplay: 'jocuri de rol',
+            speech_development: 'dezvoltarea vorbirii',
+        },
+    },
+    en: {
+        personality: PERSONALITY_PRESETS,
+        toyType: {
+            bear: 'bear',
+            bunny: 'bunny',
+            cat: 'cat',
+            dragon: 'little dragon',
+        },
+        answerLength: {
+            very_short: 'very short: 1-2 short sentences, with pauses, no long monologues',
+            short: 'short: 2-4 short sentences, finish the thought completely',
+            normal: 'normal: up to 5 short sentences, still voice-first and not lecture-like',
+        },
+        humor: {
+            low: 'low humor: warm and simple, almost no jokes',
+            normal: 'normal humor: occasional light playful phrase',
+            high: 'more humor: add gentle child-safe playfulness, but do not derail the answer',
+        },
+        activity: {
+            calm: 'calm activity: quieter, slower, suitable for bedtime or tired child',
+            normal: 'normal activity: balanced, friendly, not too energetic',
+            active: 'active: more energetic and game-like, but still concise',
+        },
+        question: {
+            rare: 'rare follow-up questions: usually answer without asking back',
+            sometimes: 'sometimes ask one small follow-up when it naturally helps',
+            often: 'often invite the child with one small question or choice, but not after every sentence',
+        },
+        ageMode: {
+            auto: 'auto: adapt to the saved child age if known; otherwise use simple preschool-safe language',
+            '3-4': 'age 3-4: very simple words, 1-2 ideas, gentle tone, no tricky logic, very easy riddles',
+            '5-6': 'age 5-6: simple playful words, short explanations, easy riddles and choices',
+            '7-8': 'age 7-8: slightly richer vocabulary, clear cause-and-effect, modest challenge in games',
+            '9+': 'age 9+: more thoughtful explanations and wordplay, still concise and child-safe',
+        },
+        addressMode: {
+            name: 'prefer addressing the child by name, but not in every reply',
+            varied: 'vary naturally: sometimes use the child name, sometimes use no direct address, and do not overuse addresses',
+        },
+        addressTone: {
+            warm: 'warm tone: gentle and affectionate; parent-approved warm addresses may be used sometimes',
+            neutral: 'neutral tone: friendly but not sugary; avoid pet names and use the child name only when natural',
+        },
+        content: {
+            riddle: 'riddles',
+            story: 'stories',
+            tongue_twister: 'tongue twisters',
+            mini_game: 'mini-games',
+            learning: 'learning mini-activities',
+            roleplay: 'roleplay games',
+            speech_development: 'speech development',
+        },
+    },
 };
 
-const HUMOR_PROMPTS = {
-    low: 'low humor: warm and simple, almost no jokes',
-    normal: 'normal humor: occasional light playful phrase',
-    high: 'more humor: add gentle child-safe playfulness, but do not derail the answer',
-};
+function promptLangKey(lang = 'ru-RU') {
+    if (String(lang).startsWith('ro')) return 'ro';
+    if (String(lang).startsWith('en')) return 'en';
+    return 'ru';
+}
 
-const ACTIVITY_PROMPTS = {
-    calm: 'calm activity: quieter, slower, suitable for bedtime or tired child',
-    normal: 'normal activity: balanced, friendly, not too energetic',
-    active: 'active: more energetic and game-like, but still concise',
-};
+function promptTextGroup(group, lang = 'ru-RU') {
+    const key = promptLangKey(lang);
+    return PROMPT_TEXT[key]?.[group] || PROMPT_TEXT.ru[group] || {};
+}
 
-const QUESTION_PROMPTS = {
-    rare: 'rare follow-up questions: usually answer without asking back',
-    sometimes: 'sometimes ask one small follow-up when it naturally helps',
-    often: 'often invite the child with one small question or choice, but not after every sentence',
-};
+function settingText(group, value, lang = 'ru-RU', fallback = '') {
+    const text = promptTextGroup(group, lang)[value];
+    return text || fallback || safeText(value, 80);
+}
 
-const AGE_MODE_PROMPTS = {
-    auto: 'auto: adapt to the saved child age if known; otherwise use simple preschool-safe language',
-    '3-4': 'age 3-4: very simple words, 1-2 ideas, gentle tone, no tricky logic, very easy riddles',
-    '5-6': 'age 5-6: simple playful words, short explanations, easy riddles and choices',
-    '7-8': 'age 7-8: slightly richer vocabulary, clear cause-and-effect, modest challenge in games',
-    '9+': 'age 9+: more thoughtful explanations and wordplay, still concise and child-safe',
-};
+function addressNameForPrompt(value, lang = 'ru-RU') {
+    const localized = ADDRESS_PRESETS[promptLangKey(lang)] || ADDRESS_PRESETS.ru;
+    return localized[value] || safeText(value, 40);
+}
 
-const ADDRESS_MODE_PROMPTS = {
-    name: 'prefer addressing the child by name, but not in every reply',
-    varied: 'vary naturally: sometimes use the child name, sometimes use no direct address, and do not overuse addresses',
-};
+function contentNameForPrompt(value, lang = 'ru-RU') {
+    return settingText('content', value, lang, safeText(value, 40));
+}
 
-const ADDRESS_TONE_PROMPTS = {
-    warm: 'warm tone: gentle and affectionate; parent-approved warm addresses may be used sometimes',
-    neutral: 'neutral tone: friendly but not sugary; avoid pet names and use the child name only when natural',
-};
+function addressVariantsLabel(lang = 'ru-RU') {
+    const key = promptLangKey(lang);
+    if (key === 'ro') return 'variante permise de adresare';
+    if (key === 'en') return 'allowed address variants';
+    return 'разрешённые варианты обращения';
+}
 
-function addressNameForPrompt(value) {
-    return ADDRESS_PRESETS[value] || safeText(value, 40);
+function toyTypeForPrompt(value, lang = 'ru-RU') {
+    const text = safeText(value || 'bear', 40);
+    const normalized = text.toLowerCase();
+    const aliases = {
+        bear: 'bear',
+        bunny: 'bunny',
+        cat: 'cat',
+        dragon: 'dragon',
+        'мишка': 'bear',
+        'зайчик': 'bunny',
+        'котик': 'cat',
+        'дракончик': 'dragon',
+        ursulet: 'bear',
+        iepuras: 'bunny',
+        pisica: 'cat',
+        dragonas: 'dragon',
+    };
+    const canonical = aliases[normalized];
+    return canonical ? settingText('toyType', canonical, lang, text) : text;
 }
 
 function formatSettingsForPrompt(settings = {}) {
     const s = { ...DEFAULT_SETTINGS, ...settings };
+    const promptLang = s.language || DEFAULT_SETTINGS.language;
     const personality = cleanStringArray(s.personality_preset, PERSONALITY_KEYS, 4)
-        .map((key) => PERSONALITY_PRESETS[key])
+        .map((key) => settingText('personality', key, promptLang, PERSONALITY_PRESETS[key]))
         .filter(Boolean)
-        .join(', ') || PERSONALITY_PRESETS.gentle;
-    const toyType = safeText(s.toy_type || 'bear', 40);
-    const addressMode = ADDRESS_MODE_PROMPTS[s.child_address_mode] || ADDRESS_MODE_PROMPTS.varied;
-    const addressTone = ADDRESS_TONE_PROMPTS[s.child_address_tone] || ADDRESS_TONE_PROMPTS.warm;
+        .join(', ') || settingText('personality', 'gentle', promptLang, PERSONALITY_PRESETS.gentle);
+    const toyType = toyTypeForPrompt(s.toy_type || 'bear', promptLang);
+    const addressMode = settingText('addressMode', s.child_address_mode, promptLang, PROMPT_TEXT.en.addressMode.varied);
+    const addressTone = settingText('addressTone', s.child_address_tone, promptLang, PROMPT_TEXT.en.addressTone.warm);
     const addressNames = s.child_address_tone === 'warm' ? cleanStringArray(s.child_address_names, null, 8)
         .filter((value) => value !== 'name')
-        .map(addressNameForPrompt)
+        .map((value) => addressNameForPrompt(value, promptLang))
         .filter(Boolean)
         .join(', ') : '';
+    const enabledContent = cleanStringArray(s.content_enabled)
+        .map((value) => contentNameForPrompt(value, promptLang))
+        .filter(Boolean)
+        .join(', ');
     const lines = [
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
         `- Toy character type: ${toyType}`,
-        `- Main language setting: ${s.language}`,
+        `- Main language setting: ${promptLang}`,
+        '- All selected settings below are written for the toy language. Keep toy name, child name, nicknames, and other proper names exactly as written. If descriptive parent-entered text is in another language, silently translate or adapt its meaning into the toy language before speaking. Never quote raw internal keys or another-language setting values to the child.',
         `- Personality preset: ${personality}`,
-        `- Age mode: ${AGE_MODE_PROMPTS[s.age_mode] || AGE_MODE_PROMPTS.auto}`,
-        `- Child address rule: ${addressMode}; ${addressTone}${addressNames ? `; allowed address variants: ${addressNames}` : ''}.`,
+        `- Age mode: ${settingText('ageMode', s.age_mode, promptLang, PROMPT_TEXT.en.ageMode.auto)}`,
+        `- Child address rule: ${addressMode}; ${addressTone}${addressNames ? `; ${addressVariantsLabel(promptLang)}: ${addressNames}` : ''}.`,
+        addressNames ? '- Address variants are ways to address the child, not the child name or identity. Never say raw internal keys or service values to the child.' : '',
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
-        `- Answer length rule: ${ANSWER_LENGTH_PROMPTS[s.answer_length] || ANSWER_LENGTH_PROMPTS.short}`,
-        `- Humor rule: ${HUMOR_PROMPTS[s.humor_level] || HUMOR_PROMPTS.normal}`,
-        `- Activity rule: ${ACTIVITY_PROMPTS[s.activity_level] || ACTIVITY_PROMPTS.normal}`,
-        `- Follow-up question rule: ${QUESTION_PROMPTS[s.question_frequency] || QUESTION_PROMPTS.sometimes}`,
+        `- Answer length rule: ${settingText('answerLength', s.answer_length, promptLang, PROMPT_TEXT.en.answerLength.short)}`,
+        `- Humor rule: ${settingText('humor', s.humor_level, promptLang, PROMPT_TEXT.en.humor.normal)}`,
+        `- Activity rule: ${settingText('activity', s.activity_level, promptLang, PROMPT_TEXT.en.activity.normal)}`,
+        `- Follow-up question rule: ${settingText('question', s.question_frequency, promptLang, PROMPT_TEXT.en.question.sometimes)}`,
         isEveningCalmActive(s) ? '- Evening calm mode is active now: use a quieter bedtime-friendly tone, avoid energetic games, and prefer calm stories, gentle questions, or rest.' : '',
-        `- Enabled content: ${cleanStringArray(s.content_enabled).join(', ') || 'none'}`,
+        `- Enabled content: ${enabledContent || 'none'}`,
         `- Preferred topics: ${cleanStringArray(s.allowed_topics).join(', ') || 'not set'}`,
         `- Avoid topics: ${cleanStringArray(s.blocked_topics).join(', ') || 'not set'}`,
         `- Memory enabled: ${s.memory_enabled !== false ? 'yes' : 'no'}`,

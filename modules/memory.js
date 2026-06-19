@@ -88,6 +88,8 @@ const LIST_LIMITS = {
     shared_world_states: 6,
 };
 
+const INTERNAL_ADDRESS_KEYS = new Set(['name', 'sunshine', 'little_one', 'friend', 'champion']);
+
 const FIELD_TO_LIST = {
     favorite_color: 'favorite_colors',
     favorite_animal: 'favorite_animals',
@@ -477,7 +479,12 @@ function formatProfileForPrompt(profile) {
 
     const memoryJson = parseMemoryJson(profile.memory_json);
     const memoryLines = MEMORY_LIST_FIELDS
-        .map((field) => [memoryLabels[field], cleanListValues(memoryJson[field]).slice(0, LIST_LIMITS[field] || 8)])
+        .map((field) => {
+            const values = cleanListValues(memoryJson[field])
+                .filter((value) => field !== 'nicknames' || !INTERNAL_ADDRESS_KEYS.has(value.toLowerCase()))
+                .slice(0, LIST_LIMITS[field] || 8);
+            return [memoryLabels[field], values];
+        })
         .filter(([, values]) => values.length > 0)
         .map(([label, values]) => `- ${label}: ${values.join(', ')}`);
 
