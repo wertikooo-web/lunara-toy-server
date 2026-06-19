@@ -560,7 +560,8 @@ const UI_TEXT = {
     customToyOption: 'Свой тип',
     language: 'Язык',
     modelMode: 'Режим модели',
-    child: 'Ребёнок',
+    child: 'Ребёнок (заполняется по желанию)',
+    childTitle: 'Эти поля необязательные. Родитель отвечает за то, какие данные о ребёнке он добавляет. Не вводите фамилию, адрес, телефон, школу, точное место проживания, публичные аккаунты и другие чувствительные данные ребёнка.',
     childName: 'Имя ребёнка',
     age: 'Возраст',
     ageMode: 'Возрастной режим',
@@ -733,7 +734,8 @@ const UI_TEXT = {
     customToyOption: 'Tip propriu',
     language: 'Limba',
     modelMode: 'Mod model',
-    child: 'Copil',
+    child: 'Copil (se completeaza optional)',
+    childTitle: 'Aceste campuri sunt optionale. Parintele este responsabil pentru datele despre copil pe care le adauga. Nu introduceti numele de familie, adresa, telefonul, scoala, locul exact de trai, conturi publice sau alte date sensibile ale copilului.',
     childName: 'Numele copilului',
     age: 'Varsta',
     ageMode: 'Mod de varsta',
@@ -906,7 +908,8 @@ const UI_TEXT = {
     customToyOption: 'Custom type',
     language: 'Language',
     modelMode: 'Model mode',
-    child: 'Child',
+    child: 'Child (optional)',
+    childTitle: 'These fields are optional. The parent is responsible for what child data they add. Do not enter the child surname, address, phone number, school, exact home location, public accounts, or other sensitive child data.',
     childName: 'Child name',
     age: 'Age',
     ageMode: 'Age mode',
@@ -1189,6 +1192,8 @@ function applyConsoleLocale(lang) {
 
   const childLabels = [t.childName, t.age, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
   setText('#consoleBox > section:nth-of-type(4) h2', t.child);
+  const childHeading = document.querySelector('#consoleBox > section:nth-of-type(4) h2');
+  if (childHeading) childHeading.title = t.childTitle || '';
   document.querySelectorAll('#consoleBox > section:nth-of-type(4) label').forEach((el, i) => { if (childLabels[i]) el.textContent = childLabels[i]; });
   const ageOptions = document.querySelectorAll('#age_mode option');
   [t.ageModeAuto, t.ageMode34, t.ageMode56, t.ageMode78, t.ageMode9].forEach((label, i) => { if (ageOptions[i]) ageOptions[i].textContent = label; });
@@ -1353,6 +1358,8 @@ function topicText(values) {
 function setDailyLimitPreset() {
   const preset = document.getElementById('daily_limit_preset').value;
   if (preset !== 'custom') document.getElementById('daily_limit_minutes').value = preset;
+  setValue('daily_limit_enabled', true);
+  toggleDailyLimit();
 }
 
 function setDailyLimitCustom() {
