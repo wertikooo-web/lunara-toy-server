@@ -2238,7 +2238,6 @@ function renderRuntime(runtime = {}) {
   const status = runtime.allowed === false ? t.analyticsBlocked : t.analyticsWorks;
   const details = [];
   if (runtime.reason === 'rest_schedule' && runtime.rest_until) details.push(`${t.statusRestNow}: ${runtime.rest_until}.`);
-  if (runtime.daily_limit_minutes) details.push(`${t.analyticsUsed}: ${used} ${t.minUnit}. ${t.analyticsRemaining}: ${Math.max(0, remaining || 0)} ${t.minUnit}.`);
   setText('#runtimeStatus', details.join(' '));
   setText('#metricUsedToday', `${used} ${t.minUnit}`);
   setText('#metricRemainingToday', remaining == null ? t.analyticsNoLimit : `${Math.max(0, remaining)} ${t.minUnit}`);
