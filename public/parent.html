@@ -89,8 +89,10 @@
     .quick-panel { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
     .quick-panel h2 { margin-top: 0; }
     .quick-panel p { margin: 0; max-width: 640px; }
+    .quick-main { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
     .quick-actions button { margin: 0; }
+    #basicToggleButton { background: #8b5cf6; border: 1px solid #c4a7ff; box-shadow: 0 0 14px rgba(139, 92, 246, .28); }
     .ready-indicator { border-radius: 999px; padding: 10px 16px; min-width: 88px; text-align: center; font-weight: 800; letter-spacing: .02em; background: #374151; color: #d1d5db; border: 1px solid #6b7280; }
     .ready-indicator.ready { background: #16a34a; color: #ecfdf5; border-color: #86efac; box-shadow: 0 0 18px rgba(22, 163, 74, .35); }
     .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
@@ -170,11 +172,11 @@
   <div id="consoleBox" class="hidden basic-collapsed advanced-collapsed">
     <div id="statusOverview" class="status-overview"></div>
     <div id="quickSetupPanel" class="quick-panel">
-      <div>
+      <div class="quick-main">
         <h2 id="quickSetupTitle">Быстрая настройка</h2>
+        <button id="basicToggleButton" type="button" onclick="toggleBasicSettings()">Настройки</button>
       </div>
       <div class="quick-actions">
-        <button id="basicToggleButton" class="secondary" type="button" onclick="toggleBasicSettings()">Настройки</button>
         <div id="quickDoneIndicator" class="ready-indicator pending">ГОТОВО</div>
       </div>
     </div>
