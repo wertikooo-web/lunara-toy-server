@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "startCommand": "sed -i 's|<button class=\"secondary\" onclick=\"editChildProfile()\">Редактировать</button>|<button class=\"secondary\" style=\"display:none\" onclick=\"editChildProfile()\">Редактировать</button>|' public/parent.html && node server.js",
+    "startCommand": "node scripts/run-auto-language-migration.js && node server.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
