@@ -132,5 +132,57 @@ if (parentHtml.includes(oldAnalyticsButton)) {
   throw new Error('Static analytics button was not found');
 }
 
+const oldToyTypeSetter = [
+  'function setToyTypeValue(value) {',
+  "  const text = normalizeToyTypeForDisplay(value) || 'Мишка';",
+  "  const select = document.getElementById('toy_type');",
+  "  const custom = document.getElementById('custom_toy_type');",
+  "  const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];",
+  '  if (presets.includes(text)) {',
+  '    select.value = text;',
+  "    if (custom) custom.value = '';",
+  '  } else {',
+  '    select.value = CUSTOM_TOY_VALUE;',
+  '    if (custom) custom.value = text;',
+  '  }',
+  '  toggleCustomToyType();',
+  '}',
+].join('\n');
+
+const newToyTypeSetter = [
+  'function translatePresetToyType(value, targetLanguage) {',
+  '  const text = normalizeToyTypeForDisplay(value);',
+  "  const targetPresets = TOY_TYPE_PRESETS[targetLanguage] || TOY_TYPE_PRESETS['ru-RU'];",
+  "  for (const sourceLanguage of ['ru-RU', 'ro-RO', 'en-US']) {",
+  '    const sourcePresets = TOY_TYPE_PRESETS[sourceLanguage] || [];',
+  '    const presetIndex = sourcePresets.indexOf(text);',
+  '    if (presetIndex >= 0) return targetPresets[presetIndex] || text;',
+  '  }',
+  '  return text;',
+  '}',
+  '',
+  'function setToyTypeValue(value) {',
+  "  const originalText = normalizeToyTypeForDisplay(value) || 'Мишка';",
+  '  const text = translatePresetToyType(originalText, consoleLanguage);',
+  "  const select = document.getElementById('toy_type');",
+  "  const custom = document.getElementById('custom_toy_type');",
+  "  const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];",
+  '  if (presets.includes(text)) {',
+  '    select.value = text;',
+  "    if (custom) custom.value = '';",
+  '  } else {',
+  '    select.value = CUSTOM_TOY_VALUE;',
+  '    if (custom) custom.value = originalText;',
+  '  }',
+  '  toggleCustomToyType();',
+  '}',
+].join('\n');
+
+if (parentHtml.includes(oldToyTypeSetter)) {
+  parentHtml = parentHtml.replace(oldToyTypeSetter, newToyTypeSetter);
+} else if (!parentHtml.includes('function translatePresetToyType(value, targetLanguage)')) {
+  throw new Error('Toy type localization function was not found');
+}
+
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] labels updated: advanced help and activity button');
+console.log('[Parent UI] labels updated; preset toy types now follow console language');
