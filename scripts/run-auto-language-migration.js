@@ -22,3 +22,31 @@ try {
 } finally {
   fs.rmSync(runtimePath, { force: true });
 }
+
+const parentHtmlPath = path.join(__dirname, '..', 'public', 'parent.html');
+let parentHtml = fs.readFileSync(parentHtmlPath, 'utf8');
+
+const editButton = '        <button class="secondary" onclick="editChildProfile()">Редактировать</button>\n';
+if (parentHtml.includes(editButton)) {
+  parentHtml = parentHtml.replace(editButton, '');
+}
+
+const positionalLabels = [
+  "  setText('#childPanel .row-actions button:nth-of-type(1)', t.editChild);",
+  "  setText('#childPanel .row-actions button:nth-of-type(2)', t.saveChild);",
+  "  setText('#childPanel .row-actions button:nth-of-type(3)', t.clearChild);",
+].join('\n');
+
+const actionLabels = [
+  "  setText('#childPanel button[onclick=\"saveProfile()\"]', t.saveChild);",
+  "  setText('#childPanel button[onclick=\"clearChildProfile()\"]', t.clearChild);",
+].join('\n');
+
+if (parentHtml.includes(positionalLabels)) {
+  parentHtml = parentHtml.replace(positionalLabels, actionLabels);
+} else if (!parentHtml.includes(actionLabels)) {
+  throw new Error('Child button localization fragment was not found');
+}
+
+fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
+console.log('[Parent UI] child edit button removed; save/clear labels bound by action');
