@@ -100,5 +100,37 @@ if (parentHtml.includes(oldProfilesStaticHeading)) {
   throw new Error('Static profiles heading was not found');
 }
 
+const oldAdvancedHelpText = "    advancedHelp: '(Профили, контент и тонкие параметры открываются здесь.)',";
+const newAdvancedHelpText = "    advancedHelp: '(Смена профиля, Настройки контента, Активность)',";
+if (parentHtml.includes(oldAdvancedHelpText)) {
+  parentHtml = parentHtml.replace(oldAdvancedHelpText, newAdvancedHelpText);
+} else if (!parentHtml.includes(newAdvancedHelpText)) {
+  throw new Error('Russian advanced help text was not found');
+}
+
+const oldAdvancedHelpStatic = '      <p id="advancedHelp" class="small">(Профили, контент и тонкие параметры открываются здесь.)</p>';
+const newAdvancedHelpStatic = '      <p id="advancedHelp" class="small">(Смена профиля, Настройки контента, Активность)</p>';
+if (parentHtml.includes(oldAdvancedHelpStatic)) {
+  parentHtml = parentHtml.replace(oldAdvancedHelpStatic, newAdvancedHelpStatic);
+} else if (!parentHtml.includes(newAdvancedHelpStatic)) {
+  throw new Error('Static advanced help text was not found');
+}
+
+const oldAnalyticsText = "    analytics: 'Аналитика',";
+const newAnalyticsText = "    analytics: 'Активность',";
+if (parentHtml.includes(oldAnalyticsText)) {
+  parentHtml = parentHtml.replace(oldAnalyticsText, newAnalyticsText);
+} else if (!parentHtml.includes(newAnalyticsText)) {
+  throw new Error('Russian analytics label was not found');
+}
+
+const oldAnalyticsButton = '      <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>';
+const newAnalyticsButton = '      <button class="secondary" onclick="toggleAnalytics()">Активность</button>';
+if (parentHtml.includes(oldAnalyticsButton)) {
+  parentHtml = parentHtml.replace(oldAnalyticsButton, newAnalyticsButton);
+} else if (!parentHtml.includes(newAnalyticsButton)) {
+  throw new Error('Static analytics button was not found');
+}
+
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] child buttons fixed; spacing increased; basic help added; profile selection heading renamed');
+console.log('[Parent UI] labels updated: advanced help and activity button');
