@@ -148,7 +148,7 @@ if (parentHtml.includes(oldAnalyticsText)) {
 }
 
 const oldAnalyticsButton = '      <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>';
-const newAnalyticsButton = '      <button class="secondary" onclick="toggleAnalytics()">Активность</button>';
+const newAnalyticsButton = '      <button onclick="toggleAnalytics()">Активность</button>';
 if (parentHtml.includes(oldAnalyticsButton)) {
   parentHtml = parentHtml.replace(oldAnalyticsButton, newAnalyticsButton);
 } else if (!parentHtml.includes(newAnalyticsButton)) {
@@ -208,4 +208,4 @@ if (parentHtml.includes(oldToyTypeSetter)) {
 }
 
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] advanced settings button and help aligned in one row');
+console.log('[Parent UI] activity button now uses primary purple style');
