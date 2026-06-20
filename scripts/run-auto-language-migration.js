@@ -84,5 +84,21 @@ if (parentHtml.includes(quickActionsStyle)) {
   throw new Error('Quick settings row style insertion point was not found');
 }
 
+const oldProfilesTitleText = "    profiles: 'Профили ребёнка',";
+const newProfilesTitleText = "    profiles: 'Выбор профиля ребенка',";
+if (parentHtml.includes(oldProfilesTitleText)) {
+  parentHtml = parentHtml.replace(oldProfilesTitleText, newProfilesTitleText);
+} else if (!parentHtml.includes(newProfilesTitleText)) {
+  throw new Error('Russian profiles title text was not found');
+}
+
+const oldProfilesStaticHeading = '      <h2>Профили</h2>';
+const newProfilesStaticHeading = '      <h2>Выбор профиля ребенка</h2>';
+if (parentHtml.includes(oldProfilesStaticHeading)) {
+  parentHtml = parentHtml.replace(oldProfilesStaticHeading, newProfilesStaticHeading);
+} else if (!parentHtml.includes(newProfilesStaticHeading)) {
+  throw new Error('Static profiles heading was not found');
+}
+
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] child buttons fixed; spacing increased; basic settings help added inline');
+console.log('[Parent UI] child buttons fixed; spacing increased; basic help added; profile selection heading renamed');
