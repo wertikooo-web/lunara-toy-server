@@ -155,6 +155,14 @@ if (parentHtml.includes(oldAnalyticsButton)) {
   throw new Error('Static analytics button was not found');
 }
 
+const oldAnalyticsButtonStyle = '    #analyticsSection > button { color: #fbbf24; border-color: #f59e0b; }';
+const newAnalyticsButtonStyle = '    #analyticsSection > button { color: #fff; border-color: #f59e0b; }';
+if (parentHtml.includes(oldAnalyticsButtonStyle)) {
+  parentHtml = parentHtml.replace(oldAnalyticsButtonStyle, newAnalyticsButtonStyle);
+} else if (!parentHtml.includes(newAnalyticsButtonStyle)) {
+  throw new Error('Analytics button color rule was not found');
+}
+
 const oldToyTypeSetter = [
   'function setToyTypeValue(value) {',
   "  const text = normalizeToyTypeForDisplay(value) || 'Мишка';",
@@ -208,4 +216,4 @@ if (parentHtml.includes(oldToyTypeSetter)) {
 }
 
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] activity button now uses primary purple style');
+console.log('[Parent UI] activity button text is now white');
