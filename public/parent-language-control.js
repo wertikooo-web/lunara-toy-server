@@ -32,6 +32,29 @@
     }
   }
 
+  function childButtonText(consoleLang) {
+    if (consoleLang === 'ro-RO') return {
+      save: 'Salvează datele copilului',
+      clear: 'Șterge datele copilului',
+    };
+    if (consoleLang === 'en-US') return {
+      save: 'Save child data',
+      clear: 'Clear child data',
+    };
+    return {
+      save: 'Сохранить данные ребёнка',
+      clear: 'Очистить данные ребёнка',
+    };
+  }
+
+  function relabelChildButtons() {
+    const labels = childButtonText(currentConsoleLanguage());
+    const saveButton = document.querySelector('#childPanel button[onclick="saveProfile()"]');
+    const clearButton = document.querySelector('#childPanel button[onclick="clearChildProfile()"]');
+    if (saveButton) saveButton.textContent = labels.save;
+    if (clearButton) clearButton.textContent = labels.clear;
+  }
+
   function localizeControls() {
     const languageSelect = document.getElementById('language');
     const autoOption = [...(languageSelect?.options || [])].find(option => option.value === 'auto');
@@ -41,6 +64,7 @@
     const help = document.getElementById('autoLanguageFallbackHelp');
     if (label) label.textContent = text.label;
     if (help) help.textContent = text.help;
+    relabelChildButtons();
   }
 
   function toggleFallback() {
@@ -49,7 +73,8 @@
   }
 
   function ensureControls() {
-    document.querySelector('button[onclick="editChildProfile()"]')?.remove();
+    document.querySelector('#childPanel button[onclick="editChildProfile()"]')?.remove();
+    relabelChildButtons();
 
     const languageSelect = document.getElementById('language');
     if (!languageSelect) return;
@@ -131,6 +156,7 @@
         console.warn('[Parent Language] Cannot load AUTO fallback:', err.message);
       }
       toggleFallback();
+      relabelChildButtons();
     };
   }
 
