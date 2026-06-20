@@ -109,8 +109,9 @@
     .ready-indicator.ready { background: #16a34a; color: #ecfdf5; border-color: #86efac; box-shadow: 0 0 18px rgba(22, 163, 74, .35); }
     .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
     .advanced-toggle-panel { border: 1px solid #57408f; border-top: 4px solid #ef4444; background: #151126; border-radius: 10px; padding: 16px; margin: 28px 0 14px; }
-    .advanced-toggle-panel h2 { margin-top: 0; color: #c084fc; }
-    .advanced-toggle-panel button { margin-top: 4px; }
+    .advanced-toggle-panel button { margin: 0; }
+    #advancedToggleButton { background: #8b5cf6; border: 1px solid #c4a7ff; box-shadow: 0 0 14px rgba(139, 92, 246, .28); }
+    #advancedHelp { margin: 12px 0 0; }
     input::placeholder, textarea::placeholder { color: #9ca3af; opacity: 1; }
     .status-chip { background: #0b0914; border: 1px solid #3d2b70; border-radius: 999px; padding: 8px 11px; color: #d8ccff; font-size: 13px; }
     .status-chip.good { border-color: #16a34a; color: #bbf7d0; }
@@ -477,9 +478,8 @@
     </section>
 
     <div id="advancedTogglePanel" class="advanced-toggle-panel">
-      <h2 id="advancedTitle">Расширенные настройки</h2>
-      <p id="advancedHelp" class="small">Профили, контент и тонкие параметры открываются здесь.</p>
-      <button id="advancedToggleButton" class="secondary" onclick="toggleAdvancedSettings()">Показать расширенные настройки</button>
+      <button id="advancedToggleButton" onclick="toggleAdvancedSettings()">Расширенные настройки</button>
+      <p id="advancedHelp" class="small">(Профили, контент и тонкие параметры открываются здесь.)</p>
     </div>
 
     <section id="technicalPanel" class="advanced-section">
@@ -625,10 +625,9 @@ const UI_TEXT = {
     quickDone: 'ГОТОВО',
     basicShow: 'Настройки',
     basicHide: 'Скрыть настройки',
-    advancedTitle: 'Расширенные настройки',
-    advancedHelp: 'Профили, контент и тонкие параметры открываются здесь.',
-    advancedShow: 'Показать расширенные настройки',
-    advancedHide: 'Скрыть расширенные настройки',
+    advancedHelp: '(Профили, контент и тонкие параметры открываются здесь.)',
+    advancedShow: 'Расширенные настройки',
+    advancedHide: 'Расширенные настройки',
     technicalSettings: 'Технические настройки',
     heroTitle: 'Lumi под вашим контролем',
     heroTitleTemplate: '{toy} под вашим контролем',
@@ -898,10 +897,9 @@ const UI_TEXT = {
     quickDone: 'GATA',
     basicShow: 'Setari',
     basicHide: 'Ascunde setarile',
-    advancedTitle: 'Setari avansate',
-    advancedHelp: 'Profilurile, continutul si setarile fine se deschid aici.',
-    advancedShow: 'Arata setarile avansate',
-    advancedHide: 'Ascunde setarile avansate',
+    advancedHelp: '(Profilurile, continutul si setarile fine se deschid aici.)',
+    advancedShow: 'Setari avansate',
+    advancedHide: 'Setari avansate',
     technicalSettings: 'Setari tehnice',
     heroTitle: 'Lumi sub controlul tau',
     heroTitleTemplate: '{toy} sub controlul tau',
@@ -1171,10 +1169,9 @@ const UI_TEXT = {
     quickDone: 'READY',
     basicShow: 'Settings',
     basicHide: 'Hide settings',
-    advancedTitle: 'Advanced settings',
-    advancedHelp: 'Profiles, content, and fine tuning are opened here.',
-    advancedShow: 'Show advanced settings',
-    advancedHide: 'Hide advanced settings',
+    advancedHelp: '(Profiles, content, and fine tuning are opened here.)',
+    advancedShow: 'Advanced settings',
+    advancedHide: 'Advanced settings',
     technicalSettings: 'Technical settings',
     heroTitle: 'Lumi under your control',
     heroTitleTemplate: '{toy} under your control',
@@ -1837,7 +1834,6 @@ function applyConsoleLocale(lang) {
   setText('#quickSetupTitle', t.quickSetup);
   setText('#quickDoneIndicator', t.quickDone);
   updateBasicToggleText();
-  setText('#advancedTitle', t.advancedTitle);
   setText('#advancedHelp', t.advancedHelp);
   updateAdvancedToggleText();
   const footer = document.getElementById('parentFooter');
