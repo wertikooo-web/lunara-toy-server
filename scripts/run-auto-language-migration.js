@@ -48,5 +48,14 @@ if (parentHtml.includes(positionalLabels)) {
   throw new Error('Child button localization fragment was not found');
 }
 
+const currentAdvancedSpacing = '    .advanced-toggle-panel { border: 1px solid #57408f; border-top: 4px solid #ef4444; background: #151126; border-radius: 10px; padding: 16px; margin: 28px 0 14px; }';
+const increasedAdvancedSpacing = '    .advanced-toggle-panel { border: 1px solid #57408f; border-top: 4px solid #ef4444; background: #151126; border-radius: 10px; padding: 16px; margin: 70px 0 14px; }';
+
+if (parentHtml.includes(currentAdvancedSpacing)) {
+  parentHtml = parentHtml.replace(currentAdvancedSpacing, increasedAdvancedSpacing);
+} else if (!parentHtml.includes(increasedAdvancedSpacing)) {
+  throw new Error('Advanced settings spacing rule was not found');
+}
+
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] child edit button removed; save/clear labels bound by action');
+console.log('[Parent UI] child buttons fixed; advanced settings spacing increased to 84px total');
