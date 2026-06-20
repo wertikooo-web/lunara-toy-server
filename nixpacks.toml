@@ -1,2 +1,2 @@
 [start]
-cmd = "node scripts/apply-auto-language-migration.js && node server.js"
+cmd = "node scripts/run-auto-language-migration.js && node server.js"
