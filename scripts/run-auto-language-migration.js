@@ -75,6 +75,7 @@ const quickActionsStyle = '    .quick-actions { display: flex; flex-wrap: wrap; 
 const quickActionsStyleWithInlineHelp = [
   '    .quick-settings-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }',
   '    .quick-settings-row button { margin: 0; }',
+  '    .quick-settings-row .small { margin: 0; }',
   quickActionsStyle,
 ].join('\n');
 
@@ -114,6 +115,28 @@ if (parentHtml.includes(oldAdvancedHelpStatic)) {
   parentHtml = parentHtml.replace(oldAdvancedHelpStatic, newAdvancedHelpStatic);
 } else if (!parentHtml.includes(newAdvancedHelpStatic)) {
   throw new Error('Static advanced help text was not found');
+}
+
+const advancedPanelStacked = [
+  '    <div id="advancedTogglePanel" class="advanced-toggle-panel">',
+  '      <button id="advancedToggleButton" onclick="toggleAdvancedSettings()">Расширенные настройки</button>',
+  '      <p id="advancedHelp" class="small">(Смена профиля, Настройки контента, Активность)</p>',
+  '    </div>',
+].join('\n');
+
+const advancedPanelInline = [
+  '    <div id="advancedTogglePanel" class="advanced-toggle-panel">',
+  '      <div class="quick-settings-row">',
+  '        <button id="advancedToggleButton" onclick="toggleAdvancedSettings()">Расширенные настройки</button>',
+  '        <p id="advancedHelp" class="small">(Смена профиля, Настройки контента, Активность)</p>',
+  '      </div>',
+  '    </div>',
+].join('\n');
+
+if (parentHtml.includes(advancedPanelStacked)) {
+  parentHtml = parentHtml.replace(advancedPanelStacked, advancedPanelInline);
+} else if (!parentHtml.includes(advancedPanelInline)) {
+  throw new Error('Advanced settings inline layout fragment was not found');
 }
 
 const oldAnalyticsText = "    analytics: 'Аналитика',";
@@ -185,4 +208,4 @@ if (parentHtml.includes(oldToyTypeSetter)) {
 }
 
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] labels updated; preset toy types now follow console language');
+console.log('[Parent UI] advanced settings button and help aligned in one row');
