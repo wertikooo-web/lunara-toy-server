@@ -30,7 +30,6 @@
     #advancedTogglePanel { order: 20; }
     #consoleBox > #profilesPanel { order: 21; }
     #consoleBox > #contentPanel { order: 23; }
-    #consoleBox > #memoryPanel { order: 24; }
     #consoleBox > #analyticsSection { order: 30; }
     #consoleBox > #dataDeletionPanel { order: 95; }
     #consoleBox > #technicalPanel { order: 90; }
@@ -59,8 +58,11 @@
     }
     button.secondary { background: #374151; }
     button.danger { background: #dc2626; }
-    @keyframes unsavedPulse { 0%, 100% { background: #8b5cf6; box-shadow: none; } 50% { background: #a855f7; box-shadow: 0 0 18px rgba(168, 85, 247, .55); } }
-    button.unsaved-save { animation: unsavedPulse 2.2s ease-in-out infinite; }
+    @keyframes unsavedPulse {
+      0%, 100% { background: #8b5cf6; box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+      50% { background: #f59e0b; box-shadow: 0 0 18px rgba(245, 158, 11, .45); }
+    }
+    button.unsaved-save { animation: unsavedPulse 1.8s ease-in-out infinite; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
@@ -516,14 +518,6 @@
       <div id="saveStatus" class="status"></div>
     </section>
 
-    <section id="memoryPanel" class="advanced-section">
-      <h2>Память</h2>
-      <div id="memoryInfoText" class="memory-info">Lumi сохраняет только факты, которые помогают поддерживать разговор: имя, интересы, любимые темы и важные события. Аудиозаписи разговоров не сохраняются.</div>
-      <button class="secondary" onclick="loadState()">Обновить</button>
-      <div id="memoryStatus" class="status"></div>
-      <div id="memoryView" class="memory-card memory-empty">Память ещё не загружена.</div>
-    </section>
-
     <section id="analyticsSection">
       <button class="secondary" onclick="toggleAnalytics()">Аналитика</button>
       <div id="analyticsPanel" class="analytics-panel hidden">
@@ -872,7 +866,6 @@ const UI_TEXT = {
     memoryCurrentInterests: 'Интересы сейчас',
     memoryRecentStories: 'Последние истории',
     memorySharedWorld: 'Общий мир Lumi',
-    refresh: 'Обновить',
     clearMemory: 'Очистить память',
     clearChildProfile: 'Удалить профиль ребёнка',
     deleteEverything: 'Удалить всё',
@@ -1146,7 +1139,6 @@ const UI_TEXT = {
     memoryCurrentInterests: 'Interese acum',
     memoryRecentStories: 'Povesti recente',
     memorySharedWorld: 'Lumea comuna Lumi',
-    refresh: 'Actualizeaza',
     clearMemory: 'Sterge memoria',
     clearChildProfile: 'Sterge profilul copilului',
     deleteEverything: 'Sterge tot',
@@ -1420,7 +1412,6 @@ const UI_TEXT = {
     memoryCurrentInterests: 'Current interests',
     memoryRecentStories: 'Recent stories',
     memorySharedWorld: 'Shared Lumi world',
-    refresh: 'Refresh',
     clearMemory: 'Clear memory',
     clearChildProfile: 'Delete child profile',
     deleteEverything: 'Delete everything',
@@ -1994,20 +1985,14 @@ function applyConsoleLocale(lang) {
   setValue('memory_enabled', memoryChecked);
   setText('#saveSettingsButton', t.saveSettings);
 
-  setText('#memoryPanel h2', t.memory);
-  setText('#memoryInfoText', t.memoryInfo);
-  setText('#memoryPanel button:nth-of-type(1)', t.refresh);
   setText('#dataDeletionPanel h2', t.dataDeletion);
   setText('#deleteDataHelp', t.dataDeletionHelp);
   setText('#deleteProfileButton', t.deleteProfile);
   setText('#clearMemoryButton', t.clearMemory);
   setText('#deleteChildButton', t.deleteChildData);
   setText('#deleteAllButton', t.deleteEverything);
-  const memoryBox = document.getElementById('memoryView');
-  if (memoryBox?.classList.contains('memory-empty') && !window.lastParentState?.profile) memoryBox.textContent = t.memoryNotLoaded;
   setText('#logoutPanel button', t.logout);
   relocalizeStatusMessages();
-  if (window.lastParentState?.profile) renderMemoryView(window.lastParentState.profile);
   updateUnsavedIndicator();
 }
 
@@ -2429,6 +2414,8 @@ function addMemoryRow(rows, label, value) {
 }
 
 function renderMemoryView(profile) {
+  const box = document.getElementById('memoryView');
+  if (!box) return;
   const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
   const profileRows = [];
   const memoryRows = [];
@@ -2450,7 +2437,6 @@ function renderMemoryView(profile) {
   addMemoryRow(memoryRows, t.memoryRecentStories, memory.recent_stories);
   addMemoryRow(memoryRows, t.memorySharedWorld, memory.shared_world_states);
 
-  const box = document.getElementById('memoryView');
   if (!profileRows.length && !memoryRows.length) {
     box.className = 'memory-card memory-empty';
     box.textContent = t.memoryEmptyFull;
