@@ -45,22 +45,36 @@ function patchParent(text) {
 }
 
 function patchServer(text) {
-  if (text.includes("const { resolveConversationLanguage } = require('./modules/language');") && text.includes("app.get('/api/device/language'")) return text;
+  if (
+    text.includes("const { resolveConversationLanguage } = require('./modules/language');") &&
+    text.includes("app.get('/api/device/language'") &&
+    text.includes("app.post('/api/transcribe'") &&
+    text.includes('const detectedLanguage = req.body?.detected_language || null;')
+  ) return text;
+
   text = replaceOnce(text,
     "const parentConfig = require('./modules/parentConfig');",
     "const parentConfig = require('./modules/parentConfig');\nconst { resolveConversationLanguage } = require('./modules/language');", 'server import');
+
   text = replaceOnce(text,
     "app.use('/', express.static(path.join(__dirname, 'public')));\napp.get('/parent', (_req, res) => {\n    res.sendFile(path.join(__dirname, 'public', 'parent.html'));\n});\napp.get('/health', (_req, res) => res.json({ status: 'ok' }));",
-    "function sendHtmlWithScript(res, fileName, scriptSrc) {\n    const htmlPath = path.join(__dirname, 'public', fileName);\n    const html = fs.readFileSync(htmlPath, 'utf8');\n    const tag = `<script src=\"${scriptSrc}\"></script>`;\n    const output = html.includes(tag) ? html : html.replace('</body>', `${tag}\\n</body>`);\n    res.type('html').send(output);\n}\napp.get('/', (_req, res) => sendHtmlWithScript(res, 'index.html', '/demo-language-control.js'));\napp.get('/parent', (_req, res) => sendHtmlWithScript(res, 'parent.html', '/parent-language-control.js'));\napp.use('/', express.static(path.join(__dirname, 'public')));\napp.get('/health', (_req, res) => res.json({ status: 'ok' }));\napp.get('/api/device/language', async (req, res) => {\n    try {\n        const deviceId = memory.normalizeDeviceId(req.query?.device_id);\n        const settings = await parentConfig.getSettings(deviceId);\n        res.json({ device_id: deviceId, language_mode: settings.language, auto_language_fallback: settings.auto_language_fallback || 'ru-RU', active_language: settings.language === 'auto' ? null : settings.language });\n    } catch (err) {\n        logger.error(`[Device Language] ${err.message}`);\n        res.status(500).json({ error: err.message });\n    }\n});", 'server routes');
+    "function sendHtmlWithScript(res, fileName, scriptSrc) {\n    const htmlPath = path.join(__dirname, 'public', fileName);\n    const html = fs.readFileSync(htmlPath, 'utf8');\n    const tag = `<script src=\"${scriptSrc}\"></script>`;\n    const output = html.includes(tag) ? html : html.replace('</body>', `${tag}\\n</body>`);\n    res.type('html').send(output);\n}\napp.get('/', (_req, res) => sendHtmlWithScript(res, 'index.html', '/demo-language-control.js'));\napp.get('/parent', (_req, res) => sendHtmlWithScript(res, 'parent.html', '/parent-language-control.js'));\napp.use('/', express.static(path.join(__dirname, 'public')));\napp.get('/health', (_req, res) => res.json({ status: 'ok' }));\napp.get('/api/device/language', async (req, res) => {\n    try {\n        const deviceId = memory.normalizeDeviceId(req.query?.device_id);\n        const settings = await parentConfig.getSettings(deviceId);\n        res.json({ device_id: deviceId, language_mode: settings.language, auto_language_fallback: settings.auto_language_fallback || 'ru-RU', active_language: settings.language === 'auto' ? null : settings.language });\n    } catch (err) {\n        logger.error(`[Device Language] ${err.message}`);\n        res.status(500).json({ error: err.message });\n    }\n});\napp.post('/api/transcribe', express.raw({ type: ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'application/octet-stream'], limit: '8mb' }), async (req, res) => {\n    let uploadPath = null;\n    try {\n        if (!Buffer.isBuffer(req.body) || req.body.length < 1000) {\n            return res.status(400).json({ error: 'audio body is empty' });\n        }\n        const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();\n        const extension = mime === 'audio/ogg' ? '.ogg' : mime === 'audio/mp4' ? '.m4a' : mime === 'audio/wav' || mime === 'audio/x-wav' ? '.wav' : '.webm';\n        uploadPath = path.join(DIR_UPLOADS, `browser_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${extension}`);\n        fs.writeFileSync(uploadPath, req.body);\n        const result = await stt.transcribeFile(uploadPath);\n        if (!result.text) return res.status(422).json({ error: 'speech was not recognized' });\n        res.json({ text: result.text, detected_language: result.language, provider: result.provider, model: result.model });\n    } catch (err) {\n        logger.error(`[Browser STT] ${err.message}`);\n        res.status(500).json({ error: err.message });\n    } finally {\n        if (uploadPath) fs.rmSync(uploadPath, { force: true });\n    }\n});", 'server routes');
+
+  text = replaceOnce(text,
+    "    const lang = req.body?.lang || 'ru-RU';\n    if (!text) {",
+    "    const lang = req.body?.lang || 'ru-RU';\n    const detectedLanguage = req.body?.detected_language || null;\n    if (!text) {", 'chat detected language input');
+
   text = replaceOnce(text,
     "        const settings = await parentConfig.getSettings(deviceId);\n        const effectiveLang = settings.language || lang;",
-    "        const settings = await parentConfig.getSettings(deviceId);\n        const languageResult = resolveConversationLanguage(sessionRef, settings.language || lang, text, settings.auto_language_fallback || 'ru-RU');\n        const effectiveLang = languageResult.language;\n        if (languageResult.changed) { llm.resetHistory(sessionRef); sessionRef.pendingContent = null; sessionRef.lastContentMode = null; }\n        const languageMeta = { language_mode: settings.language || lang, active_language: effectiveLang, detected_language: languageResult.detected_language || null, language_reason: languageResult.reason };", 'chat language');
+    "        const settings = await parentConfig.getSettings(deviceId);\n        const languageResult = resolveConversationLanguage(sessionRef, settings.language || lang, text, settings.auto_language_fallback || 'ru-RU', detectedLanguage);\n        const effectiveLang = languageResult.language;\n        if (languageResult.changed) { llm.resetHistory(sessionRef); sessionRef.pendingContent = null; sessionRef.lastContentMode = null; }\n        const languageMeta = { language_mode: settings.language || lang, active_language: effectiveLang, detected_language: languageResult.detected_language || null, language_reason: languageResult.reason };", 'chat language');
+
   const start = text.indexOf("app.post('/chat'");
   const end = text.indexOf('\nfunction cachedModelMeta', start);
   if (start < 0 || end < 0) throw new Error('chat block not found');
   let chat = text.slice(start, end);
   if (!chat.includes('...languageMeta')) chat = chat.replace(/\n(\s+)device_id: deviceId,/g, (_m, i) => `\n${i}device_id: deviceId,\n${i}...languageMeta,`);
   text = text.slice(0, start) + chat + text.slice(end);
+
   text = replaceOnce(text,
     "        lastContentMode: null,\n    };",
     "        lastContentMode: null,\n        activeLanguage: null,\n        languageCandidate: null,\n        languageCandidateCount: 0,\n    };", 'ws state');
