@@ -190,10 +190,9 @@
         <button id="chooseProfileButton" class="secondary" onclick="loadConfigProfile()">Выбрать профиль</button>
       </div>
       <div id="activeProfileStatus" class="small"></div>
-      <label>Имя профиля ребёнка</label>
+      <label>Добавить профиль</label>
       <div class="row-actions">
         <input id="profileName" maxlength="40" placeholder="Например: Профиль 1 или Маша">
-        <button id="addProfileButton" class="secondary" onclick="addConfigProfile()">Добавить профиль</button>
         <button id="saveProfileButton" onclick="saveConfigProfile()">Сохранить профиль</button>
       </div>
       <button class="secondary" onclick="resetDefaults()">Базовый профиль по умолчанию</button>
@@ -636,9 +635,9 @@ const UI_TEXT = {
     enter: 'ВОЙТИ',
     profiles: 'Профили ребёнка',
     profilesHelp: 'Один профиль хранит данные ребёнка и все настройки Lumi: характер, контент и расписание.',
-    saveAsProfile: 'Имя профиля ребёнка',
+    saveAsProfile: 'Добавить профиль',
     profilePlaceholder: 'Например: Маша или Саша',
-    addProfile: 'Новый профиль',
+    addProfile: 'Добавить профиль',
     saveProfile: 'Сохранить профиль ребёнка',
     savedProfiles: 'Профили ребёнка',
     chooseProfile: 'Выбрать профиль',
@@ -910,9 +909,9 @@ const UI_TEXT = {
     enter: 'INTRA',
     profiles: 'Profiluri copil',
     profilesHelp: 'Un profil pastreaza datele copilului si toate setarile Lumi: caracter, continut si program.',
-    saveAsProfile: 'Numele profilului copilului',
+    saveAsProfile: 'Adauga profil',
     profilePlaceholder: 'De exemplu: Maria sau Alexandru',
-    addProfile: 'Profil nou',
+    addProfile: 'Adauga profil',
     saveProfile: 'Salveaza profilul copilului',
     savedProfiles: 'Profiluri copil',
     chooseProfile: 'Alege profil',
@@ -1184,9 +1183,9 @@ const UI_TEXT = {
     enter: 'LOGIN',
     profiles: 'Child profiles',
     profilesHelp: 'One profile keeps the child data and all Lumi settings: personality, content, and schedule.',
-    saveAsProfile: 'Child profile name',
+    saveAsProfile: 'Add profile',
     profilePlaceholder: 'For example: Masha or Alex',
-    addProfile: 'New profile',
+    addProfile: 'Add profile',
     saveProfile: 'Save child profile',
     savedProfiles: 'Child profiles',
     chooseProfile: 'Choose profile',
@@ -1853,7 +1852,6 @@ function applyConsoleLocale(lang) {
   setText('#chooseProfileButton', t.chooseProfile);
   setText('#deleteProfileButton', t.deleteProfile);
   setText('#consoleBox > section:nth-of-type(1) label:nth-of-type(2)', t.saveAsProfile);
-  setText('#addProfileButton', t.addProfile);
   setText('#saveProfileButton', t.saveProfile);
   setText('#consoleBox > section:nth-of-type(1) > button.secondary', t.resetDefaults);
   setText('#defaultSummary', t.defaultSummary);
