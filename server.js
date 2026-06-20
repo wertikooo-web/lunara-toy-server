@@ -6,6 +6,7 @@ const express   = require('express');
 const http      = require('http');
 const path      = require('path');
 const fs        = require('fs');
+const crypto    = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 
 const stt      = require('./modules/stt');
@@ -109,9 +110,20 @@ app.get('/api/content/stats', async (_req, res) => {
 app.use(express.json());
 
 const parentSessions = new Map();
+const revokedParentTokens = new Set();
+const PARENT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const PARENT_TOKEN_SECRET = process.env.PARENT_TOKEN_SECRET || process.env.OPENAI_API_KEY || 'lunara-parent-demo-secret';
+
+function signParentPayload(payload) {
+    return crypto.createHmac('sha256', PARENT_TOKEN_SECRET).update(payload).digest('base64url');
+}
 
 function createParentToken(deviceId) {
-    const token = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+    const payload = Buffer.from(JSON.stringify({
+        device_id: memory.normalizeDeviceId(deviceId),
+        created_at: Date.now(),
+    })).toString('base64url');
+    const token = `pt1.${payload}.${signParentPayload(payload)}`;
     parentSessions.set(token, {
         device_id: memory.normalizeDeviceId(deviceId),
         created_at: Date.now(),
@@ -122,13 +134,33 @@ function createParentToken(deviceId) {
 function getParentSession(req) {
     const auth = String(req.headers.authorization || '');
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : String(req.headers['x-parent-token'] || '');
-    if (!token || !parentSessions.has(token)) return null;
-    const session = parentSessions.get(token);
-    if (Date.now() - session.created_at > 7 * 24 * 60 * 60 * 1000) {
+    if (!token || revokedParentTokens.has(token)) return null;
+    const liveSession = parentSessions.get(token);
+    if (liveSession) {
+        if (Date.now() - liveSession.created_at > PARENT_TOKEN_TTL_MS) {
+            parentSessions.delete(token);
+            return null;
+        }
+        return liveSession;
+    }
+    const parts = token.split('.');
+    if (parts.length !== 3 || parts[0] !== 'pt1') return null;
+    const [, payload, signature] = parts;
+    if (signParentPayload(payload) !== signature) return null;
+    let session = null;
+    try {
+        session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    } catch (_err) {
+        return null;
+    }
+    if (!session?.device_id || Date.now() - Number(session.created_at || 0) > PARENT_TOKEN_TTL_MS) {
         parentSessions.delete(token);
         return null;
     }
-    return session;
+    return {
+        device_id: memory.normalizeDeviceId(session.device_id),
+        created_at: Number(session.created_at),
+    };
 }
 
 function requireParent(req, res) {
@@ -156,7 +188,10 @@ app.post('/api/parent/login', async (req, res) => {
 app.post('/api/parent/logout', (req, res) => {
     const auth = String(req.headers.authorization || '');
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : String(req.headers['x-parent-token'] || '');
-    if (token) parentSessions.delete(token);
+    if (token) {
+        parentSessions.delete(token);
+        revokedParentTokens.add(token);
+    }
     res.json({ ok: true });
 });
 

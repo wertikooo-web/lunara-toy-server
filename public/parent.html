@@ -511,7 +511,7 @@
       <label>Не предлагать темы через запятую</label>
       <input id="blocked_topics" placeholder="страхи, грустные истории, монстры">
       <div class="memory-save-row">
-        <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Настройки контента включены</span></label>
+        <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Память Lumi включена</span></label>
         <button id="saveSettingsButton" onclick="saveSettings()">Сохранить настройки</button>
       </div>
       <div id="saveStatus" class="status"></div>
@@ -571,7 +571,7 @@
 </main>
 
 <script>
-let token = '';
+let token = sessionStorage.getItem('lumi_parent_token') || '';
 localStorage.removeItem('lumi_parent_token');
 
 const TOPIC_PRESETS = {
@@ -848,7 +848,7 @@ const UI_TEXT = {
     topicsPlaceholder: 'Например: животные, космос, сказки, дружба',
     blockedTopics: 'Не предлагать темы через запятую',
     blockedTopicsPlaceholder: 'Например: страхи, грустные истории, монстры, оружие, интернет, покупки',
-    memoryEnabled: 'Настройки контента включены',
+    memoryEnabled: 'Память Lumi включена',
     saveSettings: 'Сохранить настройки',
     memory: 'Память',
     memoryInfo: 'Lumi сохраняет только факты, которые помогают поддерживать разговор: имя, интересы, любимые темы и важные события. Аудиозаписи разговоров не сохраняются.',
@@ -1122,7 +1122,7 @@ const UI_TEXT = {
     topicsPlaceholder: 'De exemplu: animale, spatiu, basme, prietenie',
     blockedTopics: 'Nu propune teme, separate prin virgula',
     blockedTopicsPlaceholder: 'De exemplu: frici, povesti triste, monstri, arme, internet, cumparaturi',
-    memoryEnabled: 'Setarile de continut sunt active',
+    memoryEnabled: 'Memoria Lumi este activa',
     saveSettings: 'Salveaza setarile',
     memory: 'Memorie',
     memoryInfo: 'Lumi pastreaza doar fapte care ajuta conversatia: nume, interese, teme preferate si evenimente importante. Inregistrarile audio ale conversatiilor nu sunt salvate.',
@@ -1396,7 +1396,7 @@ const UI_TEXT = {
     topicsPlaceholder: 'For example: animals, space, stories, friendship',
     blockedTopics: 'Do not suggest topics, comma-separated',
     blockedTopicsPlaceholder: 'For example: fears, sad stories, monsters, weapons, internet, purchases',
-    memoryEnabled: 'Content settings enabled',
+    memoryEnabled: 'Lumi memory enabled',
     saveSettings: 'Save settings',
     memory: 'Memory',
     memoryInfo: 'Lumi saves only facts that help the conversation: name, interests, favorite topics, and important events. Conversation audio recordings are not saved.',
@@ -1540,7 +1540,11 @@ function api(path, options = {}) {
   if (token) options.headers.Authorization = 'Bearer ' + token;
   return fetch(path, options).then(async (res) => {
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    if (!res.ok) {
+      const err = new Error(data.error || 'HTTP ' + res.status);
+      err.status = res.status;
+      throw err;
+    }
     return data;
   });
 }
@@ -2021,6 +2025,7 @@ async function login() {
       }),
     });
     token = data.token;
+    sessionStorage.setItem('lumi_parent_token', token);
     setStatus(status, 'loginDone', { device: data.device_id });
     document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('consoleBox').classList.remove('hidden');
@@ -2835,6 +2840,7 @@ async function logoutParent() {
     // Local logout is still enough if the server token was already expired.
   }
   token = '';
+  sessionStorage.removeItem('lumi_parent_token');
   localStorage.removeItem('lumi_parent_token');
   document.getElementById('analyticsPanel')?.classList.add('hidden');
   document.getElementById('consoleBox').classList.add('hidden');
@@ -2848,6 +2854,22 @@ document.getElementById('consoleBox')?.addEventListener('input', updateUnsavedIn
 document.getElementById('consoleBox')?.addEventListener('change', updateUnsavedIndicator);
 
 applyConsoleLocale(consoleLanguage);
+if (token) {
+  document.getElementById('loginBox').classList.add('hidden');
+  document.getElementById('consoleBox').classList.remove('hidden');
+  loadState().catch((err) => {
+    if (err.status === 401) {
+      token = '';
+      sessionStorage.removeItem('lumi_parent_token');
+      document.getElementById('consoleBox').classList.add('hidden');
+      document.getElementById('loginBox').classList.remove('hidden');
+      document.getElementById('loginStatus').textContent = err.message;
+      document.getElementById('loginStatus').className = 'status error';
+    } else {
+      console.warn('[Parent] session restore failed', err);
+    }
+  });
+}
 </script>
 </body>
 </html>
