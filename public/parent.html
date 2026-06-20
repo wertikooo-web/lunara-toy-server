@@ -2550,6 +2550,11 @@ async function loadState() {
 
 async function setLanguageFromTop(language) {
   const toyTypeBefore = getToyTypeValue();
+  const toyLanguage = document.getElementById('language');
+  if (toyLanguage && toyLanguage.value !== language) {
+    toyLanguage.value = language;
+    applyLanguageTopicDefaults(language);
+  }
   applyConsoleLocale(language);
   setToyTypeValue(toyTypeBefore);
   renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
@@ -2561,7 +2566,15 @@ async function setLanguageFromTop(language) {
 
 function setLanguageFromMain() {
   const language = document.getElementById('language').value;
+  const toyTypeBefore = getToyTypeValue();
+  applyConsoleLocale(language);
+  setToyTypeValue(toyTypeBefore);
   applyLanguageTopicDefaults(language);
+  renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
+  renderStatusOverview(window.lastParentState || {});
+  renderRuntime(window.lastRuntime || {});
+  if (window.lastAnalytics) renderAnalytics(window.lastAnalytics);
+  updateUnsavedIndicator();
 }
 
 async function saveSettings() {
