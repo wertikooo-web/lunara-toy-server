@@ -60,7 +60,7 @@ function isAmbiguousShort(text) {
     return tokenList.every(token => AMBIGUOUS_SHORT_WORDS.has(token));
 }
 
-function resolveConversationLanguage(state, mode, text, fallback = 'ru-RU') {
+function resolveConversationLanguage(state, mode, text, fallback = 'ru-RU', detectedLanguage = null) {
     const configuredMode = normalizeLocale(mode, 'ru-RU');
     const fallbackLocale = normalizeLocale(fallback, 'ru-RU');
     const previous = normalizeLocale(state?.activeLanguage, null);
@@ -80,7 +80,8 @@ function resolveConversationLanguage(state, mode, text, fallback = 'ru-RU') {
     }
 
     const explicit = explicitLanguageCommand(text);
-    const detected = explicit || detectLanguageFromText(text);
+    const sttDetected = normalizeLocale(detectedLanguage, null);
+    const detected = explicit || sttDetected || detectLanguageFromText(text);
     const tokenCount = words(text).length;
     const ambiguous = isAmbiguousShort(text);
     let active = previous || fallbackLocale;
@@ -89,6 +90,13 @@ function resolveConversationLanguage(state, mode, text, fallback = 'ru-RU') {
     if (explicit) {
         active = explicit;
         reason = 'explicit_command';
+        if (state) {
+            state.languageCandidate = null;
+            state.languageCandidateCount = 0;
+        }
+    } else if (sttDetected && !ambiguous) {
+        active = sttDetected;
+        reason = 'stt_detected';
         if (state) {
             state.languageCandidate = null;
             state.languageCandidateCount = 0;
