@@ -1,4 +1,4 @@
- 'use strict';
+'use strict';
 
 const fs = require('fs');
 const logger = require('./logger');
@@ -63,9 +63,67 @@ function getGroqClient() {
     return groqClient;
 }
 
-async function transcribe(pcmPath) {
-    const startedAt = Date.now();
+function normalizeDetectedLanguage(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    if (raw === 'ru' || raw.startsWith('ru-') || raw.includes('russian')) return 'ru-RU';
+    if (raw === 'ro' || raw.startsWith('ro-') || raw.includes('romanian')) return 'ro-RO';
+    if (raw === 'en' || raw.startsWith('en-') || raw.includes('english')) return 'en-US';
+    return null;
+}
 
+function localeToIsoLanguage(value) {
+    const normalized = normalizeDetectedLanguage(value);
+    if (normalized === 'ru-RU') return 'ru';
+    if (normalized === 'ro-RO') return 'ro';
+    if (normalized === 'en-US') return 'en';
+    return null;
+}
+
+async function transcribeFile(audioPath, options = {}) {
+    const startedAt = Date.now();
+    const provider = getProvider();
+    const languageHint = localeToIsoLanguage(options.language);
+    let response;
+    let model;
+
+    if (provider === 'groq') {
+        model = GROQ_STT_MODEL;
+        const request = {
+            file: fs.createReadStream(audioPath),
+            model,
+            response_format: 'verbose_json',
+            temperature: 0,
+        };
+        if (languageHint) request.language = languageHint;
+        response = await getGroqClient().audio.transcriptions.create(request);
+    } else {
+        model = OPENAI_STT_MODEL;
+        const request = {
+            file: fs.createReadStream(audioPath),
+            model,
+            response_format: 'verbose_json',
+            temperature: 0,
+        };
+        if (languageHint) request.language = languageHint;
+        response = await getOpenAIClient().audio.transcriptions.create(request);
+    }
+
+    const result = {
+        text: String(response?.text || '').trim(),
+        language: normalizeDetectedLanguage(response?.language),
+        provider,
+        model,
+    };
+
+    logger.info(
+        `[STT] provider=${provider} model=${model} detected=${result.language || '-'} duration_ms=${Date.now() - startedAt}`
+    );
+
+    return result;
+}
+
+async function transcribe(pcmPath, options = {}) {
     const pcmData = fs.readFileSync(pcmPath);
     const wavData = Buffer.concat([buildWavHeader(pcmData.length), pcmData]);
     const wavPath = /\.pcm$/i.test(pcmPath) ? pcmPath.replace(/\.pcm$/i, '.wav') : `${pcmPath}.wav`;
@@ -73,31 +131,11 @@ async function transcribe(pcmPath) {
     fs.writeFileSync(wavPath, wavData);
 
     try {
-        const provider = getProvider();
-        let response;
-
-        if (provider === 'groq') {
-            response = await getGroqClient().audio.transcriptions.create({
-                file: fs.createReadStream(wavPath),
-                model: GROQ_STT_MODEL,
-                response_format: 'json',
-                temperature: 0,
-            });
-
-            logger.info(`[STT] provider=groq model=${GROQ_STT_MODEL} duration_ms=${Date.now() - startedAt}`);
-        } else {
-            response = await getOpenAIClient().audio.transcriptions.create({
-                file: fs.createReadStream(wavPath),
-                model: OPENAI_STT_MODEL,
-            });
-
-            logger.info(`[STT] provider=openai model=${OPENAI_STT_MODEL} duration_ms=${Date.now() - startedAt}`);
-        }
-
-        return (response.text || '').trim();
+        const result = await transcribeFile(wavPath, options);
+        return result.text;
     } finally {
         fs.rmSync(wavPath, { force: true });
     }
 }
 
-module.exports = { transcribe };
+module.exports = { transcribe, transcribeFile };
