@@ -57,5 +57,32 @@ if (parentHtml.includes(currentAdvancedSpacing)) {
   throw new Error('Advanced settings spacing rule was not found');
 }
 
+const quickButton = '        <button id="basicToggleButton" type="button" onclick="toggleBasicSettings()">Настройки</button>';
+const quickButtonWithHelp = [
+  '        <div class="quick-settings-row">',
+  '          <button id="basicToggleButton" type="button" onclick="toggleBasicSettings()">Настройки</button>',
+  '          <span id="basicHelpInline" class="small">(Профиль ребенка, Профиль игрушки, Время работы)</span>',
+  '        </div>',
+].join('\n');
+
+if (parentHtml.includes(quickButton)) {
+  parentHtml = parentHtml.replace(quickButton, quickButtonWithHelp);
+} else if (!parentHtml.includes('id="basicHelpInline"')) {
+  throw new Error('Basic settings button fragment was not found');
+}
+
+const quickActionsStyle = '    .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }';
+const quickActionsStyleWithInlineHelp = [
+  '    .quick-settings-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }',
+  '    .quick-settings-row button { margin: 0; }',
+  quickActionsStyle,
+].join('\n');
+
+if (parentHtml.includes(quickActionsStyle)) {
+  parentHtml = parentHtml.replace(quickActionsStyle, quickActionsStyleWithInlineHelp);
+} else if (!parentHtml.includes('.quick-settings-row {')) {
+  throw new Error('Quick settings row style insertion point was not found');
+}
+
 fs.writeFileSync(parentHtmlPath, parentHtml, 'utf8');
-console.log('[Parent UI] child buttons fixed; advanced settings spacing increased to 84px total');
+console.log('[Parent UI] child buttons fixed; spacing increased; basic settings help added inline');
