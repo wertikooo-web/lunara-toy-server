@@ -35,6 +35,8 @@
     #consoleBox > #dataDeletionPanel { order: 95; }
     #consoleBox > #technicalPanel { order: 90; }
     #consoleBox > #logoutPanel { order: 99; }
+    #logoutPanel { border: 0; background: transparent; padding: 0; display: flex; justify-content: flex-end; }
+    #logoutPanel button { margin-right: 0; }
     #consoleBox.basic-collapsed > #childPanel,
     #consoleBox.basic-collapsed > #toyPanel,
     #consoleBox.basic-collapsed > #characterPanel,
@@ -96,7 +98,6 @@
     .ready-indicator { border-radius: 999px; padding: 10px 16px; min-width: 88px; text-align: center; font-weight: 800; letter-spacing: .02em; background: #374151; color: #d1d5db; border: 1px solid #6b7280; }
     .ready-indicator.ready { background: #16a34a; color: #ecfdf5; border-color: #86efac; box-shadow: 0 0 18px rgba(22, 163, 74, .35); }
     .ready-indicator.pending { background: #374151; color: #d1d5db; border-color: #6b7280; box-shadow: none; }
-    .advanced-note { border: 1px dashed #6d4fc0; background: #100c20; border-radius: 8px; padding: 10px; margin-top: 10px; color: #d8ccff; }
     .advanced-toggle-panel { border: 1px solid #57408f; border-top: 4px solid #ef4444; background: #151126; border-radius: 10px; padding: 16px; margin: 14px 0; }
     .advanced-toggle-panel h2 { margin-top: 0; color: #c084fc; }
     .advanced-toggle-panel button { margin-top: 4px; }
@@ -482,7 +483,6 @@
             <option value="economy">Экономный</option>
             <option value="smart">Умный</option>
           </select>
-          <p id="modelModeNote" class="small advanced-note">Рекомендуется настраивать только специалистам.</p>
         </div>
       </div>
     </section>
@@ -507,11 +507,11 @@
         <option value="8">8 предложений</option>
       </select>
       <label>Любимые темы через запятую</label>
-      <input id="allowed_topics" placeholder="animals, space, friendship">
+      <input id="allowed_topics" placeholder="животные, космос, сказки, дружба">
       <label>Не предлагать темы через запятую</label>
-      <input id="blocked_topics" placeholder="monsters, sad stories">
+      <input id="blocked_topics" placeholder="страхи, грустные истории, монстры">
       <div class="memory-save-row">
-        <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Память включена</span></label>
+        <label class="inline-check"><input id="memory_enabled" type="checkbox"> <span>Настройки контента включены</span></label>
         <button id="saveSettingsButton" onclick="saveSettings()">Сохранить настройки</button>
       </div>
       <div id="saveStatus" class="status"></div>
@@ -628,7 +628,6 @@ const UI_TEXT = {
     advancedHelp: 'Профили, контент и тонкие параметры открываются здесь.',
     advancedShow: 'Показать расширенные настройки',
     advancedHide: 'Скрыть расширенные настройки',
-    specialistOnly: 'Рекомендуется настраивать только специалистам.',
     technicalSettings: 'Технические настройки',
     heroTitle: 'Lumi под вашим контролем',
     heroTitleTemplate: '{toy} под вашим контролем',
@@ -846,9 +845,10 @@ const UI_TEXT = {
     story5: '5 предложений',
     story8: '8 предложений',
     topics: 'Любимые темы через запятую',
+    topicsPlaceholder: 'Например: животные, космос, сказки, дружба',
     blockedTopics: 'Не предлагать темы через запятую',
     blockedTopicsPlaceholder: 'Например: страхи, грустные истории, монстры, оружие, интернет, покупки',
-    memoryEnabled: 'Память включена',
+    memoryEnabled: 'Настройки контента включены',
     saveSettings: 'Сохранить настройки',
     memory: 'Память',
     memoryInfo: 'Lumi сохраняет только факты, которые помогают поддерживать разговор: имя, интересы, любимые темы и важные события. Аудиозаписи разговоров не сохраняются.',
@@ -902,7 +902,6 @@ const UI_TEXT = {
     advancedHelp: 'Profilurile, continutul si setarile fine se deschid aici.',
     advancedShow: 'Arata setarile avansate',
     advancedHide: 'Ascunde setarile avansate',
-    specialistOnly: 'Recomandat pentru configurare doar de catre specialisti.',
     technicalSettings: 'Setari tehnice',
     heroTitle: 'Lumi sub controlul tau',
     heroTitleTemplate: '{toy} sub controlul tau',
@@ -1120,9 +1119,10 @@ const UI_TEXT = {
     story5: '5 propozitii',
     story8: '8 propozitii',
     topics: 'Teme preferate, separate prin virgula',
+    topicsPlaceholder: 'De exemplu: animale, spatiu, basme, prietenie',
     blockedTopics: 'Nu propune teme, separate prin virgula',
     blockedTopicsPlaceholder: 'De exemplu: frici, povesti triste, monstri, arme, internet, cumparaturi',
-    memoryEnabled: 'Memoria este activa',
+    memoryEnabled: 'Setarile de continut sunt active',
     saveSettings: 'Salveaza setarile',
     memory: 'Memorie',
     memoryInfo: 'Lumi pastreaza doar fapte care ajuta conversatia: nume, interese, teme preferate si evenimente importante. Inregistrarile audio ale conversatiilor nu sunt salvate.',
@@ -1176,7 +1176,6 @@ const UI_TEXT = {
     advancedHelp: 'Profiles, content, and fine tuning are opened here.',
     advancedShow: 'Show advanced settings',
     advancedHide: 'Hide advanced settings',
-    specialistOnly: 'Recommended for specialists only.',
     technicalSettings: 'Technical settings',
     heroTitle: 'Lumi under your control',
     heroTitleTemplate: '{toy} under your control',
@@ -1394,9 +1393,10 @@ const UI_TEXT = {
     story5: '5 sentences',
     story8: '8 sentences',
     topics: 'Favorite topics, comma-separated',
+    topicsPlaceholder: 'For example: animals, space, stories, friendship',
     blockedTopics: 'Do not suggest topics, comma-separated',
     blockedTopicsPlaceholder: 'For example: fears, sad stories, monsters, weapons, internet, purchases',
-    memoryEnabled: 'Memory enabled',
+    memoryEnabled: 'Content settings enabled',
     saveSettings: 'Save settings',
     memory: 'Memory',
     memoryInfo: 'Lumi saves only facts that help the conversation: name, interests, favorite topics, and important events. Conversation audio recordings are not saved.',
@@ -1463,7 +1463,7 @@ const STATUS_TEXT = {
     resetting: 'Сбрасываю...',
     defaultsRestored: 'Исходные настройки восстановлены.',
     clearingMemory: 'Очищаю память...',
-    memoryCleared: 'Память очищена. Профиль ребёнка оставлен.',
+    memoryCleared: 'Память очищена.',
     deletingChild: 'Удаляю профиль ребёнка...',
     childDeleted: 'Профиль ребёнка удалён.',
     deletingEverything: 'Удаляю всё...',
@@ -1493,7 +1493,7 @@ const STATUS_TEXT = {
     resetting: 'Se reseteaza...',
     defaultsRestored: 'Setarile initiale au fost restabilite.',
     clearingMemory: 'Se sterge memoria...',
-    memoryCleared: 'Memoria a fost stearsa. Profilul copilului a ramas.',
+    memoryCleared: 'Memoria a fost stearsa.',
     deletingChild: 'Se sterge profilul copilului...',
     childDeleted: 'Profilul copilului a fost sters.',
     deletingEverything: 'Se sterge tot...',
@@ -1523,7 +1523,7 @@ const STATUS_TEXT = {
     resetting: 'Resetting...',
     defaultsRestored: 'Default settings restored.',
     clearingMemory: 'Clearing memory...',
-    memoryCleared: 'Memory cleared. Child profile kept.',
+    memoryCleared: 'Memory cleared.',
     deletingChild: 'Deleting child profile...',
     childDeleted: 'Child profile deleted.',
     deletingEverything: 'Deleting everything...',
@@ -1837,7 +1837,6 @@ function applyConsoleLocale(lang) {
   updateBasicToggleText();
   setText('#advancedTitle', t.advancedTitle);
   setText('#advancedHelp', t.advancedHelp);
-  setText('#modelModeNote', t.specialistOnly);
   updateAdvancedToggleText();
   const footer = document.getElementById('parentFooter');
   if (footer) footer.innerHTML = `${escapeHtml(t.footerText).replace('lunaratoy.com', '<a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a>')}`;
@@ -1986,6 +1985,7 @@ function applyConsoleLocale(lang) {
   [t.story3, t.story5, t.story8].forEach((label, i) => { if (storyLengthOptions[i]) storyLengthOptions[i].textContent = label; });
   setText('#contentPanel > label:nth-of-type(3)', t.topics);
   setText('#contentPanel > label:nth-of-type(4)', t.blockedTopics);
+  setPlaceholder('#allowed_topics', t.topicsPlaceholder);
   setPlaceholder('#blocked_topics', t.blockedTopicsPlaceholder);
   const memoryLabel = document.getElementById('memory_enabled')?.closest('label');
   if (memoryLabel) memoryLabel.innerHTML = `<input id="memory_enabled" type="checkbox"> <span>${escapeHtml(t.memoryEnabled)}</span>`;
@@ -2077,6 +2077,14 @@ function isKnownTopicPreset(values, allowEmpty = false) {
 
 function topicText(values) {
   return (values || []).join(', ');
+}
+
+function topicValueForSave(inputId, presetKey) {
+  const value = document.getElementById(inputId).value.trim();
+  if (value) return value;
+  const lang = document.getElementById('language')?.value || 'ru-RU';
+  const preset = TOPIC_PRESETS[lang] || TOPIC_PRESETS['ru-RU'];
+  return topicText(preset[presetKey] || []);
 }
 
 function setDailyLimitPreset() {
@@ -2456,8 +2464,10 @@ function applyLanguageTopicDefaults(lang) {
   const preset = TOPIC_PRESETS[lang] || TOPIC_PRESETS['ru-RU'];
   const allowed = document.getElementById('allowed_topics').value.split(',').map(v => v.trim()).filter(Boolean);
   const blocked = document.getElementById('blocked_topics').value.split(',').map(v => v.trim()).filter(Boolean);
-  if (isKnownTopicPreset(allowed, true)) document.getElementById('allowed_topics').value = topicText(preset.allowed);
-  if (isKnownTopicPreset(blocked, false)) document.getElementById('blocked_topics').value = topicText(preset.blocked);
+  if (isKnownTopicPreset(allowed, true)) document.getElementById('allowed_topics').value = '';
+  if (isKnownTopicPreset(blocked, false)) document.getElementById('blocked_topics').value = '';
+  document.getElementById('allowed_topics').placeholder = topicText(preset.allowed);
+  document.getElementById('blocked_topics').placeholder = topicText(preset.blocked);
 }
 
 function activeProfileName(profile, activeProfile) {
@@ -2524,8 +2534,10 @@ async function loadState() {
   setCheckedValues('contentChecks', Array.isArray(s.content_enabled) ? s.content_enabled : CONTENT_DEFAULTS);
   const lang = s.language || 'ru-RU';
   const preset = TOPIC_PRESETS[lang] || TOPIC_PRESETS['ru-RU'];
-  setValue('allowed_topics', topicText(isKnownTopicPreset(s.allowed_topics, true) ? preset.allowed : s.allowed_topics));
-  setValue('blocked_topics', topicText(isKnownTopicPreset(s.blocked_topics, false) ? preset.blocked : s.blocked_topics));
+  setValue('allowed_topics', isKnownTopicPreset(s.allowed_topics, true) ? '' : topicText(s.allowed_topics));
+  setValue('blocked_topics', isKnownTopicPreset(s.blocked_topics, false) ? '' : topicText(s.blocked_topics));
+  document.getElementById('allowed_topics').placeholder = topicText(preset.allowed);
+  document.getElementById('blocked_topics').placeholder = topicText(preset.blocked);
   ['child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest']
     .forEach(id => setValue(id, p[id]));
   applyConsoleLocale(consoleLanguage);
@@ -2590,8 +2602,8 @@ async function saveSettings() {
         quiet_hours_start: document.getElementById('quiet_hours_start').value,
         quiet_hours_end: document.getElementById('quiet_hours_end').value,
         content_enabled: getCheckedValues('contentChecks'),
-        allowed_topics: document.getElementById('allowed_topics').value,
-        blocked_topics: document.getElementById('blocked_topics').value,
+        allowed_topics: topicValueForSave('allowed_topics', 'allowed'),
+        blocked_topics: topicValueForSave('blocked_topics', 'blocked'),
         memory_enabled: document.getElementById('memory_enabled').checked,
       }),
     });

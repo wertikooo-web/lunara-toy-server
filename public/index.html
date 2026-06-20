@@ -604,6 +604,8 @@ let isRecording = false;
 let finalTranscript = '';
 let bubbleBeforeMic = '';
 let suppressMouseUntil = 0;
+let micStopAfterStart = false;
+let micActualStartAt = 0;
 
 function micText(key) {
   const langKey = currentLang === 'ro-RO' ? 'ro-RO' : currentLang === 'en-US' ? 'en-US' : 'ru-RU';
@@ -651,6 +653,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
     r.onstart = () => {
       isRecording = true; micStarted = true;
+      micActualStartAt = Date.now();
       bubbleBeforeMic = bubbleText.textContent || '';
       // Auto-stop if no speech for 10 seconds
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -665,6 +668,13 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       msgInput.placeholder = micText('holdToTalk');
       msgInput.value = finalTranscript || '';
       bubbleText.textContent = micText('listening');
+      playBeep(980, 0.09, 0.32);
+      if (micStopAfterStart || !micHeld) {
+        micStopAfterStart = false;
+        setTimeout(() => {
+          if (!micHeld) stopMic();
+        }, 850);
+      }
     };
 
     r.onresult = (e) => {
@@ -696,6 +706,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       }
       // Button released — finalize and send
       isRecording = false; micStarted = false;
+      micStopAfterStart = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = micText('placeholder');
@@ -711,12 +722,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     r.onerror = (e) => {
-      isRecording = false; micStarted = false;
+      isRecording = false; micStarted = false; micStopAfterStart = false;
       micBtn.classList.remove('recording');
       micBtn.innerHTML = '<svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28" style="pointer-events:none;user-select:none"><rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/><path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
       msgInput.placeholder = micText('placeholder');
       if (e.error === 'not-allowed') bubbleText.textContent = micText('micAllowed');
-      else if (e.error === 'no-speech') bubbleText.textContent = micText('noSpeech') || bubbleBeforeMic;
+      else if (e.error === 'no-speech') bubbleText.textContent = bubbleBeforeMic || micText('noSpeech');
       else if (e.error !== 'aborted') bubbleText.textContent = micText('micError') + e.error;
     };
     return r;
@@ -756,12 +767,14 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     if (isProcessing || isRecording || micStarted) return;
     micHeld = true;
     micStarted = true;
+    micStopAfterStart = false;
+    micActualStartAt = 0;
     finalTranscript = '';
     msgInput.value = '';
     recognition = createRec();
     try {
+      playBeep(880, 0.06, 0.22);
       recognition.start();
-      playBeep(980, 0.09, 0.25);
       // Warning beep at 20s
       micWarnTimer = setTimeout(() => {
         playBeep(880, 0.15, 0.4); // first beep
@@ -777,6 +790,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       micHeld = false;
       micStarted = false;
       isRecording = false;
+      micStopAfterStart = false;
       if (micTimer)     { clearTimeout(micTimer);     micTimer = null; }
       if (micWarnTimer) { clearTimeout(micWarnTimer); micWarnTimer = null; }
       if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
@@ -789,7 +803,18 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     if (micTimer)     { clearTimeout(micTimer);     micTimer = null; }
     if (micWarnTimer) { clearTimeout(micWarnTimer); micWarnTimer = null; }
     if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    if (!isRecording && micStarted) {
+      micStopAfterStart = true;
+      return;
+    }
     if (!isRecording && !micStarted) return;
+    if (micActualStartAt && Date.now() - micActualStartAt < 650) {
+      micStopAfterStart = true;
+      setTimeout(() => {
+        if (!micHeld && isRecording) stopMic();
+      }, Math.max(120, 700 - (Date.now() - micActualStartAt)));
+      return;
+    }
     try { recognition.stop(); } catch(e) {}
   }
 
