@@ -49,6 +49,8 @@
   }
 
   function ensureControls() {
+    document.querySelector('button[onclick="editChildProfile()"]')?.remove();
+
     const languageSelect = document.getElementById('language');
     if (!languageSelect) return;
 
