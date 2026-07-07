@@ -969,12 +969,10 @@ wss.on('connection', (ws, req) => {
             }
             state.status = 'PROCESSING';
             sendStatus('processing');
-            {
+                        {
                 const myGen = state.generation;
-                // Иногда заполняем паузу обработки «мыслительным» звуком (случайной фразой).
-                // Настоящий ответ Lumi придёт через ~2 сек и естественно прервёт его.
-                const t = thinkingAudioCommand();
-                if (t) sendAudio(t.url, t.durationMs);
+                // Thinking phrase теперь запускается только внутри handlePipeline(),
+                // после STT и только если основной LLM-ответ не успевает быстро подготовиться.
                 await handlePipeline(ws, state, send, sendStatus, sendAudio, sendError, myGen, deviceId);
             }
             break;
@@ -1196,12 +1194,13 @@ async function handlePipeline(
             return;
         }
 
-        logger.info('[Pipeline] LLM start…');
+                logger.info('[Pipeline] preparing LLM context…');
         const settingsContext = parentConfig.formatSettingsForPrompt(settings);
         const profile = await memory.getProfile(deviceId);
         const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
         const modelName = parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(transcript);
+
         if (story && !isContentTypeAllowed(settings, 'story')) {
             logger.info('[Pipeline] parent-disabled story requested');
             const reply = disabledContentReply('story', effectiveLang);
@@ -1221,45 +1220,84 @@ async function handlePipeline(
             recordAnalyticsSafe(deviceId, transcript, reply, { type: 'story', durationMs: audio.durationMs, provider: 'system' });
             return;
         }
+
         const followupContext = !story && state.lastContentMode === 'story'
             ? storyEngine.buildStoryFollowupContext(transcript)
             : '';
+
         const requestedContentContext = contentModeContext(requestedContentType);
-        const reply = story
-            ? await llm.chat(ws, story.prompt, effectiveLang, {
-                memoryContext,
-                contentContext: [settingsContext, story.contentContext, requestedContentContext].filter(Boolean).join('\n\n'),
-                maxTokens: story.maxTokens,
-                model: modelName,
-                routingText: transcript,
-                isStory: true,
-            })
-            : await llm.chat(ws, transcript, effectiveLang, {
-                memoryContext,
-                contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
-                model: modelName,
-                routingText: transcript,
-            });
+
+        const intent = detectIntent(transcript);
+        logger.info(`[Pipeline] detected intent: ${intent}`);
+
+        const delayedThinking = startDelayedThinking({
+            intent,
+            isCurrent,
+            sendAudio,
+            delayMs: THINKING_DELAY_MS,
+        });
+
+        logger.info('[Pipeline] LLM start…');
+
+        let reply;
+
+        try {
+            reply = story
+                ? await llm.chat(ws, story.prompt, effectiveLang, {
+                    memoryContext,
+                    contentContext: [settingsContext, story.contentContext, requestedContentContext].filter(Boolean).join('\n\n'),
+                    maxTokens: story.maxTokens,
+                    model: modelName,
+                    routingText: transcript,
+                    isStory: true,
+                })
+                : await llm.chat(ws, transcript, effectiveLang, {
+                    memoryContext,
+                    contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
+                    model: modelName,
+                    routingText: transcript,
+                });
+        } catch (err) {
+            delayedThinking.cancel();
+            throw err;
+        }
+
         logger.info(`[Pipeline] reply: "${reply}"`);
 
         if (!isCurrent()) {
+            delayedThinking.cancel();
             logger.info('[Pipeline] superseded after LLM — discarding (child interrupted)');
             return;
         }
 
-        // 5. TTS — Google
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed });
+
+        let durationMs;
+
+        try {
+            durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed });
+        } catch (err) {
+            delayedThinking.cancel();
+            throw err;
+        }
+
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
 
         if (!isCurrent()) {
+            delayedThinking.cancel();
             logger.info('[Pipeline] superseded after TTS — discarding (child interrupted)');
             return;
         }
 
-        // 6. Build public URL and notify ESP32
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
+
+        await delayedThinking.cancelAndWait();
+
+        if (!isCurrent()) {
+            logger.info('[Pipeline] superseded before sending final audio — discarding (child interrupted)');
+            return;
+        }
 
         sendAudio(audioUrl, durationMs);
         logger.info(`[Pipeline] sent audio command: ${audioUrl}`);
@@ -1285,12 +1323,12 @@ async function handlePipeline(
 
 
 // ── Pre-generate greeting PCM ─────────────────────────────────────────────────
-const GREETING_TEXT = 'Привет! Я Луми. Нажми кнопку и говори!';
+const GREETING_TEXT = 'Привет! Я - твой друг! Нажми кнопку и говори!';
 const GREETING_FILE = path.join(DIR_AUDIO, 'greeting_ru.pcm');
 
 // Тёплая просьба повторить — играется когда нажатие слишком короткое
 // или речь не распозналась. Lumi не выдаёт сухую ошибку, а ласково просит ещё разок.
-const RETRY_TEXT = 'Ой! Скажи ещё разочек, пожалуйста? Я очень хочу тебя послушать!';
+const RETRY_TEXT = 'Ой! Скажи ещё раз, пожалуйста! Я не расслышал!';
 const RETRY_FILE = path.join(DIR_AUDIO, 'retry_ru.pcm');
 
 // Собирает команду воспроизведения для кешированного retry-аудио.
@@ -1319,41 +1357,235 @@ async function ensureRetry() {
     }
 }
 
-// Короткий «мыслительный» звук — иногда играется в момент начала обработки,
-// чтобы заполнить паузу. Настоящий ответ Lumi его прерывает (так устроено устройство).
-// Несколько фраз + случайность, чтобы не звучало как заевшая пластинка.
-const THINKING_CHANCE = 0.35; // как часто вообще играть думалку (0..1)
-const THINKING_PHRASES = [
-    { text: 'Хм, дай-ка подумать...', file: 'thinking_1_ru' },
-    { text: 'Секундочку...',          file: 'thinking_2_ru' },
-    { text: 'Ой, интересно...',       file: 'thinking_3_ru' },
-    { text: 'Так-так, дай подумаю...', file: 'thinking_4_ru' },
-];
 
-// Решает, играть ли думалку, и если да — возвращает случайную фразу.
-// Возвращает null, когда в этот раз думалку играть не надо.
-function thinkingAudioCommand() {
+// ── Context-aware delayed thinking phrases ───────────────────────────────────
+//
+// Эти короткие фразы играются не сразу, а только если основной LLM-ответ
+// не успевает подготовиться быстро.
+
+const THINKING_CHANCE = 0.35;          // 0.35 = примерно в 35% случаев
+const THINKING_DELAY_MS = 900;         // пауза перед filler-фразой
+const THINKING_END_GRACE_MS = 150;     // маленький запас перед основным ответом
+
+const THINKING_BY_INTENT = {
+    story: [
+        { text: 'Сказку? Сейчас придумаю...', file: 'thinking_story_1_ru', weight: 4 },
+        { text: 'О, сказка будет хорошая...', file: 'thinking_story_2_ru', weight: 3 },
+        { text: 'Сейчас найду сказку в голове...', file: 'thinking_story_3_ru', weight: 3 },
+        { text: 'Так, начинаем сказочное дело...', file: 'thinking_story_4_ru', weight: 2 },
+        { text: 'Сейчас будет волшебная история...', file: 'thinking_story_5_ru', weight: 2 },
+        { text: 'Угу, сказку я люблю...', file: 'thinking_story_6_ru', weight: 1 },
+    ],
+
+    tongue_twister: [
+        { text: 'Скороговорку? Сейчас расскажу...', file: 'thinking_twister_1_ru', weight: 4 },
+        { text: 'Так, готовлю язычок...', file: 'thinking_twister_2_ru', weight: 3 },
+        { text: 'Ох, будет смешная скороговорка...', file: 'thinking_twister_3_ru', weight: 2 },
+        { text: 'Сейчас выберу хитрую...', file: 'thinking_twister_4_ru', weight: 3 },
+        { text: 'Держись, язык сейчас побежит...', file: 'thinking_twister_5_ru', weight: 1 },
+        { text: 'Хм, нужна быстрая и смешная...', file: 'thinking_twister_6_ru', weight: 2 },
+    ],
+
+    game: [
+        { text: 'Поиграем? Сейчас придумаю...', file: 'thinking_game_1_ru', weight: 4 },
+        { text: 'Ура, игра! Сейчас выберу...', file: 'thinking_game_2_ru', weight: 3 },
+        { text: 'Так, во что бы нам сыграть...', file: 'thinking_game_3_ru', weight: 3 },
+        { text: 'Сейчас найду весёлую игру...', file: 'thinking_game_4_ru', weight: 3 },
+        { text: 'О, играть я люблю...', file: 'thinking_game_5_ru', weight: 2 },
+        { text: 'Минуточку, выбираю игру...', file: 'thinking_game_6_ru', weight: 2 },
+    ],
+
+    riddle: [
+        { text: 'Загадку? Сейчас найду хитрую...', file: 'thinking_riddle_1_ru', weight: 4 },
+        { text: 'О, загадки я люблю...', file: 'thinking_riddle_2_ru', weight: 3 },
+        { text: 'Сейчас будет загадка...', file: 'thinking_riddle_3_ru', weight: 3 },
+        { text: 'Так, нужна не слишком лёгкая...', file: 'thinking_riddle_4_ru', weight: 2 },
+        { text: 'Хм, какую бы загадать...', file: 'thinking_riddle_5_ru', weight: 3 },
+        { text: 'Сейчас найду загадку с секретом...', file: 'thinking_riddle_6_ru', weight: 1 },
+    ],
+
+    song: [
+        { text: 'Песенку? Сейчас вспомню...', file: 'thinking_song_1_ru', weight: 4 },
+        { text: 'Так, готовлю голос...', file: 'thinking_song_2_ru', weight: 3 },
+        { text: 'Сейчас будет маленькая песенка...', file: 'thinking_song_3_ru', weight: 2 },
+        { text: 'О, песенки это хорошо...', file: 'thinking_song_4_ru', weight: 2 },
+        { text: 'Минуточку, ищу мелодию...', file: 'thinking_song_5_ru', weight: 2 },
+        { text: 'Сейчас спою что-нибудь мягкое...', file: 'thinking_song_6_ru', weight: 1 },
+    ],
+
+    joke: [
+        { text: 'Шутку? Сейчас найду смешную...', file: 'thinking_joke_1_ru', weight: 4 },
+        { text: 'О, сейчас попробую рассмешить...', file: 'thinking_joke_2_ru', weight: 3 },
+        { text: 'Так, нужна добрая шутка...', file: 'thinking_joke_3_ru', weight: 3 },
+        { text: 'Сейчас будет смешинка...', file: 'thinking_joke_4_ru', weight: 2 },
+        { text: 'Хм, какую бы шутку сказать...', file: 'thinking_joke_5_ru', weight: 2 },
+        { text: 'Готовлю смешной ответ...', file: 'thinking_joke_6_ru', weight: 1 },
+    ],
+
+    explain: [
+        { text: 'Сейчас объясню понятно...', file: 'thinking_explain_1_ru', weight: 4 },
+        { text: 'Хороший вопрос, думаю...', file: 'thinking_explain_2_ru', weight: 3 },
+        { text: 'Так, надо объяснить просто...', file: 'thinking_explain_3_ru', weight: 4 },
+        { text: 'Сейчас разберёмся...', file: 'thinking_explain_4_ru', weight: 3 },
+        { text: 'Хм, интересная штука...', file: 'thinking_explain_5_ru', weight: 2 },
+        { text: 'Сейчас найду простой ответ...', file: 'thinking_explain_6_ru', weight: 3 },
+    ],
+
+    facts: [
+        { text: 'Факт? Сейчас вспомню...', file: 'thinking_fact_1_ru', weight: 4 },
+        { text: 'О, сейчас будет интересное...', file: 'thinking_fact_2_ru', weight: 3 },
+        { text: 'Так, ищу любопытный факт...', file: 'thinking_fact_3_ru', weight: 3 },
+        { text: 'Сейчас расскажу что-то полезное...', file: 'thinking_fact_4_ru', weight: 2 },
+        { text: 'Хм, это правда интересно...', file: 'thinking_fact_5_ru', weight: 2 },
+        { text: 'Минуточку, вспоминаю...', file: 'thinking_fact_6_ru', weight: 3 },
+    ],
+
+    emotion_sad: [
+        { text: 'Я рядом. Сейчас поговорим...', file: 'thinking_sad_1_ru', weight: 4 },
+        { text: 'Понимаю. Дай я подумаю...', file: 'thinking_sad_2_ru', weight: 3 },
+        { text: 'Сейчас скажу тебе мягко...', file: 'thinking_sad_3_ru', weight: 3 },
+        { text: 'Мне хочется тебя поддержать...', file: 'thinking_sad_4_ru', weight: 2 },
+        { text: 'Давай чуть-чуть побудем вместе...', file: 'thinking_sad_5_ru', weight: 2 },
+        { text: 'Я слышу тебя. Сейчас отвечу...', file: 'thinking_sad_6_ru', weight: 3 },
+    ],
+
+    fear: [
+        { text: 'Страшно? Я рядом...', file: 'thinking_fear_1_ru', weight: 4 },
+        { text: 'Сейчас поговорим спокойно...', file: 'thinking_fear_2_ru', weight: 4 },
+        { text: 'Давай разберёмся вместе...', file: 'thinking_fear_3_ru', weight: 3 },
+        { text: 'Я с тобой. Сейчас подумаю...', file: 'thinking_fear_4_ru', weight: 3 },
+        { text: 'Сейчас скажу помягче...', file: 'thinking_fear_5_ru', weight: 2 },
+        { text: 'Тихонько подумаем вместе...', file: 'thinking_fear_6_ru', weight: 2 },
+    ],
+
+    repeat: [
+        { text: 'Повторить? Конечно...', file: 'thinking_repeat_1_ru', weight: 4 },
+        { text: 'Сейчас скажу ещё раз...', file: 'thinking_repeat_2_ru', weight: 4 },
+        { text: 'Угу, повторяю...', file: 'thinking_repeat_3_ru', weight: 3 },
+        { text: 'Минуточку, сейчас снова...', file: 'thinking_repeat_4_ru', weight: 2 },
+        { text: 'Давай ещё разочек...', file: 'thinking_repeat_5_ru', weight: 3 },
+        { text: 'Сейчас повторю понятнее...', file: 'thinking_repeat_6_ru', weight: 2 },
+    ],
+
+    default: [
+        { text: 'Секундочку...', file: 'thinking_default_1_ru', weight: 5 },
+        { text: 'Хм, дай-ка подумать...', file: 'thinking_default_2_ru', weight: 4 },
+        { text: 'Сейчас отвечу...', file: 'thinking_default_3_ru', weight: 4 },
+        { text: 'Минуточку...', file: 'thinking_default_4_ru', weight: 4 },
+        { text: 'Так, сейчас...', file: 'thinking_default_5_ru', weight: 3 },
+        { text: 'Я уже думаю...', file: 'thinking_default_6_ru', weight: 3 },
+    ],
+};
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function detectIntent(text) {
+    const t = String(text || '').toLowerCase();
+
+    if (/(страшно|боюсь|испугался|испугалась|темно|монстр|кошмар|ужасно)/.test(t)) return 'fear';
+    if (/(грустно|обидно|плачу|скучно|одиноко|меня обидели|поссорился|поссорилась|плохо на душе)/.test(t)) return 'emotion_sad';
+    if (/(повтори|ещё раз|еще раз|снова скажи|не понял|не поняла|погромче|медленнее|повторить)/.test(t)) return 'repeat';
+    if (/(сказк|истори|расскажи историю|придумай историю|волшебн|жили-были|жили были)/.test(t)) return 'story';
+    if (/(скороговорк|быстро скажи|язык слома|сложн.*сказать)/.test(t)) return 'tongue_twister';
+    if (/(поигра|игра|давай играть|сыграем|во что играть|играть хочу)/.test(t)) return 'game';
+    if (/(загадк|загадай|угадай|отгадай)/.test(t)) return 'riddle';
+    if (/(песн|спой|петь|колыбельн|мелоди|напой)/.test(t)) return 'song';
+    if (/(шутк|анекдот|рассмеши|смешн|пошути)/.test(t)) return 'joke';
+    if (/(почему|зачем|как работает|что такое|объясни|расскажи почему|как это|откуда)/.test(t)) return 'explain';
+    if (/(факт|интересное|расскажи про|знаешь что|удивительн|любопытн)/.test(t)) return 'facts';
+
+    return 'default';
+}
+
+function pickWeightedPhrase(list) {
+    const totalWeight = list.reduce((sum, item) => sum + (item.weight || 1), 0);
+    let random = Math.random() * totalWeight;
+
+    for (const item of list) {
+        random -= item.weight || 1;
+        if (random <= 0) return item;
+    }
+
+    return list[list.length - 1];
+}
+
+function thinkingAudioCommand(intent = 'default') {
     if (Math.random() >= THINKING_CHANCE) return null;
 
-    const phrase  = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+    const list = THINKING_BY_INTENT[intent] || THINKING_BY_INTENT.default;
+    const phrase = pickWeightedPhrase(list);
+
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-    const url     = `${baseUrl}/audio/${phrase.file}.wav`;
+    const url = `${baseUrl}/audio/${phrase.file}.wav`;
 
     let durationMs = 1200;
+
     try {
         const bytes = fs.statSync(path.join(DIR_AUDIO, `${phrase.file}.pcm`)).size;
         durationMs = Math.ceil((bytes / (16000 * 2)) * 1000);
-    } catch (_) { /* файл ещё не готов — запасная длительность */ }
+    } catch (_) {}
+
     return { url, durationMs };
 }
 
+function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS }) {
+    let cancelled = false;
+    let sentAt = 0;
+    let sentDurationMs = 0;
+
+    (async () => {
+        await delay(delayMs);
+
+        if (cancelled) return;
+        if (!isCurrent()) return;
+
+        const thinking = thinkingAudioCommand(intent);
+        if (!thinking) return;
+        if (cancelled) return;
+        if (!isCurrent()) return;
+
+        sentAt = Date.now();
+        sentDurationMs = thinking.durationMs || 0;
+
+        sendAudio(thinking.url, thinking.durationMs);
+        logger.info(`[Thinking] sent delayed filler intent=${intent} duration=${thinking.durationMs}ms`);
+    })();
+
+    return {
+        cancel: () => {
+            cancelled = true;
+        },
+
+        cancelAndWait: async () => {
+            cancelled = true;
+
+            if (!sentAt || !sentDurationMs) return;
+
+            const elapsed = Date.now() - sentAt;
+            const remaining = sentDurationMs + THINKING_END_GRACE_MS - elapsed;
+            const waitMs = Math.max(0, Math.min(remaining, 1200));
+
+            if (waitMs > 0 && isCurrent()) {
+                logger.info(`[Thinking] waiting ${waitMs}ms before main answer to avoid cutting filler`);
+                await delay(waitMs);
+            }
+        },
+    };
+}
+
 async function ensureThinking() {
-    for (const phrase of THINKING_PHRASES) {
+    const allPhrases = Object.values(THINKING_BY_INTENT).flat();
+
+    for (const phrase of allPhrases) {
         const pcmPath = path.join(DIR_AUDIO, `${phrase.file}.pcm`);
+
         if (fs.existsSync(pcmPath)) {
             logger.info(`[Thinking] Using cached ${phrase.file}.pcm`);
             continue;
         }
+
         try {
             logger.info(`[Thinking] Generating ${phrase.file}.pcm...`);
             await tts.synthesize(phrase.text, pcmPath, 'ru-RU');
@@ -1362,6 +1594,12 @@ async function ensureThinking() {
             logger.error(`[Thinking] Failed to generate ${phrase.file}: ${err.message}`);
         }
     }
+}
+
+function thinkingKeepFiles() {
+    return Object.values(THINKING_BY_INTENT)
+        .flat()
+        .flatMap(phrase => [`${phrase.file}.pcm`, `${phrase.file}.wav`]);
 }
 
 async function ensureGreeting() {
@@ -1385,7 +1623,13 @@ server.listen(PORT, async () => {
     await memory.init();
     await parentConfig.init();
     await content.init({ audioDir: DIR_CONTENT_AUDIO });
-    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, ['greeting_ru.pcm', 'greeting_ru.wav', 'retry_ru.pcm', 'retry_ru.wav', 'thinking_1_ru.pcm', 'thinking_1_ru.wav', 'thinking_2_ru.pcm', 'thinking_2_ru.wav', 'thinking_3_ru.pcm', 'thinking_3_ru.wav', 'thinking_4_ru.pcm', 'thinking_4_ru.wav']); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
+        cleaner.start(DIR_AUDIO, 10 * 60 * 1000, [
+        'greeting_ru.pcm',
+        'greeting_ru.wav',
+        'retry_ru.pcm',
+        'retry_ru.wav',
+        ...thinkingKeepFiles(),
+    ]); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
     await ensureGreeting();
     await ensureRetry();
     await ensureThinking();
