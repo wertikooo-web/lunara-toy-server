@@ -724,13 +724,13 @@ function runtimeLimitReply(runtime, lang = 'ru-RU') {
     }
     if (runtime?.reason === 'daily_limit') {
         return {
-            ru: 'На сегодня время Lumi закончилось. Давай отдохнём, а завтра снова поговорим.',
+            ru: 'На сегодня мое время закончилось. Давай отдохнём, а завтра снова поговорим.',
             ro: 'Timpul Lumi pentru azi s-a terminat. Hai sa ne odihnim, iar maine vorbim din nou.',
             en: 'Lumi time is finished for today. Let us rest, and we can talk again tomorrow.',
         }[key];
     }
     return {
-        ru: 'Сейчас у Lumi время тишины. Давай отдохнём и поговорим позже.',
+        ru: 'Сейчас у меня время тишины. Давай отдохнём и поговорим позже.',
         ro: 'Acum este timpul de liniste pentru Lumi. Hai sa ne odihnim si vorbim mai tarziu.',
         en: 'It is quiet time for Lumi now. Let us rest and talk later.',
     }[key];
@@ -1363,8 +1363,8 @@ async function ensureRetry() {
 // Эти короткие фразы играются не сразу, а только если основной LLM-ответ
 // не успевает подготовиться быстро.
 
-const THINKING_CHANCE = 0.35;          // 0.35 = примерно в 35% случаев
-const THINKING_DELAY_MS = 900;         // пауза перед filler-фразой
+const THINKING_CHANCE = 0.75;          // 0.35 = примерно в 35% случаев
+const THINKING_DELAY_MS = 300;         // пауза перед filler-фразой
 const THINKING_END_GRACE_MS = 150;     // маленький запас перед основным ответом
 
 const THINKING_BY_INTENT = {
