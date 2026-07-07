@@ -1364,23 +1364,23 @@ async function ensureRetry() {
 // не успевает подготовиться быстро.
 
 const THINKING_CHANCE = 0.75;          // 0.75 = примерно в 75% случаев
-const THINKING_DELAY_MS = 300;         // пауза перед filler-фразой
+const THINKING_DELAY_MS = 500;         // пауза перед filler-фразой
 const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом
 
 const THINKING_BY_INTENT = {
     story: [
         { text: 'Сказку? Сейчас придумаю...', file: 'thinking_story_1_ru', weight: 4 },
         { text: 'О, сказка будет хорошая...', file: 'thinking_story_2_ru', weight: 3 },
-        { text: 'Сейчас найду сказку в голове...', file: 'thinking_story_3_ru', weight: 3 },
+        { text: 'Сейчас найду сказку...', file: 'thinking_story_3_ru', weight: 3 },
         { text: 'Так, начинаем сказочное дело...', file: 'thinking_story_4_ru', weight: 2 },
-        { text: 'Сейчас будет волшебная история...', file: 'thinking_story_5_ru', weight: 2 },
+        { text: 'Сейчас будет история...', file: 'thinking_story_5_ru', weight: 2 },
         { text: 'Угу, сказку я люблю...', file: 'thinking_story_6_ru', weight: 1 },
     ],
 
     tongue_twister: [
         { text: 'Скороговорку? Сейчас ...', file: 'thinking_twister_1_ru', weight: 4 },
         { text: 'Так, готовлю язычок...', file: 'thinking_twister_2_ru', weight: 3 },
-        { text: 'Ох, будет смешная скороговорка...', file: 'thinking_twister_3_ru', weight: 2 },
+        { text: 'Ох, будет скороговорка...', file: 'thinking_twister_3_ru', weight: 2 },
         { text: 'Сейчас выберу...', file: 'thinking_twister_4_ru', weight: 3 },
         { text: 'Держись, язык сейчас побежит...', file: 'thinking_twister_5_ru', weight: 1 },
         { text: 'Хм, нужна смешная...', file: 'thinking_twister_6_ru', weight: 2 },
@@ -1435,7 +1435,7 @@ const THINKING_BY_INTENT = {
         { text: 'Сейчас вспомню...', file: 'thinking_fact_1_ru', weight: 4 },
         { text: 'О, сейчас будет интересное...', file: 'thinking_fact_2_ru', weight: 3 },
         { text: 'Так, ищу любопытный факт...', file: 'thinking_fact_3_ru', weight: 3 },
-        { text: 'Сейчас расскажу что-то полезное...', file: 'thinking_fact_4_ru', weight: 2 },
+        { text: 'Сейчас расскажу что-то...', file: 'thinking_fact_4_ru', weight: 2 },
         { text: 'Хм, это правда интересно...', file: 'thinking_fact_5_ru', weight: 2 },
         { text: 'Минуточку, вспоминаю...', file: 'thinking_fact_6_ru', weight: 3 },
     ],
