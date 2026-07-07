@@ -1323,7 +1323,7 @@ async function handlePipeline(
 
 
 // ── Pre-generate greeting PCM ─────────────────────────────────────────────────
-const GREETING_TEXT = 'Привет! Я - твой друг! Нажми кнопку и говори!';
+const GREETING_TEXT = 'Привет! Я - Луми, твой друг! Нажми кнопку и давай поговорим!';
 const GREETING_FILE = path.join(DIR_AUDIO, 'greeting_ru.pcm');
 
 // Тёплая просьба повторить — играется когда нажатие слишком короткое
@@ -1363,9 +1363,9 @@ async function ensureRetry() {
 // Эти короткие фразы играются не сразу, а только если основной LLM-ответ
 // не успевает подготовиться быстро.
 
-const THINKING_CHANCE = 0.75;          // 0.35 = примерно в 35% случаев
+const THINKING_CHANCE = 0.75;          // 0.75 = примерно в 75% случаев
 const THINKING_DELAY_MS = 300;         // пауза перед filler-фразой
-const THINKING_END_GRACE_MS = 150;     // маленький запас перед основным ответом
+const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом
 
 const THINKING_BY_INTENT = {
     story: [
@@ -1378,12 +1378,12 @@ const THINKING_BY_INTENT = {
     ],
 
     tongue_twister: [
-        { text: 'Скороговорку? Сейчас расскажу...', file: 'thinking_twister_1_ru', weight: 4 },
+        { text: 'Скороговорку? Сейчас ...', file: 'thinking_twister_1_ru', weight: 4 },
         { text: 'Так, готовлю язычок...', file: 'thinking_twister_2_ru', weight: 3 },
         { text: 'Ох, будет смешная скороговорка...', file: 'thinking_twister_3_ru', weight: 2 },
-        { text: 'Сейчас выберу хитрую...', file: 'thinking_twister_4_ru', weight: 3 },
+        { text: 'Сейчас выберу...', file: 'thinking_twister_4_ru', weight: 3 },
         { text: 'Держись, язык сейчас побежит...', file: 'thinking_twister_5_ru', weight: 1 },
-        { text: 'Хм, нужна быстрая и смешная...', file: 'thinking_twister_6_ru', weight: 2 },
+        { text: 'Хм, нужна смешная...', file: 'thinking_twister_6_ru', weight: 2 },
     ],
 
     game: [
@@ -1396,7 +1396,7 @@ const THINKING_BY_INTENT = {
     ],
 
     riddle: [
-        { text: 'Загадку? Сейчас найду хитрую...', file: 'thinking_riddle_1_ru', weight: 4 },
+        { text: 'Загадку? Сейчас найду...', file: 'thinking_riddle_1_ru', weight: 4 },
         { text: 'О, загадки я люблю...', file: 'thinking_riddle_2_ru', weight: 3 },
         { text: 'Сейчас будет загадка...', file: 'thinking_riddle_3_ru', weight: 3 },
         { text: 'Так, нужна не слишком лёгкая...', file: 'thinking_riddle_4_ru', weight: 2 },
@@ -1407,10 +1407,10 @@ const THINKING_BY_INTENT = {
     song: [
         { text: 'Песенку? Сейчас вспомню...', file: 'thinking_song_1_ru', weight: 4 },
         { text: 'Так, готовлю голос...', file: 'thinking_song_2_ru', weight: 3 },
-        { text: 'Сейчас будет маленькая песенка...', file: 'thinking_song_3_ru', weight: 2 },
+        { text: 'Сейчас будет песенка...', file: 'thinking_song_3_ru', weight: 2 },
         { text: 'О, песенки это хорошо...', file: 'thinking_song_4_ru', weight: 2 },
         { text: 'Минуточку, ищу мелодию...', file: 'thinking_song_5_ru', weight: 2 },
-        { text: 'Сейчас спою что-нибудь мягкое...', file: 'thinking_song_6_ru', weight: 1 },
+        { text: 'Сейчас спою что-нибудь...', file: 'thinking_song_6_ru', weight: 1 },
     ],
 
     joke: [
@@ -1432,7 +1432,7 @@ const THINKING_BY_INTENT = {
     ],
 
     facts: [
-        { text: 'Факт? Сейчас вспомню...', file: 'thinking_fact_1_ru', weight: 4 },
+        { text: 'Сейчас вспомню...', file: 'thinking_fact_1_ru', weight: 4 },
         { text: 'О, сейчас будет интересное...', file: 'thinking_fact_2_ru', weight: 3 },
         { text: 'Так, ищу любопытный факт...', file: 'thinking_fact_3_ru', weight: 3 },
         { text: 'Сейчас расскажу что-то полезное...', file: 'thinking_fact_4_ru', weight: 2 },
@@ -1453,7 +1453,7 @@ const THINKING_BY_INTENT = {
         { text: 'Страшно? Я рядом...', file: 'thinking_fear_1_ru', weight: 4 },
         { text: 'Сейчас поговорим спокойно...', file: 'thinking_fear_2_ru', weight: 4 },
         { text: 'Давай разберёмся вместе...', file: 'thinking_fear_3_ru', weight: 3 },
-        { text: 'Я с тобой. Сейчас подумаю...', file: 'thinking_fear_4_ru', weight: 3 },
+        { text: 'Я с тобой. Все хорошо...', file: 'thinking_fear_4_ru', weight: 3 },
         { text: 'Сейчас скажу помягче...', file: 'thinking_fear_5_ru', weight: 2 },
         { text: 'Тихонько подумаем вместе...', file: 'thinking_fear_6_ru', weight: 2 },
     ],
@@ -1462,16 +1462,16 @@ const THINKING_BY_INTENT = {
         { text: 'Повторить? Конечно...', file: 'thinking_repeat_1_ru', weight: 4 },
         { text: 'Сейчас скажу ещё раз...', file: 'thinking_repeat_2_ru', weight: 4 },
         { text: 'Угу, повторяю...', file: 'thinking_repeat_3_ru', weight: 3 },
-        { text: 'Минуточку, сейчас снова...', file: 'thinking_repeat_4_ru', weight: 2 },
+        { text: 'Хорошоу, сейчас повторю...', file: 'thinking_repeat_4_ru', weight: 2 },
         { text: 'Давай ещё разочек...', file: 'thinking_repeat_5_ru', weight: 3 },
-        { text: 'Сейчас повторю понятнее...', file: 'thinking_repeat_6_ru', weight: 2 },
+        { text: 'Сейчас скажу понятнее...', file: 'thinking_repeat_6_ru', weight: 2 },
     ],
 
     default: [
         { text: 'Секундочку...', file: 'thinking_default_1_ru', weight: 5 },
-        { text: 'Хм, дай-ка подумать...', file: 'thinking_default_2_ru', weight: 4 },
+        { text: 'Хм, дай-ка подумаю...', file: 'thinking_default_2_ru', weight: 4 },
         { text: 'Сейчас отвечу...', file: 'thinking_default_3_ru', weight: 4 },
-        { text: 'Минуточку...', file: 'thinking_default_4_ru', weight: 4 },
+        { text: 'Надо подумать...', file: 'thinking_default_4_ru', weight: 4 },
         { text: 'Так, сейчас...', file: 'thinking_default_5_ru', weight: 3 },
         { text: 'Я уже думаю...', file: 'thinking_default_6_ru', weight: 3 },
     ],
