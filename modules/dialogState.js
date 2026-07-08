@@ -1,0 +1,173 @@
+'use strict';
+
+function normalizeText(text) {
+    return String(text || '')
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[.,!?;:()[\]{}"«»]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isShortText(text) {
+    const words = normalizeText(text).split(' ').filter(Boolean);
+    return words.length > 0 && words.length <= 4;
+}
+
+function isAffirmative(text) {
+    const t = normalizeText(text);
+    if (!isShortText(t)) return false;
+    return /^(да|ага|угу|давай|хочу|можно|конечно|ладно|ок|окей|yes|yeah|yep|sure)$/.test(t);
+}
+
+function isNegative(text) {
+    const t = normalizeText(text);
+    if (!isShortText(t)) return false;
+    return /^(нет|не хочу|не надо|неа|хватит|стоп|потом|no|nope)$/.test(t);
+}
+
+function isAmbiguousNo(text) {
+    const t = normalizeText(text);
+    return t === 'no' || t === 'nope';
+}
+
+function isContinueRequest(text) {
+    const t = normalizeText(text);
+    if (!isShortText(t)) return false;
+    return /^(еще|ещё|дальше|продолжай|давай дальше|следующую|еще одну|ещё одну|more|next)$/.test(t);
+}
+
+function hasTopicRequest(text) {
+    const t = normalizeText(text);
+    return /\bпро\s+\S+/.test(t) || /\bо\s+\S+/.test(t) || /\bоб\s+\S+/.test(t) || /\bна\s+тему\s+\S+/.test(t);
+}
+
+function hasCreativeWords(text) {
+    const t = normalizeText(text);
+    return /придумай|сочини|выдумай|новую|свою|сложн|хитр|необычн|странн|несуществ|воображ|фантаст|мифическ|невидан|которого нет|которой нет|не из списка/.test(t);
+}
+
+function isRiddleLike(text) {
+    const t = normalizeText(text);
+    return t.includes('загадк') || t.includes('загадай') || t.includes('отгадай') || t.includes('riddle') || t.includes('ghicitoare');
+}
+
+function isSimpleCachedRiddleRequest(text) {
+    const t = normalizeText(text);
+    const simple = [
+        'загадай загадку',
+        'дай загадку',
+        'хочу загадку',
+        'давай загадку',
+        'расскажи загадку',
+        'другую загадку',
+        'еще загадку',
+        'ещё загадку',
+    ];
+
+    if (!simple.some((phrase) => t === phrase || t.includes(phrase))) return false;
+    if (hasTopicRequest(t)) return false;
+    if (hasCreativeWords(t)) return false;
+    return true;
+}
+
+function shouldRouteRiddleToLlm(text) {
+    const t = normalizeText(text);
+    if (!isRiddleLike(t)) return false;
+    return !isSimpleCachedRiddleRequest(t);
+}
+
+function detectOffer(reply, fallbackType = '') {
+    const t = normalizeText(reply);
+    if (!t) return null;
+
+    if (/хочешь|давай|можем|будем/.test(t)) {
+        if (/загадк/.test(t)) return { type: 'riddle', source: 'bot_offer' };
+        if (/сказк|истори/.test(t)) return { type: 'story', source: 'bot_offer' };
+        if (/поигр|игр/.test(t)) return { type: 'game', source: 'bot_offer' };
+        if (/интересн|факт|расскажу|узна/.test(t)) return { type: 'fact', source: 'bot_offer' };
+    }
+
+    if (fallbackType && /хочешь|еще|ещё|дальше|продолж/.test(t)) {
+        return { type: fallbackType, source: 'fallback_type' };
+    }
+
+    return null;
+}
+
+function markBotReply(state, reply, meta = {}) {
+    if (!state) return null;
+    const offer = detectOffer(reply, meta.type || state.lastIntent || '');
+    state.lastBotReply = String(reply || '').slice(0, 500);
+    state.lastIntent = meta.type || state.lastIntent || 'chat';
+    if (offer) {
+        state.pendingOffer = {
+            type: offer.type,
+            createdAt: Date.now(),
+            source: offer.source,
+        };
+        return state.pendingOffer;
+    }
+    return null;
+}
+
+function clearPendingOffer(state) {
+    if (state) state.pendingOffer = null;
+}
+
+function resolveFollowup(state, text) {
+    const pending = state?.pendingOffer;
+    const lastIntent = state?.lastIntent || '';
+
+    if (pending) {
+        if (isAmbiguousNo(text)) {
+            return {
+                action: 'clarify',
+                keepPending: true,
+                reply: pending.type === 'riddle'
+                    ? 'Я не совсем расслышала. Ты хочешь ещё загадку?'
+                    : 'Я не совсем расслышала. Ты хочешь продолжить?',
+            };
+        }
+
+        if (isAffirmative(text) || isContinueRequest(text)) {
+            return { action: 'accept_offer', type: pending.type };
+        }
+
+        if (isNegative(text)) {
+            return {
+                action: 'reject_offer',
+                type: pending.type,
+                reply: 'Хорошо, не буду. Можем просто поболтать или выбрать что-то другое.',
+            };
+        }
+    }
+
+    if (isContinueRequest(text) && lastIntent) {
+        return { action: 'continue_last', type: lastIntent };
+    }
+
+    return null;
+}
+
+function rewriteForOffer(type) {
+    if (type === 'riddle') return 'Загадай загадку';
+    if (type === 'story') return 'Расскажи короткую сказку';
+    if (type === 'game') return 'Давай поиграем';
+    if (type === 'fact') return 'Расскажи интересный факт для ребенка';
+    return '';
+}
+
+module.exports = {
+    normalizeText,
+    isAffirmative,
+    isNegative,
+    isContinueRequest,
+    isSimpleCachedRiddleRequest,
+    shouldRouteRiddleToLlm,
+    detectOffer,
+    markBotReply,
+    clearPendingOffer,
+    resolveFollowup,
+    rewriteForOffer,
+};
