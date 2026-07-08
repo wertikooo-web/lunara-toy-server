@@ -290,14 +290,7 @@ function rememberRiddle(state, riddle, audio, meta = {}) {
 function rememberGeneratedRiddle(state, reply, audio, meta = {}) {
     const text = String(reply || '').trim();
     if (!text || !audio?.audioUrl) return null;
-    const activeRiddle = {
-        id: `llm_${nowMs()}`,
-        answer: null,
-        aliases: [],
-        attempts: 0,
-        generated: true,
-    };
-    return rememberRiddle(state, activeRiddle, {
+    return rememberRiddle(state, null, {
         url: audio.audioUrl,
         durationMs: audio.durationMs,
     }, {
