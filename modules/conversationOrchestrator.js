@@ -61,6 +61,7 @@ function isShortFollowup(text) {
     if (!t) return false;
     return dialogState.isAffirmative(t)
         || dialogState.isNegative(t)
+        || dialogState.isUncertain(t)
         || dialogState.isContinueRequest(t)
         || t === 'no'
         || t === 'nope';
@@ -78,6 +79,14 @@ function clarifyForOffer(type) {
     if (type === 'story') return 'Я не совсем расслышала. Ты хочешь сказку?';
     if (type === 'game') return 'Я не совсем расслышала. Ты хочешь поиграть?';
     return 'Я не совсем расслышала. Ты хочешь продолжить?';
+}
+
+function replyForUncertainOffer(type) {
+    if (type === 'riddle') return 'Не страшно. Можем закончить загадки или я загадаю другую.';
+    if (type === 'story') return 'Не страшно. Можем выбрать сказку или просто поболтать.';
+    if (type === 'game') return 'Не страшно. Можем выбрать игру или просто поговорить.';
+    if (type === 'fact') return 'Не страшно. Могу рассказать другой интересный факт или просто поболтать.';
+    return 'Не страшно. Я рядом. Скажи, что хочешь дальше.';
 }
 
 function offerToText(type) {
@@ -135,6 +144,26 @@ function repeatRiddleDecision(state, text) {
         activeRiddle: item.activeRiddle || null,
         reply: ref === 'first' ? 'Повторяю первую загадку.' : 'Повторяю загадку.',
     };
+}
+
+function shortReplyContext(text, state) {
+    const s = ensureState(state);
+    const t = dialogState.normalizeText(text);
+    const lastBot = s.lastBotReply ? ` Последняя реплика Lumi: "${s.lastBotReply}".` : '';
+
+    if (dialogState.isAffirmative(t)) {
+        return `Ребёнок ответил коротко: "${text}". Это согласие/подтверждение к предыдущей реплике.${lastBot} Продолжи естественно, без фразы "я не поняла".`;
+    }
+    if (dialogState.isNegative(t)) {
+        return `Ребёнок ответил коротко: "${text}". Это отказ или несогласие с предыдущей репликой.${lastBot} Прими отказ спокойно и предложи мягкую альтернативу.`;
+    }
+    if (dialogState.isUncertain(t)) {
+        return `Ребёнок ответил коротко: "${text}". Это неуверенность или "не знаю" к предыдущему вопросу.${lastBot} Поддержи и предложи простой следующий шаг.`;
+    }
+    if (dialogState.isHesitation(t)) {
+        return `Ребёнок сказал короткое "${text}". Это пауза/заминка.${lastBot} Мягко помоги продолжить.`;
+    }
+    return '';
 }
 
 function detectDecision(text, state, options = {}) {
@@ -200,6 +229,18 @@ function detectDecision(text, state, options = {}) {
             s.lastDecision = decision;
             return decision;
         }
+
+        if (dialogState.isUncertain(text)) {
+            const decision = {
+                action: 'reply',
+                type: pendingType,
+                reply: replyForUncertainOffer(pendingType),
+                keepPendingOffer: true,
+                reason: 'uncertain_pending_offer',
+            };
+            s.lastDecision = decision;
+            return decision;
+        }
     }
 
     if (!s.pendingOffer && dialogState.isContinueRequest(text) && s.lastIntent && s.lastIntent !== 'chat') {
@@ -209,6 +250,18 @@ function detectDecision(text, state, options = {}) {
             type: s.lastIntent,
             rewrittenText: rewrittenText || String(text || ''),
             reason: 'continue_last_intent',
+        };
+        s.lastDecision = decision;
+        return decision;
+    }
+
+    if (!s.pendingOffer && isShortFollowup(text)) {
+        const context = shortReplyContext(text, s);
+        const decision = {
+            action: 'llm',
+            type: s.lastIntent || 'chat',
+            rewrittenText: context || String(text || ''),
+            reason: 'short_reply_with_context',
         };
         s.lastDecision = decision;
         return decision;
