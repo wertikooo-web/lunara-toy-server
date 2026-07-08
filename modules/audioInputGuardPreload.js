@@ -1,0 +1,99 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const originalReadFileSync = fs.readFileSync;
+const serverPath = path.resolve(__dirname, '..', 'server.js');
+
+const MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 24000);
+
+function normalizeText(text) {
+    return String(text || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[.,!?;:()[\]{}"«»“”]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function hasCyrillic(text) {
+    return /[а-я]/i.test(String(text || ''));
+}
+
+function isTooShortPcm(byteLength) {
+    const bytes = Number(byteLength || 0);
+    return bytes > 0 && bytes < MIN_STT_PCM_BYTES;
+}
+
+function isSuspiciousForeignTranscript(text) {
+    const raw = String(text || '').trim();
+    const t = normalizeText(raw);
+    if (!t) return false;
+    if (hasCyrillic(raw)) return false;
+
+    if (/^(you|thank you|thanks|thank you very much|yeah boss|yes boss|subtitles|bye bye)$/.test(t)) return true;
+    if (/\b(o que|que me|interessa|isso|voce|voces|obrigado|obrigada)\b/.test(t)) return true;
+    if (/\b(c etait|abidjan|merci|bonjour|bonsoir|gracias|hola)\b/.test(t)) return true;
+
+    const words = t.split(' ').filter(Boolean);
+    if (words.length <= 3 && /^[a-z\s']+$/.test(t)) return true;
+
+    return false;
+}
+
+function replaceOnce(source, from, to, label) {
+    if (!source.includes(from)) {
+        throw new Error(`[AudioInputGuardPreload] missing patch point: ${label}`);
+    }
+    return source.replace(from, to);
+}
+
+function patchServerSource(source) {
+    let patched = source;
+
+    patched = replaceOnce(
+        patched,
+        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\n",
+        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\nconst MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 24000);\n\nfunction isTooShortForStt(pcmBuffer) {\n    const bytes = pcmBuffer?.length || 0;\n    return bytes > 0 && bytes < MIN_STT_PCM_BYTES;\n}\n\nfunction normalizeTranscriptForGuard(text) {\n    return String(text || '')\n        .toLowerCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[.,!?;:()[\\]{}\\\"«»“”]/g, ' ')\n        .replace(/\\s+/g, ' ')\n        .trim();\n}\n\nfunction isSuspiciousForeignTranscript(text) {\n    const raw = String(text || '').trim();\n    const t = normalizeTranscriptForGuard(raw);\n    if (!t) return false;\n    if (/[а-я]/i.test(raw)) return false;\n    if (/^(you|thank you|thanks|thank you very much|yeah boss|yes boss|subtitles|bye bye)$/.test(t)) return true;\n    if (/\\b(o que|que me|interessa|isso|voce|voces|obrigado|obrigada)\\b/.test(t)) return true;\n    if (/\\b(c etait|abidjan|merci|bonjour|bonsoir|gracias|hola)\\b/.test(t)) return true;\n    const words = t.split(' ').filter(Boolean);\n    if (words.length <= 3 && /^[a-z\\s']+$/.test(t)) return true;\n    return false;\n}\n",
+        'audio input guard helpers'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "        logger.info(`[Pipeline] saved input PCM: ${pcmBuffer.length} bytes`);\n\n        // 3. STT — Whisper",
+        "        logger.info(`[Pipeline] saved input PCM: ${pcmBuffer.length} bytes`);\n\n        if (isTooShortForStt(pcmBuffer)) {\n            logger.info(`[AudioInputGuard] skipped STT: pcm_too_short bytes=${pcmBuffer.length} min=${MIN_STT_PCM_BYTES}`);\n            const r = retryAudioCommand();\n            sendAudio(r.url, r.durationMs);\n            return;\n        }\n\n        // 3. STT — Whisper",
+        'short pcm guard before stt'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "        if (!transcript || transcript.trim().length === 0) {\n            logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');\n            const r = retryAudioCommand();\n            sendAudio(r.url, r.durationMs);\n            return; // finally{} сбросит state в IDLE и удалит upload\n        }\n\n        // 4. LLM — Claude",
+        "        if (!transcript || transcript.trim().length === 0) {\n            logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');\n            const r = retryAudioCommand();\n            sendAudio(r.url, r.durationMs);\n            return; // finally{} сбросит state в IDLE и удалит upload\n        }\n\n        if (isSuspiciousForeignTranscript(transcript)) {\n            logger.info(`[AudioInputGuard] skipped LLM: suspicious_foreign_transcript chars=${String(transcript || '').length}`);\n            const r = retryAudioCommand();\n            sendAudio(r.url, r.durationMs);\n            return;\n        }\n\n        // 4. LLM — Claude",
+        'foreign transcript guard before llm'
+    );
+
+    return patched;
+}
+
+fs.readFileSync = function patchedReadFileSync(filePath, options) {
+    const data = originalReadFileSync.apply(this, arguments);
+    if (path.resolve(String(filePath)) !== serverPath) return data;
+
+    const encoding = typeof options === 'string' ? options : options?.encoding;
+    if (encoding && String(encoding).toLowerCase() !== 'utf8' && String(encoding).toLowerCase() !== 'utf-8') {
+        return data;
+    }
+
+    const source = Buffer.isBuffer(data) ? data.toString('utf8') : String(data);
+    const patched = patchServerSource(source);
+    console.log('[AudioInputGuardPreload] audio input guards injected into server.js');
+    return Buffer.isBuffer(data) ? Buffer.from(patched, 'utf8') : patched;
+};
+
+module.exports = {
+    MIN_STT_PCM_BYTES,
+    isTooShortPcm,
+    isSuspiciousForeignTranscript,
+};
