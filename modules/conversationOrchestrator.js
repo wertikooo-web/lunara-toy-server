@@ -3,6 +3,7 @@
 const dialogState = require('./dialogState');
 
 const OFFER_TTL_MS = 2 * 60 * 1000;
+const RIDDLE_HISTORY_LIMIT = 10;
 
 function nowMs() {
     return Date.now();
@@ -15,6 +16,8 @@ function createState() {
         lastBotReply: '',
         lastUserText: '',
         lastDecision: null,
+        riddleHistory: [],
+        currentRiddle: null,
     };
 }
 
@@ -25,6 +28,8 @@ function ensureState(state) {
     if (typeof state.lastBotReply !== 'string') state.lastBotReply = '';
     if (typeof state.lastUserText !== 'string') state.lastUserText = '';
     if (!Object.prototype.hasOwnProperty.call(state, 'lastDecision')) state.lastDecision = null;
+    if (!Array.isArray(state.riddleHistory)) state.riddleHistory = [];
+    if (!Object.prototype.hasOwnProperty.call(state, 'currentRiddle')) state.currentRiddle = null;
     return state;
 }
 
@@ -79,6 +84,59 @@ function offerToText(type) {
     return dialogState.rewriteForOffer(type) || '';
 }
 
+function isRepeatRiddleRequest(text) {
+    const t = dialogState.normalizeText(text);
+    if (!/(повтори|повторить|скажи еще раз|скажи ещё раз|еще раз|ещё раз|сначала|первую|прошлую|предыдущую)/.test(t)) {
+        return false;
+    }
+    return /загадк|ее|её|эту|первую|прошлую|предыдущую/.test(t);
+}
+
+function riddleRepeatRef(text) {
+    const t = dialogState.normalizeText(text);
+    if (/перв/.test(t)) return 'first';
+    if (/прошл|предыдущ/.test(t)) return 'previous';
+    if (/эту|текущ|последн|её|ее|еще раз|ещё раз/.test(t)) return 'current';
+    return 'current';
+}
+
+function getRiddleFromHistory(state, ref = 'current') {
+    const s = ensureState(state);
+    const history = s.riddleHistory || [];
+    if (history.length === 0) return null;
+    if (ref === 'first') return history[0] || null;
+    if (ref === 'previous') return history.length >= 2 ? history[history.length - 2] : history[history.length - 1];
+    return s.currentRiddle || history[history.length - 1] || null;
+}
+
+function repeatRiddleDecision(state, text) {
+    const s = ensureState(state);
+    const ref = riddleRepeatRef(text);
+    const item = getRiddleFromHistory(s, ref);
+    s.pendingOffer = null;
+
+    if (!item?.audioUrl) {
+        return {
+            action: 'reply',
+            type: 'riddle',
+            reply: 'Я пока не могу повторить прошлую загадку. Давай загадаю новую?',
+            reason: 'repeat_riddle_missing_history',
+        };
+    }
+
+    return {
+        action: 'repeat_riddle',
+        type: 'riddle',
+        reason: `repeat_${ref}_riddle`,
+        ref,
+        riddleId: item.id || null,
+        audioUrl: item.audioUrl,
+        durationMs: item.durationMs || 2500,
+        activeRiddle: item.activeRiddle || null,
+        reply: ref === 'first' ? 'Повторяю первую загадку.' : 'Повторяю загадку.',
+    };
+}
+
 function detectDecision(text, state, options = {}) {
     const s = clearExpiredOffer(ensureState(state), options.now || nowMs());
     const normalized = dialogState.normalizeText(text);
@@ -93,6 +151,12 @@ function detectDecision(text, state, options = {}) {
             reply: 'Ой, я не расслышала. Скажи ещё раз, пожалуйста.',
             reason: 'empty_text',
         };
+        s.lastDecision = decision;
+        return decision;
+    }
+
+    if (isRepeatRiddleRequest(text)) {
+        const decision = repeatRiddleDecision(s, text);
         s.lastDecision = decision;
         return decision;
     }
@@ -199,6 +263,49 @@ function rememberBotReply(state, reply, meta = {}) {
     return null;
 }
 
+function rememberRiddle(state, riddle, audio, meta = {}) {
+    const s = ensureState(state);
+    if (!audio?.url && !audio?.audioUrl) return null;
+
+    const item = {
+        id: riddle?.id || `riddle_${nowMs()}`,
+        answer: riddle?.answer || null,
+        audioUrl: audio.url || audio.audioUrl,
+        durationMs: audio.durationMs || 2500,
+        activeRiddle: riddle || null,
+        source: meta.source || 'riddle_engine',
+        requestText: String(meta.requestText || '').slice(0, 500),
+        createdAt: nowMs(),
+    };
+
+    s.riddleHistory.push(item);
+    if (s.riddleHistory.length > RIDDLE_HISTORY_LIMIT) {
+        s.riddleHistory.splice(0, s.riddleHistory.length - RIDDLE_HISTORY_LIMIT);
+    }
+    s.currentRiddle = item;
+    s.lastIntent = 'riddle';
+    return item;
+}
+
+function rememberGeneratedRiddle(state, reply, audio, meta = {}) {
+    const text = String(reply || '').trim();
+    if (!text || !audio?.audioUrl) return null;
+    const activeRiddle = {
+        id: `llm_${nowMs()}`,
+        answer: null,
+        aliases: [],
+        attempts: 0,
+        generated: true,
+    };
+    return rememberRiddle(state, activeRiddle, {
+        url: audio.audioUrl,
+        durationMs: audio.durationMs,
+    }, {
+        source: meta.source || 'llm',
+        requestText: meta.requestText || '',
+    });
+}
+
 function forgetPendingOffer(state) {
     const s = ensureState(state);
     s.pendingOffer = null;
@@ -207,10 +314,14 @@ function forgetPendingOffer(state) {
 
 module.exports = {
     OFFER_TTL_MS,
+    RIDDLE_HISTORY_LIMIT,
     createState,
     ensureState,
     detectDecision,
     rememberBotReply,
+    rememberRiddle,
+    rememberGeneratedRiddle,
     forgetPendingOffer,
     inferIntentFromText,
+    getRiddleFromHistory,
 };
