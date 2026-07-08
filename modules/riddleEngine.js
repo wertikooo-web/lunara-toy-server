@@ -8,14 +8,12 @@ let ttsModule = null;
 let log = console;
 
 let riddles = [];
+let topicAliases = {};
 
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SAMPLE = 2;
 
-// Для MVP не активируем сразу все 100 загадок.
-// Иначе первый деплой может долго генерировать аудио.
-// Потом можно поставить RIDDLE_ACTIVE_LIMIT=100 в Railway env.
-const DEFAULT_ACTIVE_LIMIT = 80;
+const DEFAULT_ACTIVE_LIMIT = 20;
 
 const REPLIES = {
     correct: [
@@ -65,15 +63,15 @@ function stripAnswerNoise(text) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+
 function isLikelyRiddleAnswer(text) {
     const raw = normalizeText(text);
     const cleaned = stripAnswerNoise(text);
 
     if (!cleaned) return false;
 
-    // Явные просьбы и вопросы не являются ответом на загадку.
-    // Это защищает от багов типа:
-    // "дай другую загадку" -> не считать неправильным ответом.
+    // Явные просьбы, вопросы и продолжение разговора не считаем ответом.
+    // Иначе "дай другую загадку" ошибочно станет неправильной попыткой.
     if (/(загадк|загадай|дай еще|дай ещё|другую|новую|следующую|расскажи|поговорим|почему|зачем|как|что такое|про )/.test(raw)) {
         return false;
     }
@@ -82,12 +80,9 @@ function isLikelyRiddleAnswer(text) {
 
     // Детский ответ обычно короткий:
     // "медведь", "это медведь", "наверное лиса"
-    if (words.length <= 3) {
-        return true;
-    }
-
-    return false;
+    return words.length <= 3;
 }
+
 function durationFromPcm(pcmPath, fallbackMs = 1500) {
     try {
         const bytes = fs.statSync(pcmPath).size;
@@ -145,16 +140,25 @@ async function init(options) {
 
     ensureDirs();
 
-    const filePath = path.join(__dirname, '..', 'data', 'riddles_ru.json');
-    const raw = fs.readFileSync(filePath, 'utf8');
-
-    riddles = JSON.parse(raw);
+    const riddlesPath = path.join(__dirname, '..', 'data', 'riddles_ru.json');
+    const riddlesRaw = fs.readFileSync(riddlesPath, 'utf8');
+    riddles = JSON.parse(riddlesRaw);
 
     if (!Array.isArray(riddles) || riddles.length === 0) {
         throw new Error('[Riddle] riddles_ru.json is empty or invalid');
     }
 
-    log.info(`[Riddle] loaded ${riddles.length} riddle(s), active limit=${activeLimit()}`);
+    const topicsPath = path.join(__dirname, '..', 'data', 'riddle_topics_ru.json');
+
+    if (fs.existsSync(topicsPath)) {
+        const topicsRaw = fs.readFileSync(topicsPath, 'utf8');
+        topicAliases = JSON.parse(topicsRaw);
+    } else {
+        topicAliases = {};
+        log.warn('[Riddle] riddle_topics_ru.json not found; topic matching disabled');
+    }
+
+    log.info(`[Riddle] loaded ${riddles.length} riddle(s), active limit=${activeLimit()}, topics=${Object.keys(topicAliases).length}`);
 }
 
 function isRiddleRequest(text) {
@@ -180,88 +184,130 @@ function isRevealRequest(text) {
         t.includes('дай ответ') ||
         t.includes('не знаю') ||
         t.includes('не понял') ||
+        t.includes('не поняла') ||
         t.includes('подскажи')
     );
 }
 
-function findRequestedRiddle(text) {
-    const t = normalizeText(text);
+function pickWeighted(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
 
-    if (!t) return null;
-
-    const limit = activeLimit();
-    const pool = riddles.slice(0, limit);
-
-    // Убираем служебные слова, оставляем тему запроса.
-    const cleanedRequest = t
-        .replace(/\bзагадай\b/g, ' ')
-        .replace(/\bзагадку\b/g, ' ')
-        .replace(/\bзагадка\b/g, ' ')
-        .replace(/\bдай\b/g, ' ')
-        .replace(/\bпро\b/g, ' ')
-        .replace(/\bо\b/g, ' ')
-        .replace(/\bоб\b/g, ' ')
-        .replace(/\bмне\b/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    if (!cleanedRequest) return null;
-
-    const requestWords = cleanedRequest.split(' ').filter(Boolean);
-
-    for (const item of pool) {
-        const answer = normalizeText(item.answer || '');
-        const aliases = (item.aliases || []).map(normalizeText);
-        const question = normalizeText(item.question || '');
-
-        const candidates = [answer, ...aliases].filter(Boolean);
-
-        for (const word of requestWords) {
-            if (word.length < 3) continue;
-
-            const matched = candidates.some(candidate => {
-                if (!candidate) return false;
-
-                return (
-                    candidate === word ||
-                    candidate.includes(word) ||
-                    word.includes(candidate)
-                );
-            });
-
-            if (matched) {
-                return item;
-            }
-
-            if (question.includes(word)) {
-                return item;
-            }
-        }
-    }
-
-    return null;
-}
-
-function pickRiddle(text = '') {
-    const requested = findRequestedRiddle(text);
-
-    if (requested) {
-        log.info(`[Riddle] matched requested topic: ${requested.id}, answer="${requested.answer}"`);
-        return requested;
-    }
-
-    const limit = activeLimit();
-    const pool = riddles.slice(0, limit);
-
-    const totalWeight = pool.reduce((sum, item) => sum + (item.weight || 1), 0);
+    const totalWeight = list.reduce((sum, item) => sum + (item.weight || 1), 0);
     let roll = Math.random() * totalWeight;
 
-    for (const item of pool) {
+    for (const item of list) {
         roll -= item.weight || 1;
         if (roll <= 0) return item;
     }
 
-    return pool[0];
+    return list[0];
+}
+
+function requestContainsAny(text, words = []) {
+    const t = normalizeText(text);
+
+    return words.some(word => {
+        const w = normalizeText(word);
+        if (!w || w.length < 3) return false;
+        return t.includes(w);
+    });
+}
+
+function getAvoidedRiddleIds(requestText) {
+    const avoided = new Set();
+
+    for (const item of riddles) {
+        const avoidWords = Array.isArray(item.avoid_if_requested)
+            ? item.avoid_if_requested
+            : [item.answer, ...(item.aliases || [])];
+
+        if (requestContainsAny(requestText, avoidWords)) {
+            avoided.add(item.id);
+        }
+    }
+
+    return avoided;
+}
+
+function getRequestedTags(requestText) {
+    const tags = new Set();
+    const t = normalizeText(requestText);
+
+    if (!t) return tags;
+
+    // 1. Сначала читаем отдельный словарь тем.
+    // Например: "жирафа" -> zoo / animals / africa.
+    for (const [tag, aliases] of Object.entries(topicAliases || {})) {
+        if (requestContainsAny(t, aliases)) {
+            tags.add(tag);
+        }
+    }
+
+    // 2. Потом, если ребёнок назвал конкретный ответ,
+    // берём теги этой загадки, но саму эту загадку потом исключим.
+    for (const item of riddles) {
+        const answerWords = [
+            item.answer,
+            ...(item.aliases || []),
+            ...(item.avoid_if_requested || []),
+        ];
+
+        if (requestContainsAny(t, answerWords)) {
+            for (const tag of item.tags || []) {
+                tags.add(tag);
+            }
+        }
+    }
+
+    return tags;
+}
+
+function hasAnyTag(item, tags) {
+    const itemTags = Array.isArray(item.tags) ? item.tags : [];
+    return itemTags.some(tag => tags.has(tag));
+}
+
+function findTopicRiddle(requestText) {
+    const requestedTags = getRequestedTags(requestText);
+
+    if (requestedTags.size === 0) {
+        return null;
+    }
+
+    const avoidedIds = getAvoidedRiddleIds(requestText);
+
+    // Для тематического запроса используем всю базу, а не только activeLimit.
+    // Иначе "про жирафа" может не найти нормальную замену внутри первых 20.
+    const candidates = riddles.filter(item => {
+        if (avoidedIds.has(item.id)) return false;
+        return hasAnyTag(item, requestedTags);
+    });
+
+    if (candidates.length === 0) {
+        log.info(`[Riddle] topic requested but no safe candidate found; tags=${Array.from(requestedTags).join(',')}`);
+        return null;
+    }
+
+    const picked = pickWeighted(candidates);
+
+    if (picked) {
+        log.info(`[Riddle] matched topic tags=${Array.from(requestedTags).join(',')} selected=${picked.id}, answer="${picked.answer}"`);
+    }
+
+    return picked;
+}
+
+function pickRiddle(requestText = '') {
+    const topicRiddle = findTopicRiddle(requestText);
+
+    if (topicRiddle) {
+        return topicRiddle;
+    }
+
+    const limit = activeLimit();
+    const pool = riddles.slice(0, limit);
+
+    return pickWeighted(pool) || pool[0] || riddles[0];
 }
 
 function isCorrectAnswer(text, activeRiddle) {
@@ -277,8 +323,6 @@ function isCorrectAnswer(text, activeRiddle) {
     return answers.some(answer => {
         if (!answer) return false;
 
-        // Для коротких детских ответов достаточно:
-        // "это мороз" содержит "мороз"
         return cleaned === answer || cleaned.includes(answer);
     });
 }
@@ -286,7 +330,9 @@ function isCorrectAnswer(text, activeRiddle) {
 async function buildRiddleAudioCommand(riddle, baseUrl) {
     const pcmPath = riddlePcmPath(riddle.id);
 
-    const spokenText = `Загадка. ${riddle.question}`;
+    // Не говорим "загадка про жирафа", даже если ребёнок просил тему.
+    // Просто даём загадку.
+    const spokenText = `Слушай загадку. ${riddle.question}`;
 
     await ensureAudio(spokenText, pcmPath, 'ru-RU');
 
@@ -336,7 +382,7 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
             audio,
         };
     }
-    
+
     if (!isRevealRequest(text) && !isLikelyRiddleAnswer(text)) {
         log.info(`[Riddle] phrase is not a likely answer: "${text}"`);
 
@@ -347,7 +393,7 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
             audio: null,
         };
     }
-    
+
     if (isRevealRequest(text)) {
         const phrase = `Ответ: ${activeRiddle.answer}. Хочешь ещё одну загадку?`;
         const audio = await buildReplyAudioCommand(`answer_${activeRiddle.id}`, phrase, baseUrl);
