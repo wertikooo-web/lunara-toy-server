@@ -64,6 +64,20 @@ function normalizeLang(lang) {
     return value || 'ru-RU';
 }
 
+function cleanSpokenText(text, type) {
+    let value = String(text || '').trim();
+
+    if (type === 'joke') {
+        value = value.replace(/^\s*(?:шутка|анекдот|joke)(?:\s*№?\s*\d+)?\s*[:—–-]\s*/iu, '');
+    }
+
+    if (type === 'fact') {
+        value = value.replace(/^\s*(?:факт|интересный\s+факт|fact|interesting\s+fact)(?:\s*№?\s*\d+)?\s*[:—–-]\s*/iu, '');
+    }
+
+    return value.trim();
+}
+
 function normalizeItem(row, pack) {
     const answers = parseJsonish(row.answers, []);
     const tags = parseJsonish(row.tags, []);
@@ -72,7 +86,7 @@ function normalizeItem(row, pack) {
         id: row.id,
         type: pack.type,
         title: row.title || '',
-        text: row.text || '',
+        text: cleanSpokenText(row.text, pack.type),
         lang: normalizeLang(row.lang),
         answers: Array.isArray(answers) ? answers : [],
         tags: Array.isArray(tags) ? tags : [],
@@ -147,7 +161,7 @@ async function exportLegacyArchive(pool) {
                 id: row.id,
                 type: row.type,
                 title: row.title || '',
-                text: row.text || '',
+                text: cleanSpokenText(row.text, row.type),
                 lang: normalizeLang(row.lang),
                 answers: parseJsonish(row.answers, []),
                 tags: parseJsonish(row.tags, []),
