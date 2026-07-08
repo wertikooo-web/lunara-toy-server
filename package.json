@@ -4,8 +4,8 @@
   "description": "Lunara TOY AI server — WebSocket bridge ESP32 <-> Claude",
   "main": "server.js",
   "scripts": {
-    "start": "node -r ./modules/creativeRiddlePatch.js server.js",
-    "dev": "node --watch -r ./modules/creativeRiddlePatch.js server.js",
+    "start": "node -r ./modules/topicRiddlePatch.js server.js",
+    "dev": "node --watch -r ./modules/topicRiddlePatch.js server.js",
     "check:intents": "node scripts/check_intents.js",
     "check:content": "node scripts/check_content_seed.js",
     "check:language": "node scripts/check_language_router.js",
@@ -18,7 +18,7 @@
     "express": "^4.19.2",
     "groq-sdk": "^1.2.1",
     "openai": "^4.47.0",
-    "pg": "^8.21.0",
+    "pg": "^8.16.3",
     "ws": "^8.17.0"
   }
 }
