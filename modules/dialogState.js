@@ -23,7 +23,7 @@ function isAffirmative(text) {
 function isNegative(text) {
     const t = normalizeText(text);
     if (!isShortText(t)) return false;
-    return /^(нет|не хочу|не надо|неа|хватит|стоп|потом|no|nope)$/.test(t);
+    return /^((нет|неа)(\s+спасибо)?|(нет\s+)?не\s+(хочу|надо)|(не\s+хочу\s+больше)|хватит|стоп|потом|no|nope|no\s+thanks|don'?t\s+want)$/.test(t);
 }
 
 function isAmbiguousNo(text) {
