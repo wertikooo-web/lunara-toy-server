@@ -14,6 +14,14 @@ function replaceOnce(source, from, to, label) {
     return source.replace(from, to);
 }
 
+function replaceAllChecked(source, pattern, to, label) {
+    const next = source.replace(pattern, to);
+    if (next === source) {
+        throw new Error(`[ServerPipelinePatch] missing patch point: ${label}`);
+    }
+    return next;
+}
+
 function patchServerSource(source) {
     let patched = source;
 
@@ -45,31 +53,37 @@ function patchServerSource(source) {
         'orchestrator decision after settings'
     );
 
-    patched = patched.replace(/riddleEngine\.isRiddleRequest\(transcript\)/g, 'riddleEngine.isRiddleRequest(pipelineText)');
-    patched = patched.replace(/riddleEngine\.startRiddle\(baseUrl, transcript\)/g, 'riddleEngine.startRiddle(baseUrl, pipelineText)');
-    patched = patched.replace(/content\.checkPendingAnswer\(state\.pendingContent, transcript\)/g, 'content.checkPendingAnswer(state.pendingContent, pipelineText)');
-    patched = patched.replace(/content\.getClarification\(transcript\)/g, 'content.getClarification(pipelineText)');
-    patched = patched.replace(/content\.classifyRequest\(transcript\)/g, 'content.classifyRequest(pipelineText)');
-    patched = patched.replace(/content\.tryHandleShortRequest\(transcript, \{ baseUrl, lang: effectiveLang \}\)/g, 'content.tryHandleShortRequest(pipelineText, { baseUrl, lang: effectiveLang })');
-    patched = patched.replace(/storyEngine\.buildStoryContext\(transcript\)/g, 'storyEngine.buildStoryContext(pipelineText)');
-    patched = patched.replace(/storyEngine\.buildStoryFollowupContext\(transcript\)/g, 'storyEngine.buildStoryFollowupContext(pipelineText)');
-    patched = patched.replace(/detectIntent\(transcript\)/g, 'detectIntent(pipelineText)');
-    patched = patched.replace(/llm\.chat\(ws, transcript, effectiveLang/g, 'llm.chat(ws, pipelineText, effectiveLang');
-    patched = patched.replace(/routingText: transcript/g, 'routingText: pipelineText');
+    patched = replaceAllChecked(patched, /riddleEngine\.isRiddleRequest\(transcript\)/g, 'riddleEngine.isRiddleRequest(pipelineText)', 'riddle request text');
+    patched = replaceAllChecked(patched, /riddleEngine\.startRiddle\(baseUrl, transcript\)/g, 'riddleEngine.startRiddle(baseUrl, pipelineText)', 'start riddle text');
+    patched = replaceAllChecked(patched, /content\.checkPendingAnswer\(state\.pendingContent, transcript\)/g, 'content.checkPendingAnswer(state.pendingContent, pipelineText)', 'pending content text');
+    patched = replaceAllChecked(patched, /content\.getClarification\(transcript\)/g, 'content.getClarification(pipelineText)', 'clarification text');
+    patched = replaceAllChecked(patched, /content\.classifyRequest\(transcript\)/g, 'content.classifyRequest(pipelineText)', 'classify text');
+    patched = replaceAllChecked(patched, /content\.tryHandleShortRequest\(transcript, \{ baseUrl, lang: effectiveLang \}\)/g, 'content.tryHandleShortRequest(pipelineText, { baseUrl, lang: effectiveLang })', 'short content text');
+    patched = replaceAllChecked(patched, /storyEngine\.buildStoryContext\(transcript\)/g, 'storyEngine.buildStoryContext(pipelineText)', 'story text');
+    patched = replaceAllChecked(patched, /storyEngine\.buildStoryFollowupContext\(transcript\)/g, 'storyEngine.buildStoryFollowupContext(pipelineText)', 'story followup text');
+    patched = replaceAllChecked(patched, /detectIntent\(transcript\)/g, 'detectIntent(pipelineText)', 'intent text');
+    patched = replaceAllChecked(patched, /llm\.chat\(ws, transcript, effectiveLang/g, 'llm.chat(ws, pipelineText, effectiveLang', 'llm text');
+    patched = replaceAllChecked(patched, /routingText: transcript/g, 'routingText: pipelineText', 'llm routing text');
 
-    patched = patched.replace(
-        "            sendAudio(result.audio.url, result.audio.durationMs);\n            recordUsageSafe(deviceId, result.audio.durationMs);",
-        "            sendAudio(result.audio.url, result.audio.durationMs);\n            rememberBotReply('Слушай загадку.', 'riddle');\n            recordUsageSafe(deviceId, result.audio.durationMs);"
+    patched = replaceAllChecked(
+        patched,
+        /sendAudio\(result\.audio\.url, result\.audio\.durationMs\);\n(\s*)recordUsageSafe\(deviceId, result\.audio\.durationMs\);/g,
+        "sendAudio(result.audio.url, result.audio.durationMs);\n$1rememberBotReply(result.reply || (riddleEngine.isRevealRequest?.(transcript) ? 'Хочешь ещё одну загадку?' : 'Слушай загадку.'), 'riddle');\n$1recordUsageSafe(deviceId, result.audio.durationMs);",
+        'remember riddle result'
     );
 
-    patched = patched.replace(
-        "            sendAudio(shortContent.audioUrl, shortContent.durationMs);\n            recordUsageSafe(deviceId, shortContent.durationMs);",
-        "            sendAudio(shortContent.audioUrl, shortContent.durationMs);\n            rememberBotReply(shortContent.reply, shortContent.item?.type || conversationDecision.type || 'chat');\n            recordUsageSafe(deviceId, shortContent.durationMs);"
+    patched = replaceAllChecked(
+        patched,
+        /sendAudio\(shortContent\.audioUrl, shortContent\.durationMs\);\n(\s*)recordUsageSafe\(deviceId, shortContent\.durationMs\);/g,
+        "sendAudio(shortContent.audioUrl, shortContent.durationMs);\n$1rememberBotReply(shortContent.reply, shortContent.item?.type || conversationDecision.type || 'chat');\n$1recordUsageSafe(deviceId, shortContent.durationMs);",
+        'remember short content'
     );
 
-    patched = patched.replace(
+    patched = replaceOnce(
+        patched,
         "        sendAudio(audioUrl, durationMs);\n        logger.info(`[Pipeline] sent audio command: ${audioUrl}`);",
-        "        sendAudio(audioUrl, durationMs);\n        rememberBotReply(reply, story ? 'story' : requestedContentType || conversationDecision.type || 'chat');\n        logger.info(`[Pipeline] sent audio command: ${audioUrl}`);"
+        "        sendAudio(audioUrl, durationMs);\n        rememberBotReply(reply, story ? 'story' : requestedContentType || conversationDecision.type || 'chat');\n        logger.info(`[Pipeline] sent audio command: ${audioUrl}`);",
+        'remember llm reply'
     );
 
     return patched;
