@@ -24,6 +24,9 @@ expectAllowed('Я люблю пиццу');
 expectAllowed('Мой любимый цвет красный');
 expectAllowed('Меня зовут Максим');
 expectAllowed('Запомни, моего кота зовут Барсик');
+expectAllowed('Я недавно сказал, что пицца это моя любимая.');
+expectAllowed('Пицца с ветчиной и салями. И запомни это.');
+expectAllowed('Пицца с ветчиной и ассоли. И запомни это.');
 
 const filtered = guard.filterUnsafeActions({
     set: { favorite_food: 'пицца', best_friend: 'школа номер 5' },
