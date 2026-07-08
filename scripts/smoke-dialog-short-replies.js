@@ -26,6 +26,15 @@ assert.strictEqual(decision.reason, 'short_reply_with_context');
 assert.strictEqual(decision.action, 'llm');
 assert.ok(decision.rewrittenText.includes('неуверенность'));
 
+const chatYesState = orchestrator.createState();
+orchestrator.rememberBotReply(chatYesState, 'Что ты хочешь нарисовать: жирафа или звезду?', { type: 'chat' });
+assert.strictEqual(chatYesState.pendingOffer, null, 'generic chat questions should not create pendingOffer=chat');
+decision = orchestrator.detectDecision('да', chatYesState);
+assert.strictEqual(decision.reason, 'short_reply_with_context');
+assert.strictEqual(decision.action, 'llm');
+assert.ok(decision.rewrittenText.includes('Последняя реплика Lumi'));
+assert.ok(!/^да$/i.test(decision.rewrittenText), 'bare yes must not be sent to LLM');
+
 const yesState = orchestrator.createState();
 orchestrator.rememberBotReply(yesState, 'Хочешь интересный факт?', { type: 'fact' });
 decision = orchestrator.detectDecision('угу', yesState);
