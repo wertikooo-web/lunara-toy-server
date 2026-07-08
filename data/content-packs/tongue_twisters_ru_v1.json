@@ -1,0 +1,58 @@
+{
+  "pack_id": "tongue_twisters_ru_v1",
+  "type": "tongue_twister",
+  "lang": "ru-RU",
+  "pack_version": "v1",
+  "items": [
+    {
+      "id": "tongue_twister_ru_v1_001",
+      "title": "Топот копыт",
+      "text": "Скороговорка. От топота копыт пыль по полю летит. Давай сначала медленно, потом быстрее.",
+      "tags": ["speech", "short", "age_4_8"],
+      "topic": "звук т",
+      "difficulty": "easy",
+      "age_min": 4,
+      "age_max": 8
+    },
+    {
+      "id": "tongue_twister_ru_v1_002",
+      "title": "Грека и рак",
+      "text": "Скороговорка. Ехал Грека через реку, видит Грека в реке рак. Скажи медленно и чётко.",
+      "tags": ["speech", "short", "age_5_8"],
+      "topic": "звук р",
+      "difficulty": "normal",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "tongue_twister_ru_v1_003",
+      "title": "Трава и дрова",
+      "text": "Скороговорка. На дворе трава, на траве дрова. Не руби дрова на траве двора.",
+      "tags": ["speech", "short", "age_5_8"],
+      "topic": "звук р",
+      "difficulty": "normal",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "tongue_twister_ru_v1_004",
+      "title": "Карл и Клара",
+      "text": "Скороговорка. Карл у Клары украл кораллы, а Клара у Карла украла кларнет.",
+      "tags": ["speech", "short", "age_5_8"],
+      "topic": "звук р",
+      "difficulty": "hard",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "tongue_twister_ru_v1_005",
+      "title": "Саша и сушка",
+      "text": "Скороговорка. Шла Саша по шоссе и сосала сушку. Попробуй мягко и без спешки.",
+      "tags": ["speech", "short", "age_4_8"],
+      "topic": "звук ш",
+      "difficulty": "normal",
+      "age_min": 4,
+      "age_max": 8
+    }
+  ]
+}
