@@ -15,21 +15,21 @@ const BYTES_PER_SAMPLE = 2;
 
 // По умолчанию используем всю базу загадок.
 // Можно переопределить в Railway через RIDDLE_ACTIVE_LIMIT.
-const DEFAULT_ACTIVE_LIMIT = 100;
+const DEFAULT_ACTIVE_LIMIT = 200;
 
 const REPLIES = {
     correct: [
         'Правильно! Вот это да!',
         'Да! Ты угадал!',
         'Точно! Молодец!',
-        'Верно! У тебя получилось!',
+        'Верно!',
     ],
 
     wrong: [
         'Почти! Попробуй ещё раз.',
         'Интересная версия! Давай ещё попытку.',
         'Не совсем. Подумай ещё чуть-чуть.',
-        'Хорошая попытка! Попробуй ещё.',
+        'Попробуй ещё.',
     ],
 
     noActive: [
@@ -362,7 +362,7 @@ async function buildRiddleAudioCommand(riddle, baseUrl) {
 
     // Не говорим "загадка про жирафа", даже если ребёнок просил тему.
     // Просто даём загадку.
-    const spokenText = `Слушай загадку. ${riddle.question}`;
+    const spokenText = `Загадка. ${riddle.question}`;
 
     await ensureAudio(spokenText, pcmPath, 'ru-RU');
 
