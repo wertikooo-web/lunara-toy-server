@@ -15,7 +15,7 @@ const BYTES_PER_SAMPLE = 2;
 // Для MVP не активируем сразу все 100 загадок.
 // Иначе первый деплой может долго генерировать аудио.
 // Потом можно поставить RIDDLE_ACTIVE_LIMIT=100 в Railway env.
-const DEFAULT_ACTIVE_LIMIT = 20;
+const DEFAULT_ACTIVE_LIMIT = 80;
 
 const REPLIES = {
     correct: [
@@ -65,7 +65,29 @@ function stripAnswerNoise(text) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+function isLikelyRiddleAnswer(text) {
+    const raw = normalizeText(text);
+    const cleaned = stripAnswerNoise(text);
 
+    if (!cleaned) return false;
+
+    // Явные просьбы и вопросы не являются ответом на загадку.
+    // Это защищает от багов типа:
+    // "дай другую загадку" -> не считать неправильным ответом.
+    if (/(загадк|загадай|дай еще|дай ещё|другую|новую|следующую|расскажи|поговорим|почему|зачем|как|что такое|про )/.test(raw)) {
+        return false;
+    }
+
+    const words = cleaned.split(' ').filter(Boolean);
+
+    // Детский ответ обычно короткий:
+    // "медведь", "это медведь", "наверное лиса"
+    if (words.length <= 3) {
+        return true;
+    }
+
+    return false;
+}
 function durationFromPcm(pcmPath, fallbackMs = 1500) {
     try {
         const bytes = fs.statSync(pcmPath).size;
@@ -162,7 +184,72 @@ function isRevealRequest(text) {
     );
 }
 
-function pickRiddle() {
+function findRequestedRiddle(text) {
+    const t = normalizeText(text);
+
+    if (!t) return null;
+
+    const limit = activeLimit();
+    const pool = riddles.slice(0, limit);
+
+    // Убираем служебные слова, оставляем тему запроса.
+    const cleanedRequest = t
+        .replace(/\bзагадай\b/g, ' ')
+        .replace(/\bзагадку\b/g, ' ')
+        .replace(/\bзагадка\b/g, ' ')
+        .replace(/\bдай\b/g, ' ')
+        .replace(/\bпро\b/g, ' ')
+        .replace(/\bо\b/g, ' ')
+        .replace(/\bоб\b/g, ' ')
+        .replace(/\bмне\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!cleanedRequest) return null;
+
+    const requestWords = cleanedRequest.split(' ').filter(Boolean);
+
+    for (const item of pool) {
+        const answer = normalizeText(item.answer || '');
+        const aliases = (item.aliases || []).map(normalizeText);
+        const question = normalizeText(item.question || '');
+
+        const candidates = [answer, ...aliases].filter(Boolean);
+
+        for (const word of requestWords) {
+            if (word.length < 3) continue;
+
+            const matched = candidates.some(candidate => {
+                if (!candidate) return false;
+
+                return (
+                    candidate === word ||
+                    candidate.includes(word) ||
+                    word.includes(candidate)
+                );
+            });
+
+            if (matched) {
+                return item;
+            }
+
+            if (question.includes(word)) {
+                return item;
+            }
+        }
+    }
+
+    return null;
+}
+
+function pickRiddle(text = '') {
+    const requested = findRequestedRiddle(text);
+
+    if (requested) {
+        log.info(`[Riddle] matched requested topic: ${requested.id}, answer="${requested.answer}"`);
+        return requested;
+    }
+
     const limit = activeLimit();
     const pool = riddles.slice(0, limit);
 
@@ -220,8 +307,8 @@ async function buildReplyAudioCommand(key, text, baseUrl) {
     };
 }
 
-async function startRiddle(baseUrl) {
-    const riddle = pickRiddle();
+async function startRiddle(baseUrl, requestText = '') {
+    const riddle = pickRiddle(requestText);
     const audio = await buildRiddleAudioCommand(riddle, baseUrl);
 
     log.info(`[Riddle] selected ${riddle.id}, answer="${riddle.answer}"`);
@@ -249,7 +336,18 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
             audio,
         };
     }
+    
+    if (!isRevealRequest(text) && !isLikelyRiddleAnswer(text)) {
+        log.info(`[Riddle] phrase is not a likely answer: "${text}"`);
 
+        return {
+            handled: false,
+            clearRiddle: false,
+            activeRiddle,
+            audio: null,
+        };
+    }
+    
     if (isRevealRequest(text)) {
         const phrase = `Ответ: ${activeRiddle.answer}. Хочешь ещё одну загадку?`;
         const audio = await buildReplyAudioCommand(`answer_${activeRiddle.id}`, phrase, baseUrl);
