@@ -152,7 +152,7 @@ function shortReplyContext(text, state) {
     const lastBot = s.lastBotReply ? ` Последняя реплика Lumi: "${s.lastBotReply}".` : '';
 
     if (dialogState.isAffirmative(t)) {
-        return `Ребёнок ответил коротко: "${text}". Это согласие/подтверждение к предыдущей реплике.${lastBot} Продолжи естественно, без фразы "я не поняла".`;
+        return `Ребёнок ответил коротко: "${text}". Это согласие/подтверждение к предыдущей реплике.${lastBot} Продолжи естественно, без фразы "я не поняла". Если предыдущая реплика была вопросом с выбором, а ответ "да" не выбирает вариант, коротко уточни выбор.`;
     }
     if (dialogState.isNegative(t)) {
         return `Ребёнок ответил коротко: "${text}". Это отказ или несогласие с предыдущей репликой.${lastBot} Прими отказ спокойно и предложи мягкую альтернативу.`;
@@ -206,6 +206,18 @@ function detectDecision(text, state, options = {}) {
         }
 
         if (dialogState.isAffirmative(text) || dialogState.isContinueRequest(text)) {
+            if (pendingType === 'chat') {
+                s.pendingOffer = null;
+                const decision = {
+                    action: 'llm',
+                    type: 'chat',
+                    rewrittenText: shortReplyContext(text, s) || String(text || ''),
+                    reason: 'short_reply_with_context',
+                };
+                s.lastDecision = decision;
+                return decision;
+            }
+
             const rewrittenText = offerToText(pendingType);
             s.pendingOffer = null;
             const decision = {
