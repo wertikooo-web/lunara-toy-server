@@ -55,6 +55,15 @@
       "pack_version": "v1",
       "source": "docx_import",
       "active": true
+    },
+    {
+      "file": "classic_stories_ru_v1.json",
+      "pack_id": "classic_stories_ru_v1",
+      "type": "story",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "user_docx_import",
+      "active": true
     }
   ]
 }
