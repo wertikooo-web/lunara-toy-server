@@ -19,8 +19,8 @@ function patchContentSource(source) {
     patched = replaceOnce(
         patched,
         "const tts = require('./tts');\n",
-        "const tts = require('./tts');\nconst contentPackLoader = require('./contentPackLoader');\n",
-        'require contentPackLoader'
+        "const tts = require('./tts');\nconst contentPackLoader = require('./contentPackLoaderV2');\n",
+        'require contentPackLoaderV2'
     );
 
     patched = replaceOnce(
