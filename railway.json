@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "startCommand": "node -r ./modules/memoryGuardPreload.js -r ./modules/audioInputGuardPreload.js -r ./modules/contentPacksPreload.js -r ./modules/contentIntentPatch.js -r ./modules/serverPipelinePatch.js -r ./modules/topicRiddlePatch.js server.js",
+    "startCommand": "node -r ./modules/memoryGuardPreload.js -r ./modules/audioInputGuardPreload.js -r ./modules/contentPacksPreload.js -r ./modules/contentIntentPatch.js -r ./modules/storyContentPatch.js -r ./modules/serverPipelinePatch.js -r ./modules/topicRiddlePatch.js server.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
