@@ -91,6 +91,7 @@ function shouldRouteRiddleToLlm(text) {
 
 function detectOffer(reply, fallbackType = '') {
     const t = normalizeText(reply);
+    const type = String(fallbackType || '').trim();
     if (!t) return null;
 
     if (/хочешь|давай|можем|будем/.test(t)) {
@@ -100,8 +101,11 @@ function detectOffer(reply, fallbackType = '') {
         if (/интересн|факт|расскажу|узна/.test(t)) return { type: 'fact', source: 'bot_offer' };
     }
 
-    if (fallbackType && /хочешь|еще|ещё|дальше|продолж/.test(t)) {
-        return { type: fallbackType, source: 'fallback_type' };
+    // Do not create generic pendingOffer=chat for ordinary questions like
+    // "Что ты хочешь нарисовать?". Short replies to normal chat are handled
+    // through lastBotReply context instead of sending bare "да" to the model.
+    if (type && type !== 'chat' && /хочешь|еще|ещё|дальше|продолж/.test(t)) {
+        return { type, source: 'fallback_type' };
     }
 
     return null;
