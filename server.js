@@ -1061,39 +1061,9 @@ async function handlePipeline(
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
         const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';
-                // ── Riddle mode: local cached riddles without LLM ───────────────────
-        // Если уже есть активная загадка, следующий ответ ребёнка проверяем
-        // как попытку отгадать, а не отправляем в LLM.
-        if (state.activeRiddle) {
-            logger.info(`[Riddle] active answer check: "${transcript}"`);
-
-            const result = await riddleEngine.handleActiveRiddleAnswer(
-                transcript,
-                state.activeRiddle,
-                baseUrl
-            );
-
-            state.activeRiddle = result.activeRiddle;
-
-            if (!isCurrent()) {
-                logger.info('[Pipeline] superseded after riddle answer — discarding');
-                return;
-            }
-
-            sendAudio(result.audio.url, result.audio.durationMs);
-            recordUsageSafe(deviceId, result.audio.durationMs);
-            recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', {
-                type: 'riddle',
-                durationMs: result.audio.durationMs,
-                provider: 'riddle_engine',
-            });
-            logger.info('[Riddle] sent answer feedback audio');
-
-            return;
-        }
-
-        // Если ребёнок просит загадку, выбираем готовую загадку,
-        // генерируем/берём cached audio и не идём в LLM.
+                        // ── Riddle mode: local cached riddles without LLM ───────────────────
+        // Важно: сначала проверяем, не просит ли ребёнок новую загадку.
+        // Иначе фраза "дай другую загадку" будет ошибочно считаться ответом.
         if (riddleEngine.isRiddleRequest(transcript)) {
             if (!isContentTypeAllowed(settings, 'riddle')) {
                 logger.info('[Riddle] blocked by parent settings');
@@ -1122,7 +1092,7 @@ async function handlePipeline(
 
             logger.info('[Riddle] request detected');
 
-            const result = await riddleEngine.startRiddle(baseUrl);
+            const result = await riddleEngine.startRiddle(baseUrl, transcript);
 
             state.activeRiddle = result.riddle;
 
@@ -1141,6 +1111,42 @@ async function handlePipeline(
             logger.info(`[Riddle] sent ${result.riddle.id}`);
 
             return;
+        }
+
+        // Если уже есть активная загадка, проверяем только короткие ответы:
+        // "медведь", "это лиса", "не знаю", "скажи ответ".
+        // Если фраза не похожа на ответ, отпускаем её дальше в обычный pipeline.
+        if (state.activeRiddle) {
+            logger.info(`[Riddle] active answer check: "${transcript}"`);
+
+            const result = await riddleEngine.handleActiveRiddleAnswer(
+                transcript,
+                state.activeRiddle,
+                baseUrl
+            );
+
+            if (!result.handled) {
+                logger.info('[Riddle] active riddle ignored: phrase is not an answer, falling through to normal pipeline');
+                state.activeRiddle = null;
+            } else {
+                state.activeRiddle = result.activeRiddle;
+
+                if (!isCurrent()) {
+                    logger.info('[Pipeline] superseded after riddle answer — discarding');
+                    return;
+                }
+
+                sendAudio(result.audio.url, result.audio.durationMs);
+                recordUsageSafe(deviceId, result.audio.durationMs);
+                recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', {
+                    type: 'riddle',
+                    durationMs: result.audio.durationMs,
+                    provider: 'riddle_engine',
+                });
+                logger.info('[Riddle] sent answer feedback audio');
+
+                return;
+            }
         }
         const runtime = await parentConfig.getRuntimeState(deviceId, settings);
         if (!runtime.allowed) {
