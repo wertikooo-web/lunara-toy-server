@@ -68,11 +68,11 @@ function cleanSpokenText(text, type) {
     let value = String(text || '').trim();
 
     if (type === 'joke') {
-        value = value.replace(/^\s*(?:шутка|анекдот|joke)(?:\s*№?\s*\d+)?\s*[:—–-]\s*/iu, '');
+        value = value.replace(/^\s*(?:шутка|анекдот|joke)(?:\s*№?\s*\d+)?\s*[.:—–-]\s*/iu, '');
     }
 
     if (type === 'fact') {
-        value = value.replace(/^\s*(?:факт|интересный\s+факт|fact|interesting\s+fact)(?:\s*№?\s*\d+)?\s*[:—–-]\s*/iu, '');
+        value = value.replace(/^\s*(?:факт|интересный\s+факт|fact|interesting\s+fact)(?:\s*№?\s*\d+)?\s*[.:—–-]\s*/iu, '');
     }
 
     return value.trim();
