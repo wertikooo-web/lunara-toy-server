@@ -1,0 +1,51 @@
+{
+  "version": "v1",
+  "description": "Lunara content packs are prepared content for the toy. This is not child memory.",
+  "packs": [
+    {
+      "file": "riddles_ru_v1.json",
+      "pack_id": "riddles_ru_v1",
+      "type": "riddle",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "content_pack",
+      "active": true
+    },
+    {
+      "file": "tongue_twisters_ru_v1.json",
+      "pack_id": "tongue_twisters_ru_v1",
+      "type": "tongue_twister",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "content_pack",
+      "active": true
+    },
+    {
+      "file": "jokes_ru_v1.json",
+      "pack_id": "jokes_ru_v1",
+      "type": "joke",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "content_pack",
+      "active": true
+    },
+    {
+      "file": "facts_ru_v1.json",
+      "pack_id": "facts_ru_v1",
+      "type": "fact",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "content_pack",
+      "active": true
+    },
+    {
+      "file": "games_ru_v1.json",
+      "pack_id": "games_ru_v1",
+      "type": "mini_game",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "content_pack",
+      "active": true
+    }
+  ]
+}
