@@ -98,6 +98,7 @@ function detectOffer(reply, fallbackType = '') {
         if (/загадк/.test(t)) return { type: 'riddle', source: 'bot_offer' };
         if (/сказк|истори/.test(t)) return { type: 'story', source: 'bot_offer' };
         if (/поигр|игр/.test(t)) return { type: 'game', source: 'bot_offer' };
+        if (/шутк|анекдот|смешн|пошут/.test(t)) return { type: 'joke', source: 'bot_offer' };
         if (/интересн|факт|расскажу|узна/.test(t)) return { type: 'fact', source: 'bot_offer' };
     }
 
@@ -180,6 +181,7 @@ function rewriteForOffer(type) {
     if (type === 'riddle') return 'Загадай загадку';
     if (type === 'story') return 'Расскажи короткую сказку';
     if (type === 'game') return 'Давай поиграем';
+    if (type === 'joke') return 'Расскажи короткую шутку';
     if (type === 'fact') return 'Расскажи интересный факт для ребенка';
     return '';
 }
