@@ -18,7 +18,7 @@ const memory   = require('./modules/memory');
 const content  = require('./modules/content');
 const storyEngine = require('./modules/storyEngine');
 const parentConfig = require('./modules/parentConfig');
-
+const riddleEngine = require('./modules/riddleEngine');
 let server = null;
 let shuttingDown = false;
 const breakReminderSent = new Set();
@@ -845,6 +845,7 @@ wss.on('connection', (ws, req) => {
         audioBytes:   0,            // total bytes received
         generation:   0,            // номер запроса; растёт на каждую новую запись (для перебивания)
         pendingContent: null,
+        activeRiddle: null,
         lastContentMode: null,
     };
 
@@ -986,6 +987,7 @@ wss.on('connection', (ws, req) => {
             state.audioChunks = [];
             state.audioBytes  = 0;
             state.pendingContent = null;
+            state.activeRiddle = null;
             state.lastContentMode = null;
             llm.resetHistory(ws);
             logger.info('[WS] dialog reset');
@@ -1059,6 +1061,87 @@ async function handlePipeline(
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
         const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';
+                // ── Riddle mode: local cached riddles without LLM ───────────────────
+        // Если уже есть активная загадка, следующий ответ ребёнка проверяем
+        // как попытку отгадать, а не отправляем в LLM.
+        if (state.activeRiddle) {
+            logger.info(`[Riddle] active answer check: "${transcript}"`);
+
+            const result = await riddleEngine.handleActiveRiddleAnswer(
+                transcript,
+                state.activeRiddle,
+                baseUrl
+            );
+
+            state.activeRiddle = result.activeRiddle;
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after riddle answer — discarding');
+                return;
+            }
+
+            sendAudio(result.audio.url, result.audio.durationMs);
+            recordUsageSafe(deviceId, result.audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', {
+                type: 'riddle',
+                durationMs: result.audio.durationMs,
+                provider: 'riddle_engine',
+            });
+            logger.info('[Riddle] sent answer feedback audio');
+
+            return;
+        }
+
+        // Если ребёнок просит загадку, выбираем готовую загадку,
+        // генерируем/берём cached audio и не идём в LLM.
+        if (riddleEngine.isRiddleRequest(transcript)) {
+            if (!isContentTypeAllowed(settings, 'riddle')) {
+                logger.info('[Riddle] blocked by parent settings');
+                const reply = disabledContentReply('riddle', effectiveLang);
+                const audio = await content.ensureCachedReply(reply, {
+                    baseUrl,
+                    lang: effectiveLang,
+                    key: 'disabled_riddle',
+                });
+
+                if (!isCurrent()) {
+                    logger.info('[Pipeline] superseded after disabled riddle reply — discarding');
+                    return;
+                }
+
+                sendAudio(audio.audioUrl, audio.durationMs);
+                recordUsageSafe(deviceId, audio.durationMs);
+                recordAnalyticsSafe(deviceId, transcript, reply, {
+                    type: 'riddle',
+                    durationMs: audio.durationMs,
+                    provider: 'system',
+                });
+
+                return;
+            }
+
+            logger.info('[Riddle] request detected');
+
+            const result = await riddleEngine.startRiddle(baseUrl);
+
+            state.activeRiddle = result.riddle;
+
+            if (!isCurrent()) {
+                logger.info('[Pipeline] superseded after riddle start — discarding');
+                return;
+            }
+
+            sendAudio(result.audio.url, result.audio.durationMs);
+            recordUsageSafe(deviceId, result.audio.durationMs);
+            recordAnalyticsSafe(deviceId, transcript, 'riddle_started', {
+                type: 'riddle',
+                durationMs: result.audio.durationMs,
+                provider: 'riddle_engine',
+            });
+            logger.info(`[Riddle] sent ${result.riddle.id}`);
+
+            return;
+        }
         const runtime = await parentConfig.getRuntimeState(deviceId, settings);
         if (!runtime.allowed) {
             logger.info(`[Pipeline] runtime blocked: ${runtime.reason}`);
@@ -1623,7 +1706,12 @@ server.listen(PORT, async () => {
     await memory.init();
     await parentConfig.init();
     await content.init({ audioDir: DIR_CONTENT_AUDIO });
-        cleaner.start(DIR_AUDIO, 10 * 60 * 1000, [
+    await riddleEngine.init({
+        audioDir: DIR_AUDIO,
+        tts,
+        logger,
+    });
+    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, [
         'greeting_ru.pcm',
         'greeting_ru.wav',
         'retry_ru.pcm',
