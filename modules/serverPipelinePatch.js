@@ -6,6 +6,68 @@ const Module = require('module');
 
 const originalJsLoader = Module._extensions['.js'];
 const serverPath = path.resolve(__dirname, '..', 'server.js');
+const parentConfigPath = path.resolve(__dirname, 'parentConfig.js');
+
+const PARENT_THINKING_UI_HTML = `
+        <div>
+          <label id="thinkingPhrasesLabel">Thinking-фразы</label>
+          <label class="inline-check">
+            <input id="thinking_phrases_enabled" type="checkbox" checked>
+            <span id="thinkingPhrasesEnabledLabel">Включены</span>
+          </label>
+          <p class="small">Промежуточные фразы вроде «секундочку...» перед долгим LLM-ответом. На заготовки/кеш они не нужны.</p>
+        </div>
+        <div>
+          <label id="thinkingFrequencyLabel">Частота thinking-фраз</label>
+          <select id="thinking_frequency">
+            <option value="rare">Редко</option>
+            <option value="normal">Иногда</option>
+            <option value="often">Часто</option>
+          </select>
+          <p class="small" id="thinkingFrequencyHelp">Для демо лучше: редко или выключено.</p>
+        </div>
+`;
+
+const PARENT_THINKING_UI_SCRIPT = `
+<script>
+(function installThinkingSettingsPatch() {
+  function byId(id) { return document.getElementById(id); }
+  function setThinkingFields(settings) {
+    const enabled = byId('thinking_phrases_enabled');
+    const freq = byId('thinking_frequency');
+    if (enabled) enabled.checked = settings?.thinking_phrases_enabled !== false;
+    if (freq) freq.value = ['rare', 'normal', 'often'].includes(settings?.thinking_frequency) ? settings.thinking_frequency : 'normal';
+  }
+  function getThinkingFields() {
+    return {
+      thinking_phrases_enabled: byId('thinking_phrases_enabled')?.checked === true,
+      thinking_frequency: byId('thinking_frequency')?.value || 'normal',
+    };
+  }
+  const oldApi = window.api || api;
+  window.api = api = function patchedApi(path, options = {}) {
+    try {
+      if (String(path) === '/api/parent/settings' && String(options.method || '').toUpperCase() === 'POST' && options.body) {
+        const body = JSON.parse(options.body);
+        Object.assign(body, getThinkingFields());
+        options = { ...options, body: JSON.stringify(body) };
+      }
+    } catch (err) {
+      console.warn('[Parent] thinking settings injection failed', err);
+    }
+    return oldApi(path, options);
+  };
+  const oldLoadState = window.loadState || loadState;
+  window.loadState = loadState = async function patchedLoadState() {
+    const result = await oldLoadState.apply(this, arguments);
+    setThinkingFields(window.lastParentState?.settings || {});
+    return result;
+  };
+  byId('thinking_phrases_enabled')?.addEventListener('change', () => window.updateUnsavedIndicator?.());
+  byId('thinking_frequency')?.addEventListener('change', () => window.updateUnsavedIndicator?.());
+  setThinkingFields(window.lastParentState?.settings || {});
+})();
+</script>`;
 
 function replaceOnce(source, from, to, label) {
     if (!source.includes(from)) {
@@ -22,14 +84,104 @@ function replaceAllChecked(source, pattern, to, label) {
     return next;
 }
 
+function patchParentConfigSource(source) {
+    let patched = source;
+
+    patched = replaceOnce(
+        patched,
+        "const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];\n",
+        "const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];\nconst THINKING_FREQUENCIES = ['rare', 'normal', 'often'];\n",
+        'thinking frequencies const'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "    quiet_hours_end: '07:00',\n    content_enabled:",
+        "    quiet_hours_end: '07:00',\n    thinking_phrases_enabled: true,\n    thinking_frequency: 'normal',\n    content_enabled:",
+        'default thinking settings'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "    if ('quiet_hours_end' in raw) patch.quiet_hours_end = normalizeTime(raw.quiet_hours_end, DEFAULT_SETTINGS.quiet_hours_end);\n    if ('content_enabled' in raw) {",
+        "    if ('quiet_hours_end' in raw) patch.quiet_hours_end = normalizeTime(raw.quiet_hours_end, DEFAULT_SETTINGS.quiet_hours_end);\n    if ('thinking_phrases_enabled' in raw) patch.thinking_phrases_enabled = raw.thinking_phrases_enabled === true || raw.thinking_phrases_enabled === 'true' || raw.thinking_phrases_enabled === 'on';\n    if ('thinking_frequency' in raw) {\n        const value = safeText(raw.thinking_frequency, 16);\n        patch.thinking_frequency = THINKING_FREQUENCIES.includes(value) ? value : DEFAULT_SETTINGS.thinking_frequency;\n    }\n    if ('content_enabled' in raw) {",
+        'normalize thinking settings patch'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "            quiet_hours_end TEXT NOT NULL DEFAULT '07:00',\n            content_enabled",
+        "            quiet_hours_end TEXT NOT NULL DEFAULT '07:00',\n            thinking_phrases_enabled BOOLEAN NOT NULL DEFAULT true,\n            thinking_frequency TEXT NOT NULL DEFAULT 'normal',\n            content_enabled",
+        'device_settings thinking columns'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n    await pool.query(\"UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'\");",
+        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_phrases_enabled BOOLEAN NOT NULL DEFAULT true\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_frequency TEXT NOT NULL DEFAULT 'normal'\");\n    await pool.query(\"UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'\");",
+        'alter thinking columns'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "    settings.rest_schedule_enabled = settings.rest_schedule_enabled === true;\n    if (!settings.child_address_names.length)",
+        "    settings.rest_schedule_enabled = settings.rest_schedule_enabled === true;\n    settings.thinking_phrases_enabled = settings.thinking_phrases_enabled !== false;\n    if (!THINKING_FREQUENCIES.includes(settings.thinking_frequency)) settings.thinking_frequency = DEFAULT_SETTINGS.thinking_frequency;\n    if (!settings.child_address_names.length)",
+        'normalize thinking row'
+    );
+
+    return patched;
+}
+
 function patchServerSource(source) {
     let patched = source;
+
+    patched = replaceOnce(
+        patched,
+        "app.get('/parent', (_req, res) => {\n    res.sendFile(path.join(__dirname, 'public', 'parent.html'));\n});",
+        `app.get('/parent', (_req, res) => {\n    const parentHtmlPath = path.join(__dirname, 'public', 'parent.html');\n    let html = fs.readFileSync(parentHtmlPath, 'utf8');\n    if (!html.includes('thinking_phrases_enabled')) {\n        html = html.replace(\"        <div>\\n          <label id=\\\"modelModeLabel\\\">Режим модели</label>\\n          <select id=\\\"model_mode\\\">\\n            <option value=\\\"auto\\\">Авто</option>\\n            <option value=\\\"economy\\\">Экономный</option>\\n            <option value=\\\"smart\\\">Умный</option>\\n          </select>\\n        </div>\", \"        <div>\\n          <label id=\\\"modelModeLabel\\\">Режим модели</label>\\n          <select id=\\\"model_mode\\\">\\n            <option value=\\\"auto\\\">Авто</option>\\n            <option value=\\\"economy\\\">Экономный</option>\\n            <option value=\\\"smart\\\">Умный</option>\\n          </select>\\n        </div>\" + ${JSON.stringify(PARENT_THINKING_UI_HTML)});\n        html = html.replace('</body>', ${JSON.stringify(PARENT_THINKING_UI_SCRIPT)} + '\\n</body>');\n    }\n    res.type('html').send(html);\n});`,
+        'dynamic parent page thinking ui'
+    );
 
     patched = replaceOnce(
         patched,
         "const riddleEngine = require('./modules/riddleEngine');\n",
         "const riddleEngine = require('./modules/riddleEngine');\nconst conversationOrchestrator = require('./modules/conversationOrchestrator');\nconst riddleIntentClassifier = require('./modules/riddleIntentClassifier');\n",
         'require conversationOrchestrator and riddleIntentClassifier'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\n",
+        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\n\nfunction thinkingChanceForSettings(settings = {}) {\n    if (settings.thinking_phrases_enabled === false) return 0;\n    if (settings.thinking_frequency === 'rare') return 0.12;\n    if (settings.thinking_frequency === 'often') return 0.75;\n    return 0.35;\n}\n\nfunction thinkingDelayForSettings(settings = {}) {\n    if (settings.thinking_frequency === 'rare') return 900;\n    if (settings.thinking_frequency === 'often') return 450;\n    return 700;\n}\n\nfunction noopDelayedThinking() {\n    return {\n        cancel: () => {},\n        cancelAndWait: async () => {},\n    };\n}\n",
+        'thinking settings helpers'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "function thinkingAudioCommand(intent = 'default') {\n    if (Math.random() >= THINKING_CHANCE) return null;",
+        "function thinkingAudioCommand(intent = 'default', chance = THINKING_CHANCE) {\n    if (Math.random() >= chance) return null;",
+        'thinking chance argument'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS }) {",
+        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS, chance = THINKING_CHANCE }) {",
+        'startDelayedThinking chance argument'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "        const thinking = thinkingAudioCommand(intent);",
+        "        const thinking = thinkingAudioCommand(intent, chance);",
+        'thinking command chance use'
+    );
+
+    patched = replaceOnce(
+        patched,
+        "        const delayedThinking = startDelayedThinking({\n            intent,\n            isCurrent,\n            sendAudio,\n            delayMs: THINKING_DELAY_MS,\n        });",
+        "        const thinkingChance = thinkingChanceForSettings(settings);\n        const delayedThinking = thinkingChance > 0\n            ? startDelayedThinking({\n                intent,\n                isCurrent,\n                sendAudio,\n                delayMs: thinkingDelayForSettings(settings),\n                chance: thinkingChance,\n            })\n            : noopDelayedThinking();\n        logger.info(`[Thinking] mode=${settings.thinking_phrases_enabled === false ? 'off' : settings.thinking_frequency || 'normal'} chance=${thinkingChance}`);",
+        'thinking settings in pipeline'
     );
 
     patched = replaceOnce(
@@ -56,7 +208,7 @@ function patchServerSource(source) {
     patched = replaceOnce(
         patched,
         "        // Если уже есть активная загадка, проверяем только короткие ответы:\n        // \"медведь\", \"это лиса\", \"не знаю\", \"скажи ответ\".\n        // Если фраза не похожа на ответ, отпускаем её дальше в обычный pipeline.\n        if (state.activeRiddle) {\n            logger.info(`[Riddle] active answer check: \"${transcript}\"`);\n\n            const result = await riddleEngine.handleActiveRiddleAnswer(\n                transcript,\n                state.activeRiddle,\n                baseUrl\n            );\n\n            if (!result.handled) {\n                logger.info('[Riddle] active riddle ignored: phrase is not an answer, falling through to normal pipeline');\n                state.activeRiddle = null;\n            } else {\n                state.activeRiddle = result.activeRiddle;\n\n                if (!isCurrent()) {\n                    logger.info('[Pipeline] superseded after riddle answer — discarding');\n                    return;\n                }\n\n                sendAudio(result.audio.url, result.audio.durationMs);\n                recordUsageSafe(deviceId, result.audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', {\n                    type: 'riddle',\n                    durationMs: result.audio.durationMs,\n                    provider: 'riddle_engine',\n                });\n                logger.info('[Riddle] sent answer feedback audio');\n\n                return;\n            }\n        }",
-        "        // Active riddle mode: classify the child's intent first.\n        // This prevents phrases like \"я сдаюсь\" from being treated as a guess\n        // or as an emotional chat message.\n        if (state.activeRiddle) {\n            logger.info(`[Riddle] active answer check: \"${pipelineText}\"`);\n\n            const riddleIntent = await riddleIntentClassifier.classifyRiddleTurn({\n                transcript: pipelineText,\n                activeRiddle: state.activeRiddle,\n                lastRiddle: state.conversation?.currentRiddle,\n                history: state.conversation?.riddleHistory,\n            });\n            logger.info(`[RiddleIntent] intent=${riddleIntent.intent} confidence=${riddleIntent.confidence} source=${riddleIntent.source} reason=${riddleIntent.reason}`);\n\n            if (riddleIntent.intent === 'off_topic') {\n                logger.info('[Riddle] active riddle closed: user changed topic');\n                state.activeRiddle = null;\n            } else if (riddleIntent.intent === 'stop_riddle_game') {\n                state.activeRiddle = null;\n                const reply = 'Хорошо, закончим загадки. Можем просто поболтать.';\n                const audio = await content.ensureCachedReply(reply, {\n                    baseUrl,\n                    lang: effectiveLang,\n                    key: 'riddle_stop_game',\n                });\n                if (!isCurrent()) {\n                    logger.info('[Pipeline] superseded after riddle stop — discarding');\n                    return;\n                }\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'riddle_intent' });\n                rememberBotReply(reply, 'chat');\n                return;\n            } else if (riddleIntent.intent === 'next_riddle') {\n                state.activeRiddle = null;\n                logger.info('[Riddle] intent requested next riddle');\n                const result = await riddleEngine.startRiddle(baseUrl, 'загадай загадку');\n                state.activeRiddle = result.riddle;\n                if (!isCurrent()) {\n                    logger.info('[Pipeline] superseded after next riddle intent — discarding');\n                    return;\n                }\n                sendAudio(result.audio.url, result.audio.durationMs);\n                conversationOrchestrator.rememberRiddle(state.conversation, result.riddle, result.audio, { requestText: pipelineText, source: 'riddle_engine' });\n                rememberBotReply('Слушай загадку.', 'riddle');\n                recordUsageSafe(deviceId, result.audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, 'riddle_started', { type: 'riddle', durationMs: result.audio.durationMs, provider: 'riddle_engine' });\n                logger.info(`[Riddle] sent ${result.riddle.id}`);\n                return;\n            } else if (riddleIntent.intent === 'repeat_riddle') {\n                const item = conversationOrchestrator.getRiddleFromHistory(state.conversation, 'current');\n                if (item?.audioUrl) {\n                    if (item.activeRiddle) state.activeRiddle = { ...item.activeRiddle, attempts: 0 };\n                    sendAudio(item.audioUrl, item.durationMs || 2500);\n                    recordUsageSafe(deviceId, item.durationMs || 2500);\n                    recordAnalyticsSafe(deviceId, transcript, 'Повторяю загадку.', { type: 'riddle', durationMs: item.durationMs || 2500, provider: 'orchestrator' });\n                    logger.info(`[RiddleIntent] repeated current riddle=${item.id || 'unknown'}`);\n                    return;\n                }\n                const reply = 'Я пока не могу повторить эту загадку. Давай загадаю новую?';\n                const audio = await content.ensureCachedReply(reply, { baseUrl, lang: effectiveLang, key: 'riddle_repeat_missing' });\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                rememberBotReply(reply, 'riddle');\n                return;\n            } else if (riddleIntent.intent === 'unclear') {\n                const reply = 'Я не совсем поняла. Ты хочешь ответить, сдаться или повторить загадку?';\n                const audio = await content.ensureCachedReply(reply, { baseUrl, lang: effectiveLang, key: 'riddle_unclear_turn' });\n                if (!isCurrent()) {\n                    logger.info('[Pipeline] superseded after riddle unclear — discarding');\n                    return;\n                }\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'riddle_intent' });\n                rememberBotReply(reply, 'riddle');\n                return;\n            } else {\n                const answerText = riddleIntent.intent === 'reveal_answer' ? 'скажи ответ' : pipelineText;\n                const result = await riddleEngine.handleActiveRiddleAnswer(\n                    answerText,\n                    state.activeRiddle,\n                    baseUrl\n                );\n\n                if (!result.handled) {\n                    logger.info('[Riddle] active riddle ignored after classifier, falling through to normal pipeline');\n                    state.activeRiddle = null;\n                } else {\n                    state.activeRiddle = result.activeRiddle;\n\n                    if (!isCurrent()) {\n                        logger.info('[Pipeline] superseded after riddle answer — discarding');\n                        return;\n                    }\n\n                    sendAudio(result.audio.url, result.audio.durationMs);\n                    rememberBotReply(riddleIntent.intent === 'reveal_answer' ? 'Хочешь ещё одну загадку?' : 'Слушай внимательно.', 'riddle');\n                    recordUsageSafe(deviceId, result.audio.durationMs);\n                    recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', {\n                        type: 'riddle',\n                        durationMs: result.audio.durationMs,\n                        provider: 'riddle_engine',\n                    });\n                    logger.info('[Riddle] sent answer feedback audio');\n\n                    return;\n                }\n            }\n        }",
+        "        // Active riddle mode: classify the child's intent first.\n        // This prevents phrases like \"я сдаюсь\" from being treated as a guess\n        // or as an emotional chat message.\n        if (state.activeRiddle) {\n            logger.info(`[Riddle] active answer check: \"${pipelineText}\"`);\n\n            const riddleIntent = await riddleIntentClassifier.classifyRiddleTurn({\n                transcript: pipelineText,\n                activeRiddle: state.activeRiddle,\n                lastRiddle: state.conversation?.currentRiddle,\n                history: state.conversation?.riddleHistory,\n            });\n            logger.info(`[RiddleIntent] intent=${riddleIntent.intent} confidence=${riddleIntent.confidence} source=${riddleIntent.source} reason=${riddleIntent.reason}`);\n\n            if (riddleIntent.intent === 'off_topic') {\n                logger.info('[Riddle] active riddle closed: user changed topic');\n                state.activeRiddle = null;\n            } else if (riddleIntent.intent === 'stop_riddle_game') {\n                state.activeRiddle = null;\n                const reply = 'Хорошо, закончим загадки. Можем просто поболтать.';\n                const audio = await content.ensureCachedReply(reply, { baseUrl, lang: effectiveLang, key: 'riddle_stop_game' });\n                if (!isCurrent()) return;\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'riddle_intent' });\n                rememberBotReply(reply, 'chat');\n                return;\n            } else if (riddleIntent.intent === 'next_riddle') {\n                state.activeRiddle = null;\n                logger.info('[Riddle] intent requested next riddle');\n                const result = await riddleEngine.startRiddle(baseUrl, 'загадай загадку');\n                state.activeRiddle = result.riddle;\n                if (!isCurrent()) return;\n                sendAudio(result.audio.url, result.audio.durationMs);\n                conversationOrchestrator.rememberRiddle(state.conversation, result.riddle, result.audio, { requestText: pipelineText, source: 'riddle_engine' });\n                rememberBotReply('Слушай загадку.', 'riddle');\n                recordUsageSafe(deviceId, result.audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, 'riddle_started', { type: 'riddle', durationMs: result.audio.durationMs, provider: 'riddle_engine' });\n                logger.info(`[Riddle] sent ${result.riddle.id}`);\n                return;\n            } else if (riddleIntent.intent === 'repeat_riddle') {\n                const item = conversationOrchestrator.getRiddleFromHistory(state.conversation, 'current');\n                if (item?.audioUrl) {\n                    if (item.activeRiddle) state.activeRiddle = { ...item.activeRiddle, attempts: 0 };\n                    sendAudio(item.audioUrl, item.durationMs || 2500);\n                    recordUsageSafe(deviceId, item.durationMs || 2500);\n                    recordAnalyticsSafe(deviceId, transcript, 'Повторяю загадку.', { type: 'riddle', durationMs: item.durationMs || 2500, provider: 'orchestrator' });\n                    logger.info(`[RiddleIntent] repeated current riddle=${item.id || 'unknown'}`);\n                    return;\n                }\n                const reply = 'Я пока не могу повторить эту загадку. Давай загадаю новую?';\n                const audio = await content.ensureCachedReply(reply, { baseUrl, lang: effectiveLang, key: 'riddle_repeat_missing' });\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                rememberBotReply(reply, 'riddle');\n                return;\n            } else if (riddleIntent.intent === 'unclear') {\n                const reply = 'Я не совсем поняла. Ты хочешь ответить, сдаться или повторить загадку?';\n                const audio = await content.ensureCachedReply(reply, { baseUrl, lang: effectiveLang, key: 'riddle_unclear_turn' });\n                if (!isCurrent()) return;\n                sendAudio(audio.audioUrl, audio.durationMs);\n                recordUsageSafe(deviceId, audio.durationMs);\n                recordAnalyticsSafe(deviceId, transcript, reply, { type: 'riddle', durationMs: audio.durationMs, provider: 'riddle_intent' });\n                rememberBotReply(reply, 'riddle');\n                return;\n            } else {\n                const answerText = riddleIntent.intent === 'reveal_answer' ? 'скажи ответ' : pipelineText;\n                const result = await riddleEngine.handleActiveRiddleAnswer(answerText, state.activeRiddle, baseUrl);\n\n                if (!result.handled) {\n                    logger.info('[Riddle] active riddle ignored after classifier, falling through to normal pipeline');\n                    state.activeRiddle = null;\n                } else {\n                    state.activeRiddle = result.activeRiddle;\n                    if (!isCurrent()) return;\n                    sendAudio(result.audio.url, result.audio.durationMs);\n                    rememberBotReply(riddleIntent.intent === 'reveal_answer' ? 'Хочешь ещё одну загадку?' : 'Слушай внимательно.', 'riddle');\n                    recordUsageSafe(deviceId, result.audio.durationMs);\n                    recordAnalyticsSafe(deviceId, transcript, 'riddle_answer_feedback', { type: 'riddle', durationMs: result.audio.durationMs, provider: 'riddle_engine' });\n                    logger.info('[Riddle] sent answer feedback audio');\n                    return;\n                }\n            }\n        }",
         'active riddle intent classifier block'
     );
 
@@ -97,12 +249,18 @@ function patchServerSource(source) {
 }
 
 Module._extensions['.js'] = function patchedJsLoader(module, filename) {
-    if (path.resolve(filename) !== serverPath) {
-        return originalJsLoader(module, filename);
+    const resolved = path.resolve(filename);
+    if (resolved === parentConfigPath) {
+        const source = fs.readFileSync(filename, 'utf8');
+        const patched = patchParentConfigSource(source);
+        console.log('[ServerPipelinePatch] thinking settings injected into parentConfig.js');
+        return module._compile(patched, filename);
     }
-
-    const source = fs.readFileSync(filename, 'utf8');
-    const patched = patchServerSource(source);
-    console.log('[ServerPipelinePatch] conversation orchestrator injected into server.js');
-    return module._compile(patched, filename);
+    if (resolved === serverPath) {
+        const source = fs.readFileSync(filename, 'utf8');
+        const patched = patchServerSource(source);
+        console.log('[ServerPipelinePatch] conversation orchestrator injected into server.js');
+        return module._compile(patched, filename);
+    }
+    return originalJsLoader(module, filename);
 };
