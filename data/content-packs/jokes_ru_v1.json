@@ -3,6 +3,7 @@
   "type": "joke",
   "lang": "ru-RU",
   "pack_version": "v1",
+  "generate_to": 150,
   "items": [
     {
       "id": "joke_ru_v1_001",
