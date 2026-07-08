@@ -30,6 +30,13 @@ function patchContentSource(source) {
         'SEED_ITEMS content pack merge'
     );
 
+    patched = replaceOnce(
+        patched,
+        "    {\n        type: 'speech_development',\n        re: /(?:развитие\\s+речи|упражнен.{0,20}реч|поиграем.{0,20}(?:в\\s+слова|со\\s+словами)|(?:рифм|слог|букв|звук).{0,30}(?:игр|упраж|повтор)|speech\\s+development|speech\\s+game|rhyme|syllable|letter\\s+game|dezvoltarea\\s+vorbirii|joc.{0,20}(?:cuvinte|rime|silabe)|sunet.{0,20}silab)/iu,\n    },",
+        "    {\n        type: 'speech_development',\n        re: /(?:развитие\\s+речи|упражнен.{0,20}реч|поиграем.{0,20}(?:в\\s+слова|со\\s+словами)|(?:рифм|слог|букв|звук).{0,30}(?:игр|упраж|повтор)|speech\\s+development|speech\\s+game|rhyme|syllable|letter\\s+game|dezvoltarea\\s+vorbirii|joc.{0,20}(?:cuvinte|rime|silabe)|sunet.{0,20}silab)/iu,\n    },\n    {\n        type: 'joke',\n        re: /(?:шутк|анекдот|пошути|рассмеши|joke|funny|gluma|glumă)/iu,\n    },\n    {\n        type: 'fact',\n        re: /(?:факт|интересн|расскажи что-нибудь|fact|interesting|fapt|interesant)/iu,\n    },",
+        'joke and fact request patterns'
+    );
+
     return patched;
 }
 
