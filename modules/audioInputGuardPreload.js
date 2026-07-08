@@ -7,8 +7,9 @@ const originalReadFileSync = fs.readFileSync;
 const serverPath = path.resolve(__dirname, '..', 'server.js');
 
 // Keep this low enough for real short replies like "да", "угу", "ага".
-// 4096-byte fragments still get blocked; normal short answers should reach STT.
-const MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 8000);
+// At 16kHz mono 16-bit, 6000 bytes is ~0.19s. It blocks micro-clicks like 4096 bytes
+// but lets normal short confirmations reach STT.
+const MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 6000);
 
 function normalizeText(text) {
     return String(text || '')
@@ -58,7 +59,7 @@ function patchServerSource(source) {
     patched = replaceOnce(
         patched,
         "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\n",
-        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\nconst MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 8000);\n\nfunction isTooShortForStt(pcmBuffer) {\n    const bytes = pcmBuffer?.length || 0;\n    return bytes > 0 && bytes < MIN_STT_PCM_BYTES;\n}\n\nfunction normalizeTranscriptForGuard(text) {\n    return String(text || '')\n        .toLowerCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[.,!?;:()[\\]{}\\\"«»“”]/g, ' ')\n        .replace(/\\s+/g, ' ')\n        .trim();\n}\n\nfunction isSuspiciousForeignTranscript(text) {\n    const raw = String(text || '').trim();\n    const t = normalizeTranscriptForGuard(raw);\n    if (!t) return false;\n    if (/[а-я]/i.test(raw)) return false;\n    if (/^(you|thank you|thanks|thank you very much|yeah boss|yes boss|subtitles|bye bye)$/.test(t)) return true;\n    if (/\\b(o que|que me|interessa|isso|voce|voces|obrigado|obrigada)\\b/.test(t)) return true;\n    if (/\\b(c etait|abidjan|merci|bonjour|bonsoir|gracias|hola)\\b/.test(t)) return true;\n    const words = t.split(' ').filter(Boolean);\n    if (words.length <= 3 && /^[a-z\\s']+$/.test(t)) return true;\n    return false;\n}\n",
+        "const THINKING_END_GRACE_MS = 300;     // маленький запас перед основным ответом\nconst MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 6000);\n\nfunction isTooShortForStt(pcmBuffer) {\n    const bytes = pcmBuffer?.length || 0;\n    return bytes > 0 && bytes < MIN_STT_PCM_BYTES;\n}\n\nfunction normalizeTranscriptForGuard(text) {\n    return String(text || '')\n        .toLowerCase()\n        .normalize('NFD')\n        .replace(/[\\u0300-\\u036f]/g, '')\n        .replace(/[.,!?;:()[\\]{}\\\"«»“”]/g, ' ')\n        .replace(/\\s+/g, ' ')\n        .trim();\n}\n\nfunction isSuspiciousForeignTranscript(text) {\n    const raw = String(text || '').trim();\n    const t = normalizeTranscriptForGuard(raw);\n    if (!t) return false;\n    if (/[а-я]/i.test(raw)) return false;\n    if (/^(you|thank you|thanks|thank you very much|yeah boss|yes boss|subtitles|bye bye)$/.test(t)) return true;\n    if (/\\b(o que|que me|interessa|isso|voce|voces|obrigado|obrigada)\\b/.test(t)) return true;\n    if (/\\b(c etait|abidjan|merci|bonjour|bonsoir|gracias|hola)\\b/.test(t)) return true;\n    const words = t.split(' ').filter(Boolean);\n    if (words.length <= 3 && /^[a-z\\s']+$/.test(t)) return true;\n    return false;\n}\n",
         'audio input guard helpers'
     );
 
