@@ -1,0 +1,58 @@
+{
+  "pack_id": "facts_ru_v1",
+  "type": "fact",
+  "lang": "ru-RU",
+  "pack_version": "v1",
+  "items": [
+    {
+      "id": "fact_ru_v1_001",
+      "title": "Осьминог и сердца",
+      "text": "Факт. У осьминога три сердца. Два помогают крови идти к жабрам, а одно — по всему телу.",
+      "tags": ["fact", "animal", "short", "age_5_8"],
+      "topic": "животные",
+      "difficulty": "normal",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "fact_ru_v1_002",
+      "title": "Следы на Луне",
+      "text": "Факт. На Луне почти нет ветра и дождя, поэтому следы могут сохраняться очень долго.",
+      "tags": ["fact", "space", "short", "age_5_8"],
+      "topic": "космос",
+      "difficulty": "normal",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "fact_ru_v1_003",
+      "title": "Жираф спит мало",
+      "text": "Факт. Жирафы спят совсем немного. Иногда им хватает коротких кусочков сна за день.",
+      "tags": ["fact", "animal", "short", "age_4_8"],
+      "topic": "животные",
+      "difficulty": "easy",
+      "age_min": 4,
+      "age_max": 8
+    },
+    {
+      "id": "fact_ru_v1_004",
+      "title": "Бабочки пробуют лапками",
+      "text": "Факт. Бабочки могут чувствовать вкус лапками. Так они понимают, подходит ли им растение.",
+      "tags": ["fact", "insects", "short", "age_5_8"],
+      "topic": "насекомые",
+      "difficulty": "normal",
+      "age_min": 5,
+      "age_max": 8
+    },
+    {
+      "id": "fact_ru_v1_005",
+      "title": "Облака тяжёлые",
+      "text": "Факт. Облако выглядит лёгким, но в нём может быть очень много маленьких капелек воды.",
+      "tags": ["fact", "nature", "short", "age_4_8"],
+      "topic": "природа",
+      "difficulty": "easy",
+      "age_min": 4,
+      "age_max": 8
+    }
+  ]
+}
