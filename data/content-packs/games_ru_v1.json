@@ -1,0 +1,58 @@
+{
+  "pack_id": "games_ru_v1",
+  "type": "mini_game",
+  "lang": "ru-RU",
+  "pack_version": "v1",
+  "items": [
+    {
+      "id": "mini_game_ru_v1_001",
+      "title": "Назови три",
+      "text": "Игра. Назови три круглых предмета. Я подожду, а потом мы проверим вместе.",
+      "tags": ["game", "thinking", "short", "age_3_8"],
+      "topic": "мышление",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "mini_game_ru_v1_002",
+      "title": "Животное по звуку",
+      "text": "Игра. Я скажу звук, а ты угадай животное. Мяу-мяу. Кто это?",
+      "tags": ["game", "animal", "short", "age_3_8"],
+      "topic": "животные",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "mini_game_ru_v1_003",
+      "title": "Цвет вокруг",
+      "text": "Игра. Найди глазами что-нибудь красное рядом с собой и скажи мне, что это.",
+      "tags": ["game", "attention", "color", "short", "age_3_8"],
+      "topic": "внимание",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "mini_game_ru_v1_004",
+      "title": "Большое маленькое",
+      "text": "Игра. Я называю предмет, а ты скажи: большой он или маленький. Слон.",
+      "tags": ["game", "thinking", "animal", "short", "age_3_8"],
+      "topic": "сравнение",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "mini_game_ru_v1_005",
+      "title": "Продолжи ряд",
+      "text": "Игра. Продолжи ряд: один, два, три... Что дальше?",
+      "tags": ["game", "learning", "numbers", "short", "age_4_8"],
+      "topic": "счёт",
+      "difficulty": "easy",
+      "age_min": 4,
+      "age_max": 8
+    }
+  ]
+}
