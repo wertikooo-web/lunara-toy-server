@@ -6,14 +6,17 @@ const content = require('./content');
 const logger = require('./logger');
 
 const ROOT = path.resolve(__dirname, '..');
-const STORY_PACK_PATH = path.join(ROOT, 'data', 'content-packs', 'stories_ru_v1.json');
+const PACKS_DIR = path.join(ROOT, 'data', 'content-packs');
+const MANIFEST_PATH = path.join(PACKS_DIR, 'manifest.json');
+const FALLBACK_STORY_PACKS = ['stories_ru_v1.json'];
 
 const TOPIC_GROUPS = {
     animals: [
         'животные', 'звери', 'зверята', 'кот', 'котик', 'котенок', 'котёнок', 'кошка', 'собака', 'щенок', 'щеночек',
         'зайчик', 'заяц', 'медведь', 'медвежонок', 'лиса', 'лисичка', 'ежик', 'ёжик', 'белка', 'белочка',
         'мышонок', 'волк', 'волчонок', 'пингвин', 'дельфин', 'рыбка', 'сова', 'совенок', 'совёнок', 'хомяк',
-        'лягушонок', 'бобр', 'олень', 'олененок', 'оленёнок', 'птица', 'птичка', 'цыпленок', 'цыплёнок'
+        'лягушонок', 'бобр', 'олень', 'олененок', 'оленёнок', 'птица', 'птичка', 'цыпленок', 'цыплёнок',
+        'козленок', 'козлёнок', 'гуси', 'лебеди', 'журавль', 'петух', 'курочка', 'утенок', 'утёнок', 'слоненок', 'слонёнок'
     ],
     space: [
         'космос', 'звезда', 'звездочка', 'звёздочка', 'луна', 'солнце', 'планета', 'марс', 'венера', 'сатурн',
@@ -29,7 +32,7 @@ const TOPIC_GROUPS = {
     food: [
         'еда', 'фрукты', 'овощи', 'яблоко', 'морковка', 'клубника', 'каша', 'чай', 'мед', 'мёд', 'банан', 'сыр',
         'помидор', 'огурчик', 'лимон', 'хлеб', 'черника', 'картошка', 'йогурт', 'малина', 'тыква', 'редис', 'виноград',
-        'дыня', 'груша', 'суп', 'котлета', 'орех', 'мандарин'
+        'дыня', 'груша', 'суп', 'котлета', 'орех', 'мандарин', 'репка', 'репку', 'пирожок', 'пирожки'
     ],
     habits: [
         'привычки', 'режим', 'зубы', 'зубная', 'мыть руки', 'мыло', 'ручки', 'убирать', 'игрушки', 'тапочки',
@@ -37,7 +40,7 @@ const TOPIC_GROUPS = {
     ],
     micro_world: [
         'микромир', 'муравей', 'пчелка', 'пчёлка', 'паучок', 'божья коровка', 'светлячок', 'микроб', 'кузнечик',
-        'улитка', 'гусеница', 'шмель', 'жук'
+        'улитка', 'гусеница', 'шмель', 'жук', 'комарик'
     ],
     school: [
         'школа', 'школьные', 'карандаш', 'тетрадка', 'линейка', 'пенал', 'цифры', 'урок', 'ластик', 'точилка',
@@ -45,12 +48,18 @@ const TOPIC_GROUPS = {
     ],
     professions: [
         'профессии', 'доктор', 'врач', 'пожарный', 'строитель', 'повар', 'спасатель', 'парикмахер', 'механик',
-        'мастерок', 'кисточка', 'стетоскоп', 'градусник', 'шланг'
+        'мастерок', 'кисточка', 'стетоскоп', 'градусник', 'шланг', 'солдат', 'портной', 'дровосек'
     ],
     nature: [
         'природа', 'облако', 'ручей', 'ручеек', 'ручеёк', 'дождик', 'дождь', 'ветер', 'ветерок', 'одуванчик',
         'снег', 'снеговик', 'дерево', 'листопад', 'океан', 'море', 'волна', 'вулкан', 'гейзер', 'роса', 'сосулька',
-        'подснежник', 'коралл'
+        'подснежник', 'коралл', 'лес', 'река'
+    ],
+    classic_story: [
+        'колобок', 'колобка', 'репка', 'репку', 'теремок', 'машенька', 'маша', 'морозко', 'снегурочка',
+        'красная шапочка', 'золушка', 'рапунцель', 'белоснежка', 'дюймовочка', 'пиноккио', 'маугли', 'питер пен',
+        'алиса', 'кот в сапогах', 'бременские музыканты', 'три медведя', 'гуси-лебеди', 'гуси лебеди', 'царевна лягушка',
+        'по щучьему велению', 'аленький цветочек', 'серебряное копытце', 'гадкий утенок', 'гадкий утёнок'
     ],
 };
 
@@ -65,21 +74,75 @@ function normalize(value) {
         .trim();
 }
 
+function stemWord(value) {
+    return normalize(value)
+        .replace(/(ами|ями|ого|ему|ыми|ими|ая|яя|ое|ее|ые|ие|ую|юю|ом|ем|ой|ей|ах|ях|ам|ям|ов|ев|а|я|у|ю|ы|и|е|о)$/iu, '')
+        .trim();
+}
+
+function approxHasNeedle(haystack, needle) {
+    const normalizedHay = normalize(haystack);
+    const normalizedNeedle = normalize(needle);
+    if (!normalizedNeedle) return false;
+    if (normalizedHay.includes(normalizedNeedle)) return true;
+
+    const hayWords = normalizedHay.split(' ').filter(Boolean);
+    const needleWords = normalizedNeedle.split(' ').filter(Boolean);
+    if (needleWords.length === 0) return false;
+
+    return needleWords.every((needleWord) => {
+        const needleStem = stemWord(needleWord);
+        if (needleStem.length < 4) return hayWords.includes(needleWord);
+        return hayWords.some((hayWord) => {
+            const hayStem = stemWord(hayWord);
+            return hayStem.startsWith(needleStem) || needleStem.startsWith(hayStem);
+        });
+    });
+}
+
 function hasNeedle(haystack, needle) {
-    const cleanNeedle = normalize(needle);
-    if (!cleanNeedle) return false;
-    return normalize(haystack).includes(cleanNeedle);
+    return approxHasNeedle(haystack, needle);
+}
+
+function getStoryPackFiles() {
+    try {
+        const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+        const files = (manifest.packs || [])
+            .filter((pack) => pack?.active !== false && pack?.type === 'story' && pack?.file)
+            .map((pack) => pack.file);
+        return files.length > 0 ? files : FALLBACK_STORY_PACKS;
+    } catch (err) {
+        logger.warn(`[StoryContentPatch] failed to read manifest, using fallback story packs: ${err.message}`);
+        return FALLBACK_STORY_PACKS;
+    }
 }
 
 function loadStories() {
-    try {
-        const pack = JSON.parse(fs.readFileSync(STORY_PACK_PATH, 'utf8'));
-        storyItems = Array.isArray(pack.items) ? pack.items.filter((item) => item?.type === 'story' && item.text) : [];
-        logger.info(`[StoryContentPatch] loaded ${storyItems.length} prepared story item(s)`);
-    } catch (err) {
-        storyItems = [];
-        logger.warn(`[StoryContentPatch] failed to load stories pack: ${err.message}`);
+    const files = getStoryPackFiles();
+    const loaded = [];
+
+    for (const file of files) {
+        const packPath = path.join(PACKS_DIR, file);
+        try {
+            const pack = JSON.parse(fs.readFileSync(packPath, 'utf8'));
+            const items = Array.isArray(pack.items)
+                ? pack.items.filter((item) => item?.type === 'story' && item.text)
+                : [];
+            for (const item of items) {
+                loaded.push({
+                    ...item,
+                    pack_id: item.pack_id || pack.pack_id || path.basename(file, '.json'),
+                    source_pack_file: file,
+                });
+            }
+            logger.info(`[StoryContentPatch] loaded ${items.length} story item(s) from ${file}`);
+        } catch (err) {
+            logger.warn(`[StoryContentPatch] failed to load ${file}: ${err.message}`);
+        }
     }
+
+    storyItems = loaded;
+    logger.info(`[StoryContentPatch] loaded ${storyItems.length} prepared story item(s) from ${files.length} story pack(s)`);
 }
 
 function isStoryRequest(text) {
@@ -129,6 +192,7 @@ function storySearchText(item) {
         item.text || '',
         Array.isArray(item.tags) ? item.tags.join(' ') : '',
         item.metadata?.block || '',
+        item.metadata?.author || '',
     ].join(' ');
 }
 
@@ -137,17 +201,17 @@ function scoreStory(item, topic, groups) {
     let score = 0;
 
     if (topic) {
-        if (hasNeedle(item.title || '', topic)) score += 10;
+        if (hasNeedle(item.title || '', topic)) score += 25;
         if (hasNeedle(item.metadata?.block || '', topic)) score += 7;
-        if (hasNeedle(Array.isArray(item.tags) ? item.tags.join(' ') : '', topic)) score += 5;
-        if (hasNeedle(item.text || '', topic)) score += 3;
+        if (hasNeedle(Array.isArray(item.tags) ? item.tags.join(' ') : '', topic)) score += 6;
+        if (hasNeedle(item.text || '', topic)) score += 4;
     }
 
     for (const group of groups) {
         if (Array.isArray(item.tags) && item.tags.includes(group)) score += 6;
         if (hasNeedle(item.metadata?.block || '', group)) score += 4;
         for (const word of TOPIC_GROUPS[group] || []) {
-            if (hasNeedle(item.title || '', word)) score += 4;
+            if (hasNeedle(item.title || '', word)) score += 8;
             else if (hasNeedle(hay, word)) score += 1;
         }
     }
