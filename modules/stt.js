@@ -102,11 +102,13 @@ function sanitizeShortRussianTranscript(text, options = {}) {
     if (!short) return raw;
 
     const yesMap = new Set(['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'да', 'ага', 'угу', 'ок', 'окей']);
-    const noMap = new Set(['no', 'nope', 'нет', 'неа']);
+    const russianNoMap = new Set(['нет', 'неа']);
+    const ambiguousEnglishNoMap = new Set(['no', 'nope']);
     const fillerMap = new Set(['you', 'yo', 'u', 'thank', 'thanks', 'subtitles']);
 
     if (yesMap.has(lower)) return lower === 'ok' || lower === 'okay' ? 'окей' : 'да';
-    if (noMap.has(lower)) return 'нет';
+    if (russianNoMap.has(lower)) return 'нет';
+    if (ambiguousEnglishNoMap.has(lower)) return 'no';
     if (fillerMap.has(lower)) return '';
     if (lower === 'thank you' || lower === 'thank you very much') return '';
 
