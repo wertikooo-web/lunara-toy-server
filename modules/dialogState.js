@@ -17,13 +17,25 @@ function isShortText(text) {
 function isAffirmative(text) {
     const t = normalizeText(text);
     if (!isShortText(t)) return false;
-    return /^(да|ага|угу|давай|хочу|можно|конечно|ладно|ок|окей|yes|yeah|yep|sure)$/.test(t);
+    return /^(да|да да|ага|угу|угу да|ага да|ну да|хорошо|ладно|ок|окей|конечно|давай|хочу|можно|согласен|согласна|точно|верно|правильно|yes|yeah|yep|sure|ok|okay)$/.test(t);
 }
 
 function isNegative(text) {
     const t = normalizeText(text);
     if (!isShortText(t)) return false;
-    return /^((нет|неа)(\s+спасибо)?|(нет\s+)?не\s+(хочу|надо)|(не\s+хочу\s+больше)|хватит|стоп|потом|no|nope|no\s+thanks|don'?t\s+want)$/.test(t);
+    return /^((нет|неа)(\s+спасибо)?|(нет\s+)?не\s+(хочу|надо)|(не\s+хочу\s+больше)|не сейчас|хватит|стоп|потом|no|nope|no\s+thanks|don'?t\s+want)$/.test(t);
+}
+
+function isUncertain(text) {
+    const t = normalizeText(text);
+    if (!isShortText(t)) return false;
+    return /^(не знаю|я не знаю|не понял|не поняла|не понимаю|не уверен|не уверена|может быть|наверное|ну|ээ|эм|мм|dont know|i dont know|i don t know|maybe)$/.test(t);
+}
+
+function isHesitation(text) {
+    const t = normalizeText(text);
+    if (!isShortText(t)) return false;
+    return /^(ну|ээ|эм|мм|м|а|и)$/.test(t);
 }
 
 function isAmbiguousNo(text) {
@@ -141,6 +153,16 @@ function resolveFollowup(state, text) {
                 reply: 'Хорошо, не буду. Можем просто поболтать или выбрать что-то другое.',
             };
         }
+
+        if (isUncertain(text)) {
+            return {
+                action: 'clarify',
+                keepPending: true,
+                reply: pending.type === 'riddle'
+                    ? 'Не страшно. Хочешь ещё загадку или закончим?'
+                    : 'Не страшно. Продолжаем или выберем что-то другое?',
+            };
+        }
     }
 
     if (isContinueRequest(text) && lastIntent) {
@@ -162,6 +184,8 @@ module.exports = {
     normalizeText,
     isAffirmative,
     isNegative,
+    isUncertain,
+    isHesitation,
     isContinueRequest,
     isSimpleCachedRiddleRequest,
     shouldRouteRiddleToLlm,
