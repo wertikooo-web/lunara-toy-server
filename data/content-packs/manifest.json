@@ -46,6 +46,15 @@
       "pack_version": "v1",
       "source": "content_pack",
       "active": true
+    },
+    {
+      "file": "stories_ru_v1.json",
+      "pack_id": "stories_ru_v1",
+      "type": "story",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "docx_import",
+      "active": true
     }
   ]
 }
