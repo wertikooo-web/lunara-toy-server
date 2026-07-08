@@ -1,0 +1,58 @@
+{
+  "pack_id": "jokes_ru_v1",
+  "type": "joke",
+  "lang": "ru-RU",
+  "pack_version": "v1",
+  "items": [
+    {
+      "id": "joke_ru_v1_001",
+      "title": "Котёнок в зеркале",
+      "text": "Шутка. Котёнок смотрит в зеркало и говорит: Ого, лев вырос, а усы те же!",
+      "tags": ["joke", "animal", "short", "age_3_8"],
+      "topic": "животные",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "joke_ru_v1_002",
+      "title": "Комары гости",
+      "text": "Шутка. Папа, почему комары так громко пищат? Чтобы мы знали, откуда ждать гостей.",
+      "tags": ["joke", "short", "age_4_8"],
+      "topic": "семья",
+      "difficulty": "easy",
+      "age_min": 4,
+      "age_max": 8
+    },
+    {
+      "id": "joke_ru_v1_003",
+      "title": "Собака в холодильнике",
+      "text": "Шутка. Почему плюшевая собака сидит в холодильнике? Она охраняет сосиски от кота!",
+      "tags": ["joke", "toy", "animal", "short", "age_3_8"],
+      "topic": "игрушки",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8
+    },
+    {
+      "id": "joke_ru_v1_004",
+      "title": "Рыбки и рак",
+      "text": "Шутка. Рыбка спрашивает: Ты умеешь плавать спиной вперёд? Конечно, если рак покажет дорогу!",
+      "tags": ["joke", "animal", "short", "age_4_8"],
+      "topic": "животные",
+      "difficulty": "normal",
+      "age_min": 4,
+      "age_max": 8
+    },
+    {
+      "id": "joke_ru_v1_005",
+      "title": "Муравей и слон",
+      "text": "Шутка. Муравей смотрит на слона: И как этот великан умудряется не наступать на мои ромашки?",
+      "tags": ["joke", "animal", "short", "age_4_8"],
+      "topic": "животные",
+      "difficulty": "normal",
+      "age_min": 4,
+      "age_max": 8
+    }
+  ]
+}
