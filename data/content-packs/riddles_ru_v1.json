@@ -3,6 +3,7 @@
   "type": "riddle",
   "lang": "ru-RU",
   "pack_version": "v1",
+  "generate_to": 150,
   "items": [
     {
       "id": "riddle_ru_v1_001",
@@ -20,7 +21,7 @@
       "title": "Ночной фонарик",
       "text": "Загадка. Когда становится темно, я появляюсь высоко-высоко. Не грею, как печка, но светить умею. Кто я?",
       "answers": ["луна", "месяц"],
-      "tags": ["sky", "short", "age_3_8"],
+      "tags": ["sky", "space", "short", "age_3_8"],
       "topic": "космос",
       "difficulty": "easy",
       "age_min": 3,
