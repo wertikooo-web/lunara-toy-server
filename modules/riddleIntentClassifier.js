@@ -41,6 +41,10 @@ function classifyByRules(text) {
     const t = normalizeText(text);
     if (!t) return result('unclear', 1, 'empty input');
 
+    if (/^(thank you|thanks|thank you very much|yeah boss|yes boss|ok boss|okay boss|subtitles|bye bye)$/.test(t)) {
+        return result('unclear', 0.97, 'common STT filler or wrong-language hallucination, not a riddle answer');
+    }
+
     if (/(повтори|повторить|скажи еще раз|скажи ещё раз|еще раз|ещё раз|сначала|первую|прошлую|предыдущую|эту загадк)/.test(t)) {
         return result('repeat_riddle', 0.98, 'repeat riddle request');
     }
@@ -49,7 +53,7 @@ function classifyByRules(text) {
         return result('next_riddle', 0.96, 'next riddle request');
     }
 
-    if (/^(хватит|стоп|не хочу|не надо|надоело|закончим|все|всё|потом)$/.test(t) || /(не хочу играть|не хочу загадк|хватит загадк|давай без загад)/.test(t)) {
+    if (/^(хватит|стоп|не хочу|нет не хочу|не надо|нет не надо|надоело|закончим|все|всё|потом|нет спасибо)$/.test(t) || /(не хочу играть|не хочу загадк|хватит загадк|давай без загад)/.test(t)) {
         return result('stop_riddle_game', 0.96, 'stop riddle game request');
     }
 
@@ -116,6 +120,7 @@ async function classifyByModel({ transcript, activeRiddle }) {
                 '- off_topic: сменил тему и говорит не про загадку.',
                 '- unclear: непонятно.',
                 'Фразы вроде "я сдаюсь", "я пас", "не могу", "не знаю" = reveal_answer, а не эмоция и не плохое самочувствие.',
+                'Фразы вроде "thank you", "yeah boss", "subtitles" во время русской загадки чаще являются ошибкой STT = unclear, не answer_guess.',
                 answerHint,
                 'Формат: {"intent":"...","confidence":0.0,"reason":"..."}',
             ].join('\n'),
