@@ -3,6 +3,7 @@
   "type": "tongue_twister",
   "lang": "ru-RU",
   "pack_version": "v1",
+  "generate_to": 150,
   "items": [
     {
       "id": "tongue_twister_ru_v1_001",
