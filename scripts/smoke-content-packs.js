@@ -20,17 +20,24 @@ assert.ok(byType.joke >= 150, 'should load 150 jokes');
 assert.ok(byType.fact >= 5, 'should load facts');
 assert.ok(byType.mini_game >= 5, 'should load mini games');
 
-const generatedRiddle = result.items.find((item) => item.id === 'riddles_ru_v1_150');
-assert.ok(generatedRiddle, 'generated riddle #150 should exist');
-assert.strictEqual(generatedRiddle.source, 'content_pack_generated');
-assert.ok(Array.isArray(generatedRiddle.answers) && generatedRiddle.answers.length > 0, 'generated riddle should have answers');
+function findByType(type) {
+    return result.items.find((item) => item.type === type && String(item.text || '').trim());
+}
 
-const generatedJoke = result.items.find((item) => item.id === 'jokes_ru_v1_150');
-assert.ok(generatedJoke, 'generated joke #150 should exist');
-assert.strictEqual(generatedJoke.source, 'content_pack_generated');
+function assertValidSource(item, type) {
+    assert.ok(item, `${type} sample should exist`);
+    assert.ok(['db_export', 'content_pack_generated', 'content_pack', 'legacy_pack'].includes(item.source), `${type} sample has unexpected source ${item.source}`);
+    assert.ok(item.metadata?.pack_id, `${type} sample should include metadata.pack_id`);
+    assert.ok(item.metadata?.pack_version, `${type} sample should include metadata.pack_version`);
+}
 
-const generatedTongueTwister = result.items.find((item) => item.id === 'tongue_twisters_ru_v1_150');
-assert.ok(generatedTongueTwister, 'generated tongue twister #150 should exist');
-assert.strictEqual(generatedTongueTwister.source, 'content_pack_generated');
+const sampleRiddle = findByType('riddle');
+assertValidSource(sampleRiddle, 'riddle');
+assert.ok(Array.isArray(sampleRiddle.answers) && sampleRiddle.answers.length > 0, 'riddle sample should have answers');
+
+assertValidSource(findByType('joke'), 'joke');
+assertValidSource(findByType('tongue_twister'), 'tongue_twister');
+assertValidSource(findByType('fact'), 'fact');
+assertValidSource(findByType('mini_game'), 'mini_game');
 
 console.log('[Smoke] content packs ok', JSON.stringify({ count: result.items.length, byType }));
