@@ -27,6 +27,20 @@ function containsLatin(text) {
     return /[a-z]/i.test(String(text || ''));
 }
 
+function hasPhrase(text, phrase) {
+    const t = ` ${normalizeText(text)} `;
+    const p = ` ${normalizeText(phrase)} `;
+    return t.includes(p);
+}
+
+function hasAnyPhrase(text, phrases = []) {
+    return phrases.some((phrase) => hasPhrase(text, phrase));
+}
+
+function hasRegex(text, pattern) {
+    return pattern.test(normalizeText(text));
+}
+
 function looksLikeKnownSttFiller(text) {
     const t = normalizeText(text);
     return /^(thank you|thanks|thank you very much|yeah boss|yes boss|ok boss|okay boss|subtitles|bye bye|c'était abidjan|c etait abidjan)$/.test(t)
@@ -58,21 +72,69 @@ function hasExplicitMemorySignal(text) {
     const t = normalizeText(text);
     if (!t) return false;
 
-    return /\b(запомни|запиши|запомнила|помни)\b/.test(t)
-        || /\b(меня зовут|мое имя|моё имя|я называюсь|называй меня)\b/.test(t)
-        || /\bмне\s+\d{1,2}\s+(год|года|лет)\b/.test(t)
-        || /\b(я люблю|мне нравится|мне нравятся|я обожаю|мой любимый|моя любимая|мое любимое|моё любимое|мои любимые)\b/.test(t)
-        || /\b(у меня есть|у меня живет|у меня живёт|моего кота зовут|мою кошку зовут|мою собаку зовут|моего питомца зовут)\b/.test(t)
-        || /\b(мой друг|моя подруга|лучший друг|лучшая подруга)\b/.test(t)
-        || /\b(я больше не люблю|мне больше не нравится|это не мой любимый|это не моя любимая)\b/.test(t)
+    // Do not use JS \b for Cyrillic phrases: it is ASCII-centric and misses Russian words.
+    const cyrillicSignals = [
+        'запомни',
+        'запиши',
+        'запомнила',
+        'помни',
+        'меня зовут',
+        'мое имя',
+        'моё имя',
+        'я называюсь',
+        'называй меня',
+        'я люблю',
+        'мне нравится',
+        'мне нравятся',
+        'я обожаю',
+        'мой любимый',
+        'моя любимая',
+        'мое любимое',
+        'моё любимое',
+        'мои любимые',
+        'это моя любимая',
+        'это мой любимый',
+        'это мое любимое',
+        'это моё любимое',
+        'у меня есть',
+        'у меня живет',
+        'у меня живёт',
+        'моего кота зовут',
+        'мою кошку зовут',
+        'мою собаку зовут',
+        'моего питомца зовут',
+        'мой друг',
+        'моя подруга',
+        'лучший друг',
+        'лучшая подруга',
+        'я больше не люблю',
+        'мне больше не нравится',
+        'это не мой любимый',
+        'это не моя любимая',
+    ];
+
+    return hasAnyPhrase(t, cyrillicSignals)
+        || /(^|\s)мне\s+\d{1,2}\s+(год|года|лет)(\s|$)/.test(t)
         || /\b(my name is|call me|i am \d{1,2}|i'm \d{1,2}|i like|i love|my favorite|my favourite|i have a pet)\b/.test(t)
         || /\b(ma cheama|mă cheamă|imi place|îmi place|culoarea mea preferata|culoarea mea preferată)\b/.test(t);
 }
 
 function hasSensitiveMemoryRisk(text) {
     const t = normalizeText(text);
-    return /\b(адрес|телефон|номер телефона|школа|садик|детский сад|улица|дом|квартира|пароль|секрет|фамилия)\b/.test(t)
-        || /\b(address|phone|school|street|password|secret|surname|last name)\b/.test(t);
+    return hasAnyPhrase(t, [
+        'адрес',
+        'телефон',
+        'номер телефона',
+        'школа',
+        'садик',
+        'детский сад',
+        'улица',
+        'дом',
+        'квартира',
+        'пароль',
+        'секрет',
+        'фамилия',
+    ]) || /\b(address|phone|school|street|password|secret|surname|last name)\b/.test(t);
 }
 
 function shouldRememberUserText(text, options = {}) {
