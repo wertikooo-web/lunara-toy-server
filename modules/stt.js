@@ -9,6 +9,8 @@ let groqClient = null;
 const STT_PROVIDER = String(process.env.STT_PROVIDER || 'openai').trim().toLowerCase();
 const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
 const OPENAI_STT_MODEL = 'whisper-1';
+const DEFAULT_STT_LANGUAGE = process.env.DEFAULT_STT_LANGUAGE || process.env.STT_LANGUAGE || 'ru-RU';
+const MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 6000);
 
 const SAMPLE_RATE = 16000;
 const CHANNELS = 1;
@@ -80,10 +82,42 @@ function localeToIsoLanguage(value) {
     return null;
 }
 
+function normalizeText(text) {
+    return String(text || '')
+        .trim()
+        .replace(/[.!?,;:]+$/g, '')
+        .replace(/\s+/g, ' ');
+}
+
+function sanitizeShortRussianTranscript(text, options = {}) {
+    const targetLanguage = normalizeDetectedLanguage(options.language || DEFAULT_STT_LANGUAGE);
+    const raw = normalizeText(text);
+    const lower = raw.toLowerCase();
+
+    if (!raw) return raw;
+    if (targetLanguage !== 'ru-RU') return raw;
+
+    const words = lower.split(/\s+/).filter(Boolean);
+    const short = words.length <= 3 && raw.length <= 24;
+    if (!short) return raw;
+
+    const yesMap = new Set(['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'да', 'ага', 'угу', 'ок', 'окей']);
+    const noMap = new Set(['no', 'nope', 'нет', 'неа']);
+    const fillerMap = new Set(['you', 'yo', 'u', 'thank', 'thanks', 'subtitles']);
+
+    if (yesMap.has(lower)) return lower === 'ok' || lower === 'okay' ? 'окей' : 'да';
+    if (noMap.has(lower)) return 'нет';
+    if (fillerMap.has(lower)) return '';
+    if (lower === 'thank you' || lower === 'thank you very much') return '';
+
+    return raw;
+}
+
 async function transcribeFile(audioPath, options = {}) {
     const startedAt = Date.now();
     const provider = getProvider();
-    const languageHint = localeToIsoLanguage(options.language);
+    const effectiveLanguage = options.language || DEFAULT_STT_LANGUAGE;
+    const languageHint = localeToIsoLanguage(effectiveLanguage);
     let response;
     let model;
 
@@ -109,15 +143,19 @@ async function transcribeFile(audioPath, options = {}) {
         response = await getOpenAIClient().audio.transcriptions.create(request);
     }
 
+    const originalText = String(response?.text || '').trim();
+    const sanitizedText = sanitizeShortRussianTranscript(originalText, { language: effectiveLanguage });
     const result = {
-        text: String(response?.text || '').trim(),
-        language: normalizeDetectedLanguage(response?.language),
+        text: sanitizedText,
+        originalText,
+        language: normalizeDetectedLanguage(response?.language) || normalizeDetectedLanguage(effectiveLanguage),
         provider,
         model,
     };
 
+    const changed = originalText !== sanitizedText ? ` sanitized=${JSON.stringify(sanitizedText)}` : '';
     logger.info(
-        `[STT] provider=${provider} model=${model} detected=${result.language || '-'} duration_ms=${Date.now() - startedAt}`
+        `[STT] provider=${provider} model=${model} requested=${languageHint || '-'} detected=${result.language || '-'} duration_ms=${Date.now() - startedAt}${changed}`
     );
 
     return result;
@@ -125,6 +163,11 @@ async function transcribeFile(audioPath, options = {}) {
 
 async function transcribe(pcmPath, options = {}) {
     const pcmData = fs.readFileSync(pcmPath);
+    if (pcmData.length > 0 && pcmData.length < MIN_STT_PCM_BYTES) {
+        logger.info(`[STT] skipped too-short pcm bytes=${pcmData.length} min=${MIN_STT_PCM_BYTES}`);
+        return '';
+    }
+
     const wavData = Buffer.concat([buildWavHeader(pcmData.length), pcmData]);
     const wavPath = /\.pcm$/i.test(pcmPath) ? pcmPath.replace(/\.pcm$/i, '.wav') : `${pcmPath}.wav`;
 
@@ -138,4 +181,10 @@ async function transcribe(pcmPath, options = {}) {
     }
 }
 
-module.exports = { transcribe, transcribeFile };
+module.exports = {
+    transcribe,
+    transcribeFile,
+    sanitizeShortRussianTranscript,
+    normalizeDetectedLanguage,
+    localeToIsoLanguage,
+};
