@@ -8,10 +8,13 @@
     "dev": "node --watch -r ./modules/topicRiddlePatch.js server.js",
     "check:intents": "node scripts/check_intents.js",
     "check:content": "node scripts/check_content_seed.js",
+    "check:content-packs": "node scripts/smoke-content-packs.js",
     "check:language": "node scripts/check_language_router.js",
     "check:llm-router": "node scripts/check_llm_router.js",
     "check:riddles": "node scripts/check_riddle_answers.js",
-    "check:voice": "node scripts/check_voice_sanitizer.js"
+    "check:voice": "node scripts/check_voice_sanitizer.js",
+    "export:content-packs": "node scripts/export-content-packs-from-db.js",
+    "export:content-packs:all": "node scripts/export-content-packs-from-db.js --legacy-all"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
