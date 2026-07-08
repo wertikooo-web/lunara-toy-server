@@ -13,7 +13,9 @@ let topicAliases = {};
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SAMPLE = 2;
 
-const DEFAULT_ACTIVE_LIMIT = 20;
+// По умолчанию используем всю базу загадок.
+// Можно переопределить в Railway через RIDDLE_ACTIVE_LIMIT.
+const DEFAULT_ACTIVE_LIMIT = 100;
 
 const REPLIES = {
     correct: [
@@ -171,7 +173,35 @@ function isRiddleRequest(text) {
         t.includes('расскажи загадку') ||
         t.includes('загадку') ||
         t.includes('поиграем в загадки') ||
-        t.includes('давай загадку')
+        t.includes('давай загадку') ||
+        t.includes('придумай загадку') ||
+        t.includes('сочини загадку') ||
+        t.includes('выдумай загадку')
+    );
+}
+
+function shouldUseLlmRiddle(text) {
+    const t = normalizeText(text);
+
+    if (!isRiddleRequest(t)) return false;
+
+    return (
+        t.includes('придумай') ||
+        t.includes('сочини') ||
+        t.includes('выдумай') ||
+        t.includes('сам придумай') ||
+        t.includes('сама придумай') ||
+        t.includes('новую') ||
+        t.includes('новую загадку') ||
+        t.includes('необычную') ||
+        t.includes('сложную') ||
+        t.includes('очень сложную') ||
+        t.includes('хитрую') ||
+        t.includes('которой не существует') ||
+        t.includes('которой нет') ||
+        t.includes('не из списка') ||
+        t.includes('фантастическую') ||
+        t.includes('волшебную загадку')
     );
 }
 
@@ -459,6 +489,7 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
 module.exports = {
     init,
     isRiddleRequest,
+    shouldUseLlmRiddle,
     isRevealRequest,
     startRiddle,
     handleActiveRiddleAnswer,
