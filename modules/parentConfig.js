@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 const logger = require('./logger');
 
+const TIMEZONE = process.env.TZ_MARKET || 'Europe/Chisinau';
+
 const DATABASE_URL = process.env.DATABASE_URL;
 const DEFAULT_DEVICE_ID = process.env.PARENT_DEMO_DEVICE_ID || process.env.DEFAULT_DEVICE_ID || 'lumi_001';
 const DEFAULT_PARENT_PIN = process.env.DEFAULT_PARENT_PIN || '12345';
@@ -523,9 +525,25 @@ async function getParentState(deviceId) {
     };
 }
 
+// Возвращает Date, чьи UTC-геттеры (getUTCHours/getUTCDay/...) отдают локальное
+// время рынка (TIMEZONE), а не реальный UTC. Использует настоящие данные IANA
+// через Intl.DateTimeFormat, поэтому корректно переживает переход на зимнее/летнее
+// время — в отличие от старого фиксированного сдвига в минутах.
 function localNow() {
-    const offsetMinutes = Number(process.env.RUNTIME_TIMEZONE_OFFSET_MINUTES || 180);
-    return new Date(Date.now() + offsetMinutes * 60 * 1000);
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+    }).formatToParts(new Date()).reduce((acc, part) => {
+        if (part.type !== 'literal') acc[part.type] = part.value;
+        return acc;
+    }, {});
+    const hour = Number(parts.hour) === 24 ? 0 : Number(parts.hour);
+    return new Date(Date.UTC(
+        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+        hour, Number(parts.minute), Number(parts.second)
+    ));
 }
 
 function localDateKey(date = localNow()) {
@@ -1027,6 +1045,11 @@ const PROMPT_TEXT = {
             short: 'коротко: 2-4 коротких предложения, мысль должна завершаться полностью',
             normal: 'обычно: до 5 коротких предложений, голосом и без лекции',
         },
+        storyLength: {
+            '3': 'очень короткая сказка: примерно 3 коротких предложения, с понятным финалом',
+            '5': 'короткая сказка: примерно 5 коротких предложений, с понятным финалом',
+            '8': 'сказка чуть длиннее: примерно 8 коротких простых предложений, с понятным финалом',
+        },
         humor: {
             low: 'мало юмора: тепло и просто, почти без шуток',
             normal: 'нормальный юмор: иногда лёгкая добрая шутка',
@@ -1087,6 +1110,11 @@ const PROMPT_TEXT = {
             short: 'scurt: 2-4 propozitii scurte, ideea trebuie terminata complet',
             normal: 'normal: pana la 5 propozitii scurte, potrivit pentru voce si fara lectie lunga',
         },
+        storyLength: {
+            '3': 'poveste foarte scurta: aproximativ 3 propozitii scurte, cu un final clar',
+            '5': 'poveste scurta: aproximativ 5 propozitii scurte, cu un final clar',
+            '8': 'poveste putin mai lunga: aproximativ 8 propozitii scurte si simple, cu un final clar',
+        },
         humor: {
             low: 'putin umor: cald si simplu, aproape fara glume',
             normal: 'umor normal: uneori o gluma usoara si blanda',
@@ -1139,6 +1167,11 @@ const PROMPT_TEXT = {
             very_short: 'very short: 1-2 short sentences, with pauses, no long monologues',
             short: 'short: 2-4 short sentences, finish the thought completely',
             normal: 'normal: up to 5 short sentences, still voice-first and not lecture-like',
+        },
+        storyLength: {
+            '3': 'very short story: about 3 short sentences, with a clear ending',
+            '5': 'short story: about 5 short sentences, with a clear ending',
+            '8': 'slightly longer story: about 8 short, simple sentences, with a clear ending',
         },
         humor: {
             low: 'low humor: warm and simple, almost no jokes',
@@ -1247,21 +1280,12 @@ function getGenderSystemInstruction(state = {}) {
             ? state.toy_gender
             : DEFAULT_SETTINGS.toy_gender;
 
-    let instruction = '\n\n[ВАЖНОЕ СИСТЕМНОЕ ТРЕБОВАНИЕ К ГРАММАТИКЕ И РОЛЯМ]:\n';
+    const childLabel = childGen === 'M' ? 'мужском' : 'женском';
+    const childExample = childGen === 'M' ? 'ты пришёл, ты догадался, ты понял, молодец' : 'ты пришла, ты догадалась, ты поняла, умница';
+    const toyLabel = toyGen === 'female' ? 'женском' : 'мужском';
+    const toyExample = toyGen === 'female' ? 'я подумала, я вспомнила, я рада' : 'я подумал, я вспомнил, я рад';
 
-    if (childGen === 'M') {
-        instruction += '- Ты общаешься с МАЛЬЧИКОМ. Всегда используй обращения и глаголы в мужском роде применительно к собеседнику (например: ты пришёл, ты догадался, ты понял, ты красивый, молодец).\n';
-    } else {
-        instruction += '- Ты общаешься с ДЕВОЧКОЙ. Всегда используй обращения и глаголы в женском роде применительно к собеседнику (например: ты пришла, ты догадалась, ты поняла, ты красивая, умница).\n';
-    }
-
-    if (toyGen === 'female') {
-        instruction += '- Твой персонаж — девочка/подружка Lumi. Говори о себе СТРОГО в ЖЕНСКОМ роде (например: я подумала, я вспомнила, я рада, я сама догадалась).\n';
-    } else {
-        instruction += '- Твой персонаж — мальчик/друг Lumi. Говори о себе СТРОГО в МУЖСКОМ роде (например: я подумал, я вспомнил, я рад, я сам догадался).\n';
-    }
-
-    return instruction;
+    return `\n\nТы общаешься с ребёнком. Пожалуйста, обращайся к нему в ${childLabel} роде (например: ${childExample}), а о себе говори в ${toyLabel} роде (например: ${toyExample}). Поддерживай это согласование на протяжении всего разговора.\n`;
 }
 
 function formatSettingsForPrompt(settings = {}) {
@@ -1298,6 +1322,7 @@ function formatSettingsForPrompt(settings = {}) {
         addressNames ? '- Address variants are ways to address the child, not the child name or identity. Never say raw internal keys or service values to the child.' : '',
         s.custom_personality ? `- Parent custom personality notes: ${safeText(s.custom_personality, 220)}` : '',
         `- Answer length rule: ${settingText('answerLength', s.answer_length, promptLang, PROMPT_TEXT.en.answerLength.short)}`,
+        `- Story length rule: ${settingText('storyLength', s.story_length, promptLang, PROMPT_TEXT.en.storyLength['5'])}`,
         `- Humor rule: ${settingText('humor', s.humor_level, promptLang, PROMPT_TEXT.en.humor.normal)}`,
         `- Activity rule: ${settingText('activity', s.activity_level, promptLang, PROMPT_TEXT.en.activity.normal)}`,
         `- Follow-up question rule: ${settingText('question', s.question_frequency, promptLang, PROMPT_TEXT.en.question.sometimes)}`,
