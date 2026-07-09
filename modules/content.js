@@ -537,22 +537,36 @@ async function init(options = {}) {
 async function pickItem(type, lang = 'ru-RU') {
     const preferredLang = normalizeContentLang(lang);
     if (ready && pool) {
-        const result = await pool.query(
+        if (preferredLang !== 'ru-RU') {
+            const exact = await pool.query(
+                `SELECT id, type, title, text, lang, answers, tags, metadata
+                 FROM content_items
+                 WHERE type = $1 AND enabled = true AND lang = $2
+                 ORDER BY random()
+                 LIMIT 1`,
+                [type, preferredLang]
+            );
+            if (exact.rows[0]) return exact.rows[0];
+        }
+
+        const fallback = await pool.query(
             `SELECT id, type, title, text, lang, answers, tags, metadata
              FROM content_items
-             WHERE type = $1 AND enabled = true AND lang IN ($2, 'ru-RU')
+             WHERE type = $1 AND enabled = true AND lang = 'ru-RU'
              ORDER BY random()
              LIMIT 1`,
-            [type, preferredLang]
+            [type]
         );
-        return result.rows[0] || null;
+        return fallback.rows[0] || null;
     }
 
-    const items = SEED_ITEMS.filter((item) => (
-        item.type === type &&
-        ((item.lang || 'ru-RU') === preferredLang || (item.lang || 'ru-RU') === 'ru-RU')
-    ));
-    return items[Math.floor(Math.random() * items.length)] || null;
+    if (preferredLang !== 'ru-RU') {
+        const exactItems = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === preferredLang);
+        if (exactItems.length > 0) return exactItems[Math.floor(Math.random() * exactItems.length)];
+    }
+
+    const fallbackItems = SEED_ITEMS.filter((item) => item.type === type && (item.lang || 'ru-RU') === 'ru-RU');
+    return fallbackItems[Math.floor(Math.random() * fallbackItems.length)] || null;
 }
 
 async function pickExactLangItem(type, lang) {
@@ -653,7 +667,7 @@ function parseLocalizationJson(raw) {
     }
 }
 
-async function generateLocalizedItem(masterItem, targetLang) {
+async function generateLocalizedItem(masterItem, targetLang, toyName = 'Lumi') {
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'test') {
         return null;
     }
@@ -678,7 +692,7 @@ async function generateLocalizedItem(masterItem, targetLang) {
             {
                 role: 'system',
                 content: [
-                    'You adapt short children content for Lumi, a warm AI toy for ages 3-8.',
+                    `You adapt short children content for ${toyName}, a warm AI toy for ages 3-8.`,
                     'Return only valid JSON with keys: title, text, answers.',
                     'Keep the content short, natural, kind, and safe.',
                     'Do not reveal riddle answers inside the riddle text.',
@@ -725,7 +739,7 @@ async function generateLocalizedItem(masterItem, targetLang) {
     };
 }
 
-async function localizeItemForLang(item, targetLang) {
+async function localizeItemForLang(item, targetLang, toyName = 'Lumi') {
     const target = normalizeContentLang(targetLang);
     const itemLang = normalizeContentLang(item.lang || 'ru-RU');
     if (itemLang === target || target === 'ru-RU' || !isTranslatableShortItem(item)) {
@@ -738,7 +752,7 @@ async function localizeItemForLang(item, targetLang) {
 
     try {
         logger.info(`[Content] Localizing ${item.id} -> ${target}`);
-        const localized = await generateLocalizedItem(item, target);
+        const localized = await generateLocalizedItem(item, target, toyName);
         if (!localized) return item;
         await upsertContentItem(localized);
         logger.info(`[Content] Localized content ready: ${localized.id}`);
@@ -749,7 +763,7 @@ async function localizeItemForLang(item, targetLang) {
     }
 }
 
-async function generateThemedItem(type, topic, targetLang) {
+async function generateThemedItem(type, topic, targetLang, toyName = 'Lumi') {
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'test') {
         return null;
     }
@@ -771,7 +785,7 @@ async function generateThemedItem(type, topic, targetLang) {
             {
                 role: 'system',
                 content: [
-                    'You create short children content for Lumi, a warm AI toy for ages 3-8.',
+                    `You create short children content for ${toyName}, a warm AI toy for ages 3-8.`,
                     'Return only valid JSON with keys: title, text, answers.',
                     'The content must be in the target language.',
                     'For riddle: make a simple riddle about the topic. Do not say the answer in the riddle text. Put 1-4 accepted answers in answers.',
@@ -817,7 +831,7 @@ async function generateThemedItem(type, topic, targetLang) {
     };
 }
 
-async function getThemedItem(type, topic, targetLang) {
+async function getThemedItem(type, topic, targetLang, toyName = 'Lumi') {
     if (!['riddle', 'tongue_twister'].includes(type) || !topic) return null;
     const target = normalizeContentLang(targetLang);
     const id = themedContentId(type, topic, target);
@@ -826,7 +840,7 @@ async function getThemedItem(type, topic, targetLang) {
 
     try {
         logger.info(`[Content] Generating themed ${type}: ${topic} -> ${target}`);
-        const generated = await generateThemedItem(type, topic, target);
+        const generated = await generateThemedItem(type, topic, target, toyName);
         if (!generated) return null;
         await upsertContentItem(generated);
         logger.info(`[Content] Themed content ready: ${generated.id}`);
@@ -906,10 +920,11 @@ async function tryHandleShortRequest(text, options = {}) {
     if (!baseUrl) throw new Error('tryHandleShortRequest requires baseUrl');
 
     const contentLang = normalizeContentLang(options.lang, text);
+    const toyName = options.toyName || 'Lumi';
     const topic = extractContentTopic(text);
-    const item = await getThemedItem(type, topic, contentLang) || await pickItem(type, contentLang);
+    const item = await getThemedItem(type, topic, contentLang, toyName) || await pickItem(type, contentLang);
     if (!item) return null;
-    let localizedItem = await localizeItemForLang(item, contentLang);
+    let localizedItem = await localizeItemForLang(item, contentLang, toyName);
     if (contentLang !== 'ru-RU' && normalizeContentLang(localizedItem.lang || 'ru-RU') !== contentLang) {
         localizedItem = await pickExactLangItem(type, contentLang) || localizedItem;
     }
