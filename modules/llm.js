@@ -290,18 +290,32 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     // не приходят от вызывающей стороны.
     const toyName = options.toyName || 'Lumi';
     const verbPriletel = options.toyGender === 'female' ? 'прилетела' : 'прилетел';
-    const characterPrompt = SYSTEM_PROMPT
+
+    // staticSystemPrompt: неизменный характер/безопасность/стиль (только {toyName}/
+    // {verbPriletel} подставлены — они привязаны к настройке игрушки, а не к запросу).
+    // Держим отдельно от динамики ниже, чтобы этот блок был стабильным префиксом между
+    // запросами одного соединения — это условие для prompt caching у провайдера (см. TODO
+    // в llmRouter.js про то, для какого провайдера это подтверждено, а для какого нет).
+    const staticSystemPrompt = SYSTEM_PROMPT
         .replace(/\{toyName\}/g, toyName)
         .replace(/\{verbPriletel\}/g, verbPriletel);
+
+    // dynamicSystemContext: всё, что меняется от запроса к запросу — язык, время суток,
+    // длина сказки, память о ребёнке, контент-контекст, тема/эмоция от классификатора.
+    const dynamicSystemContext = [langInstruction, storyLengthInstruction, extraContext]
+        .filter(Boolean)
+        .join('\n\n');
 
     const maxTokens = Number.isFinite(options.maxTokens)
         ? Math.max(80, Math.min(options.maxTokens, MAX_STORY_TOKENS))
         : MAX_TOKENS;
 
     const llmMessages = [
-            { role: 'system', content: characterPrompt + '\n\n' + langInstruction + '\n' + storyLengthInstruction + '\n' + extraContext },
+            { role: 'system', content: staticSystemPrompt },
+            { role: 'system', content: dynamicSystemContext },
             ...messages,
     ];
+    const historyMessageCount = messages.length;
 
     const result = await llmRouter.callModel({
         modelName: options.model || DEFAULT_MODEL,
@@ -327,6 +341,9 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     }
     logger.info(`[LLM] provider=${result.provider} model=${result.model_used} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
     logger.debug(`[LLM] tokens used: ${result.tokens_used}`);
+    // Приблизительный размер промпта в символах (не токенах) — дёшево и достаточно, чтобы
+    // видеть в логах, как «вес» запроса растёт от memoryContext/contentContext/истории.
+    logger.info(`[LLM][PromptSize] staticChars=${staticSystemPrompt.length} dynamicChars=${dynamicSystemContext.length} historyMessages=${historyMessageCount} provider=${result.provider} model=${result.model_used}`);
 
     if (options.returnMeta) {
         return {

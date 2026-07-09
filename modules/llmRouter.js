@@ -86,6 +86,13 @@ function getModelProvider(modelName, input = {}) {
     };
 }
 
+// Prompt caching (OpenAI): подтверждено официальной документацией — для gpt-4o/gpt-4o-mini
+// кэширование промпта включается автоматически на промптах от ~1024 токенов и работает по
+// точному совпадению префикса сообщений (никакого спец-параметра передавать не нужно).
+// Источник: https://platform.openai.com/docs/guides/prompt-caching
+// Отсюда и мотивация держать staticSystemPrompt (llm.js) стабильным неизменным префиксом —
+// он не даёт эффекта сам по себе (SDK/API решают это по факту совпадения), но без разделения
+// static/dynamic контента префикс менялся бы каждый запрос и точно не кэшировался.
 async function callOpenAI(messages, maxTokens) {
     const response = await getOpenAIClient().chat.completions.create({
         model: GPT_MODEL,
@@ -101,6 +108,13 @@ async function callOpenAI(messages, maxTokens) {
     };
 }
 
+// TODO(prompt caching, DeepSeek): не подтверждено для ЭТОЙ интеграции. Официальный DeepSeek API
+// documented "Context Caching on Disk" (https://api-docs.deepseek.com/guides/kv_cache) для моделей
+// deepseek-chat/deepseek-reasoner, но здесь DEEPSEEK_MODEL='deepseek-v4-flash' и DEEPSEEK_BASE_URL
+// конфигурируемый — не ясно, официальный ли это endpoint или прокси/агрегатор, и распространяется
+// ли документированное поведение на эту модель/провайдера. Не считать кэширование доказанным без
+// проверки реального провайдера (счетов/заголовков ответа) — просто держим messages в том же
+// стабильном static/dynamic порядке на случай, если кэширование по префиксу всё же работает.
 async function callDeepSeek(messages, maxTokens) {
     if (!process.env.DEEPSEEK_API_KEY) {
         throw new Error('DEEPSEEK_API_KEY is not set');
