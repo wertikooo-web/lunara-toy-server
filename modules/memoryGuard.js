@@ -19,14 +19,6 @@ function uniqueWordRatio(text) {
     return new Set(words).size / words.length;
 }
 
-function containsCyrillic(text) {
-    return /[а-я]/i.test(String(text || ''));
-}
-
-function containsLatin(text) {
-    return /[a-z]/i.test(String(text || ''));
-}
-
 function hasPhrase(text, phrase) {
     const t = ` ${normalizeText(text)} `;
     const p = ` ${normalizeText(phrase)} `;
@@ -57,8 +49,10 @@ function looksLikePlaybackGarbage(text) {
     // Repeated odd fragments often come from TTS leakage or Whisper hallucination.
     if (/(\b\S{2,}\b)(?:\s+\1){2,}/.test(t)) return true;
 
-    // Mixed language short fillers are usually STT hallucinations, not child memory.
-    if (containsCyrillic(t) && containsLatin(t) && wordCount(t) <= 8) return true;
+    // NOTE: previously rejected any text mixing Cyrillic and Latin script as an STT
+    // hallucination. Removed — Moldovan kids routinely say Latin-script brand/game
+    // names inside Russian sentences ("мультик Roblox", "любимая игра Minecraft"),
+    // and that pattern was silently discarding real, safe favorite-game/cartoon facts.
 
     // Common Russian function words only, without any useful personal fact.
     if (/^(а|и|ну|вот|это|там|как|на|у|по|да|нет|не|я|мы|ты|он|она)(\s+(а|и|ну|вот|это|там|как|на|у|по|да|нет|не|я|мы|ты|он|она)){3,}$/.test(t)) {
@@ -129,12 +123,11 @@ function hasSensitiveMemoryRisk(text) {
         'садик',
         'детский сад',
         'улица',
-        'дом',
+        'номер дома',
         'квартира',
         'пароль',
-        'секрет',
         'фамилия',
-    ]) || /\b(address|phone|school|street|password|secret|surname|last name)\b/.test(t);
+    ]) || /\b(address|phone|school|street|password|house number|surname|last name)\b/.test(t);
 }
 
 function shouldRememberUserText(text, options = {}) {
