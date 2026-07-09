@@ -1,6 +1,7 @@
 'use strict';
 
 const dialogState = require('./dialogState');
+const voiceUx = require('./voiceUxPhrases');
 
 const OFFER_TTL_MS = 2 * 60 * 1000;
 const RIDDLE_HISTORY_LIMIT = 10;
@@ -68,25 +69,15 @@ function isShortFollowup(text) {
 }
 
 function replyForRejectedOffer(type) {
-    if (type === 'riddle') return 'Хорошо, не буду загадывать. Можем просто поболтать или выбрать что-то другое.';
-    if (type === 'story') return 'Хорошо, сказку оставим на потом. Можем просто поговорить.';
-    if (type === 'game') return 'Хорошо, играть сейчас не будем. Можем спокойно поболтать.';
-    return 'Хорошо, не буду. Можем просто поболтать или выбрать что-то другое.';
+    return voiceUx.pick(type === 'story' ? 'rejected_story' : type === 'riddle' ? 'rejected_riddle' : 'rejected_default');
 }
 
 function clarifyForOffer(type) {
-    if (type === 'riddle') return 'Я не совсем расслышала. Ты хочешь ещё загадку?';
-    if (type === 'story') return 'Я не совсем расслышала. Ты хочешь сказку?';
-    if (type === 'game') return 'Я не совсем расслышала. Ты хочешь поиграть?';
-    return 'Я не совсем расслышала. Ты хочешь продолжить?';
+    return voiceUx.pick(type === 'riddle' ? 'clarify_riddle' : 'clarify_default');
 }
 
 function replyForUncertainOffer(type) {
-    if (type === 'riddle') return 'Не страшно. Можем закончить загадки или я загадаю другую.';
-    if (type === 'story') return 'Не страшно. Можем выбрать сказку или просто поболтать.';
-    if (type === 'game') return 'Не страшно. Можем выбрать игру или просто поговорить.';
-    if (type === 'fact') return 'Не страшно. Могу рассказать другой интересный факт или просто поболтать.';
-    return 'Не страшно. Я рядом. Скажи, что хочешь дальше.';
+    return voiceUx.pick(type === 'riddle' ? 'uncertain_riddle' : 'uncertain_default');
 }
 
 function offerToText(type) {
