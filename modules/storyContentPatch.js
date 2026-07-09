@@ -347,23 +347,28 @@ function overlapScore(item, requestText) {
     if (stems.length === 0) return 0;
 
     const title = normalize(item.title || '');
-    const hay = normalize(storySearchText(item));
     let score = 0;
+    let matchesInTitle = 0;
 
     for (const stem of stems) {
         if (stem.length < 4) continue;
-        if (title.includes(stem)) score += 5;
-        else if (hay.includes(stem)) score += 1;
+        // Если слово из запроса есть в названии сказки - даем ОЧЕНЬ много баллов
+        if (title.includes(stem)) {
+            score += 40;
+            matchesInTitle++;
+        }
     }
 
-    return Math.min(score, 18);
+    // Если ни одно ключевое слово не попало в название - обнуляем локальный счетчик
+    if (matchesInTitle === 0) return 0;
+
+    return score;
 }
 
 function scoreStory(item, topic, groups, requestText) {
     const hay = storySearchText(item);
     let score = 0;
 
-    score += classicMatcherScore(item, requestText);
     score += overlapScore(item, requestText);
 
     if (topic) {
@@ -408,12 +413,20 @@ function pickPreparedStory(text) {
     if (scored.length === 0) return null;
 
     const bestScore = scored[0].score;
+
+    // Если точного совпадения по названию не нашли (score низкий) -
+    // возвращаем null, чтобы запрос ушёл в ИИ (LLM). Никакого левого контента.
+    if (bestScore < 55) {
+        logger.info(`[StoryContentPatch] Best score ${bestScore} is too low. Bypassing cache to LLM.`);
+        return null;
+    }
+
     const bestWindow = bestScore >= 80 ? 0 : 2;
     const best = scored.filter((entry) => entry.score >= Math.max(1, bestScore - bestWindow)).slice(0, 12);
     const picked = pickRandom(best.map((entry) => entry.item));
 
     if (picked) {
-        logger.info(`[StoryContentPatch] selected prepared story id=${picked.id || ''} title="${picked.title || ''}" score=${bestScore}`);
+        logger.info(`[StoryContentPatch] Auto-selected story id=${picked.id || ''} title="${picked.title || ''}" score=${bestScore}`);
     }
 
     return picked;
