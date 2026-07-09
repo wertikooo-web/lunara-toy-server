@@ -78,8 +78,8 @@ function normalizeSpeechSpeed(voiceSpeed = 'normal') {
     return 0.9;
 }
 
-function yandexTTS(text, speed, toyGender) {
-    const voice = toyGender === 'male' ? YANDEX_VOICE_MALE : YANDEX_VOICE_FEMALE;
+function yandexTTS(text, speed, toyGender, explicitVoiceId) {
+    const voice = explicitVoiceId || (toyGender === 'male' ? YANDEX_VOICE_MALE : YANDEX_VOICE_FEMALE);
     return new Promise((resolve, reject) => {
         const body = new URLSearchParams({
             text, voice, speed: String(speed),
@@ -121,9 +121,9 @@ async function callOpenaiTTSOnce(text, voice, speed) {
     return Buffer.from(await response.arrayBuffer());
 }
 
-async function openaiTTS(text, lang, speed, toyGender) {
+async function openaiTTS(text, lang, speed, toyGender, explicitVoiceId) {
     const genderVoices = OPENAI_VOICES[lang] || OPENAI_VOICES.default;
-    const voice = toyGender === 'male' ? genderVoices.male : genderVoices.female;
+    const voice = explicitVoiceId || (toyGender === 'male' ? genderVoices.male : genderVoices.female);
     logger.info(`[TTS] OpenAI voice: ${voice} (lang=${lang}, gender=${toyGender || 'female'})`);
 
     let pcm24k;
@@ -159,19 +159,36 @@ function resample24to16(pcm24k) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// voiceConfig (опционально, options.voiceConfig): { id, provider, gender }.
+// Если не передан — старое поведение (авто по языку) не меняется ни для одного
+// из существующих вызовов tts.synthesize() в проекте.
+function resolveProvider(detectedLang, voiceConfig) {
+    const autoProvider = detectedLang === 'ru' ? 'yandex' : 'openai';
+    if (!voiceConfig?.provider) return autoProvider;
+
+    if (voiceConfig.provider === 'yandex' && detectedLang !== 'ru') {
+        logger.warn(`[TTS] voice provider "yandex" is not compatible with lang="${detectedLang}"; falling back to openai`);
+        return 'openai';
+    }
+    return voiceConfig.provider;
+}
+
 async function synthesize(text, outputPath, lang = null, options = {}) {
     // Use explicit lang from client if provided, otherwise auto-detect
     const explicitLang = normalizeExplicitLang(lang);
     const detectedLang = explicitLang || detectLang(text);
     const speed = normalizeSpeechSpeed(options.voiceSpeed || 'normal');
-    logger.info(`[TTS] lang=${detectedLang} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}`);
+    const voiceConfig = options.voiceConfig || null;
+    const toyGender = voiceConfig?.gender || options.toyGender;
+    const provider = resolveProvider(detectedLang, voiceConfig);
+    logger.info(`[TTS] lang=${detectedLang} provider=${provider} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}`);
 
     let pcmBuffer;
-    if (detectedLang === 'ru') {
+    if (provider === 'yandex') {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
-        pcmBuffer = await yandexTTS(text, speed, options.toyGender);
+        pcmBuffer = await yandexTTS(text, speed, toyGender, voiceConfig?.id);
     } else {
-        pcmBuffer = await openaiTTS(text, detectedLang, speed, options.toyGender);
+        pcmBuffer = await openaiTTS(text, detectedLang, speed, toyGender, voiceConfig?.id);
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);

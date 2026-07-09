@@ -1337,6 +1337,45 @@ function formatSettingsForPrompt(settings = {}) {
     return lines.filter(Boolean).join('\n');
 }
 
+// Реестр доступных голосов для панели родителя. Провайдер и язык — это ДАННЫЕ,
+// а не хардкод внутри логики tts.js: если завтра Яндекс выучит румынский, здесь
+// меняется одна строка, а не код маршрутизации.
+const VOICE_REGISTRY = [
+    { id: 'alena', name: 'Алёна (RU)', provider: 'yandex', lang: 'ru', gender: 'female' },
+    { id: 'ermil', name: 'Эрмил (RU)', provider: 'yandex', lang: 'ru', gender: 'male' },
+    { id: 'nova', name: 'Nova (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
+    { id: 'onyx', name: 'Onyx (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
+    { id: 'shimmer', name: 'Shimmer (EN)', provider: 'openai', lang: 'en', gender: 'female' },
+    { id: 'echo', name: 'Echo (EN)', provider: 'openai', lang: 'en', gender: 'male' },
+    { id: 'alloy', name: 'Alloy (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
+    { id: 'fable', name: 'Fable (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
+];
+
+// Какие провайдеры умеют озвучивать какой язык — тоже данные, не хардкод в логике.
+const LANGUAGE_PROVIDERS = {
+    ru: ['yandex', 'openai'],
+    ro: ['openai'],
+    en: ['openai'],
+};
+
+function normalizeVoiceLangKey(lang) {
+    const value = String(lang || '').toLowerCase();
+    if (value.startsWith('ru')) return 'ru';
+    if (value.startsWith('ro')) return 'ro';
+    if (value.startsWith('en')) return 'en';
+    return 'ru';
+}
+
+function getVoicesForLang(lang) {
+    const key = normalizeVoiceLangKey(lang);
+    return VOICE_REGISTRY.filter((voice) => voice.lang.split('/').includes(key));
+}
+
+function isProviderCompatibleWithLang(provider, lang) {
+    const key = normalizeVoiceLangKey(lang);
+    return (LANGUAGE_PROVIDERS[key] || []).includes(provider);
+}
+
 module.exports = {
     init,
     login,
@@ -1362,4 +1401,8 @@ module.exports = {
     modelModeToModelName,
     formatSettingsForPrompt,
     getGenderSystemInstruction,
+    VOICE_REGISTRY,
+    LANGUAGE_PROVIDERS,
+    getVoicesForLang,
+    isProviderCompatibleWithLang,
 };

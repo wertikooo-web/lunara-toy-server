@@ -385,6 +385,19 @@ app.post('/api/parent/voice-preview', async (req, res) => {
     }
 });
 
+app.get('/api/parent/voices', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const settings = await parentConfig.getSettings(session.device_id);
+        const lang = req.query?.lang || settings.language || 'ru-RU';
+        res.json({ ok: true, voices: parentConfig.getVoicesForLang(lang) });
+    } catch (err) {
+        logger.error(`[Parent] voices list error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/chat', async (req, res) => {
     const text = (req.body?.text || '').trim();
     const lang = req.body?.lang || 'ru-RU';
