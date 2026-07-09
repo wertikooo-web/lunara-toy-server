@@ -225,6 +225,8 @@ function patchServerSource(source) {
     patched = replaceAllChecked(patched, /content\.getClarification\(transcript\)/g, 'content.getClarification(pipelineText)', 'clarification text');
     patched = replaceAllChecked(patched, /content\.classifyRequest\(transcript\)/g, 'content.classifyRequest(pipelineText)', 'classify text');
     patched = replaceAllChecked(patched, /content\.tryHandleShortRequest\(transcript, \{ baseUrl, lang: effectiveLang \}\)/g, 'content.tryHandleShortRequest(pipelineText, { baseUrl, lang: effectiveLang })', 'short content text');
+    patched = replaceAllChecked(patched, /content\.getSemanticIntent\(transcript, state\.lastContentMode \|\| ''\)/g, "content.getSemanticIntent(pipelineText, state.lastContentMode || '')", 'semantic intent text');
+    patched = replaceAllChecked(patched, /content\.tryHandleSemanticIntent\(semanticIntent, transcript, \{ baseUrl, lang: effectiveLang \}\)/g, 'content.tryHandleSemanticIntent(semanticIntent, pipelineText, { baseUrl, lang: effectiveLang })', 'semantic content text');
     patched = replaceAllChecked(patched, /storyEngine\.buildStoryContext\(transcript\)/g, 'storyEngine.buildStoryContext(pipelineText)', 'story text');
     patched = replaceAllChecked(patched, /storyEngine\.buildStoryFollowupContext\(transcript\)/g, 'storyEngine.buildStoryFollowupContext(pipelineText)', 'story followup text');
     patched = replaceAllChecked(patched, /detectIntent\(transcript\)/g, 'detectIntent(pipelineText)', 'intent text');

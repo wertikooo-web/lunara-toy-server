@@ -1310,11 +1310,39 @@ async function handlePipeline(
             return;
         }
 
+        // Rules-first Semantic Intent Pipeline: LLM-классификатор дергается только
+        // если regex (classifyRequest/tryHandleShortRequest) не нашёл вообще ничего —
+        // не на каждой фразе, чтобы не жечь задержку/квоту.
+        let semanticIntent = null;
+        if (!requestedContentType) {
+            try {
+                semanticIntent = await content.getSemanticIntent(transcript, state.lastContentMode || '');
+            } catch (err) {
+                logger.warn(`[Pipeline] semantic intent failed: ${err.message}`);
+            }
+        }
+
+        if (semanticIntent && semanticIntent.confidence > 0.8) {
+            const semanticContent = await content.tryHandleSemanticIntent(semanticIntent, transcript, { baseUrl, lang: effectiveLang });
+            if (semanticContent && isContentTypeAllowed(settings, semanticContent.item?.type)) {
+                if (!isCurrent()) {
+                    logger.info('[Pipeline] superseded after semantic content cache — discarding (child interrupted)');
+                    return;
+                }
+                state.pendingContent = content.pendingFromItem(semanticContent.item);
+                sendAudio(semanticContent.audioUrl, semanticContent.durationMs);
+                recordUsageSafe(deviceId, semanticContent.durationMs);
+                recordAnalyticsSafe(deviceId, transcript, semanticContent.reply, { type: semanticContent.item?.type, durationMs: semanticContent.durationMs, provider: 'content_cache_semantic' });
+                logger.info(`[Pipeline] sent cached content audio via semantic intent: ${semanticContent.item.id}`);
+                return;
+            }
+        }
+
                 logger.info('[Pipeline] preparing LLM context…');
         const settingsContext = parentConfig.formatSettingsForPrompt(settings);
         const profile = await memory.getProfile(deviceId);
         const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
-        const modelName = parentConfig.modelModeToModelName(settings);
+        const modelName = semanticIntent?.is_unsafe ? 'gpt' : parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(transcript);
 
         if (story && !isContentTypeAllowed(settings, 'story')) {
@@ -1366,12 +1394,16 @@ async function handlePipeline(
                     model: modelName,
                     routingText: transcript,
                     isStory: true,
+                    topic: semanticIntent?.topic,
+                    sentiment: semanticIntent?.sentiment,
                 })
                 : await llm.chat(ws, transcript, effectiveLang, {
                     memoryContext,
                     contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
                     model: modelName,
                     routingText: transcript,
+                    topic: semanticIntent?.topic,
+                    sentiment: semanticIntent?.sentiment,
                 });
         } catch (err) {
             delayedThinking.cancel();

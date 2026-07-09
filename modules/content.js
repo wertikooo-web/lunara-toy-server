@@ -988,16 +988,7 @@ async function ensureCachedReply(reply, options = {}) {
     };
 }
 
-async function tryHandleShortRequest(text, options = {}) {
-    const type = matchRequest(text);
-    if (!type) return null;
-
-    const baseUrl = options.baseUrl;
-    if (!baseUrl) throw new Error('tryHandleShortRequest requires baseUrl');
-
-    const contentLang = normalizeContentLang(options.lang, text);
-    const toyName = options.toyName || 'Lumi';
-    const topic = extractContentTopic(text);
+async function resolveContentReply(type, topic, contentLang, toyName, baseUrl) {
     const item = await getThemedItem(type, topic, contentLang, toyName) || await pickItem(type, contentLang);
     if (!item) return null;
     let localizedItem = await localizeItemForLang(item, contentLang, toyName);
@@ -1014,6 +1005,39 @@ async function tryHandleShortRequest(text, options = {}) {
         cached: audio.cached,
         lang: localizedItem.lang || contentLang,
     };
+}
+
+async function tryHandleShortRequest(text, options = {}) {
+    const type = matchRequest(text);
+    if (!type) return null;
+
+    const baseUrl = options.baseUrl;
+    if (!baseUrl) throw new Error('tryHandleShortRequest requires baseUrl');
+
+    const contentLang = normalizeContentLang(options.lang, text);
+    const toyName = options.toyName || 'Lumi';
+    const topic = extractContentTopic(text);
+    return resolveContentReply(type, topic, contentLang, toyName, baseUrl);
+}
+
+// Гэп-филлер для rules-first Semantic Intent Pipeline: вызывается ТОЛЬКО когда
+// regex (matchRequest и патчи classifyRequest) не нашли вообще ничего. Намеренно
+// ограничен riddle/tongue_twister — именно эти типы используют getThemedItem/pickItem
+// напрямую без доп. спецлогики (в отличие от joke/fact, которых разруливает
+// contentIntentPatch.js своим собственным путём).
+const SEMANTIC_INTENT_TO_CONTENT_TYPE = { riddle: 'riddle', tongue_twister: 'tongue_twister' };
+
+async function tryHandleSemanticIntent(semantic, text, options = {}) {
+    const type = semantic && SEMANTIC_INTENT_TO_CONTENT_TYPE[semantic.intent];
+    if (!type) return null;
+
+    const baseUrl = options.baseUrl;
+    if (!baseUrl) throw new Error('tryHandleSemanticIntent requires baseUrl');
+
+    const contentLang = normalizeContentLang(options.lang, text);
+    const toyName = options.toyName || 'Lumi';
+    const topic = extractContentTopic(text) || semantic.topic || '';
+    return resolveContentReply(type, topic, contentLang, toyName, baseUrl);
 }
 
 async function pickItems(type, limit = 5) {
@@ -1319,6 +1343,7 @@ module.exports = {
     getClarification,
     ensureCachedReply,
     tryHandleShortRequest,
+    tryHandleSemanticIntent,
     pickItems,
     pendingFromItem,
     checkPendingAnswer,
