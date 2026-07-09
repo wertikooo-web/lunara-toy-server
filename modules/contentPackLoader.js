@@ -92,16 +92,11 @@ function normalizeStringPackEntry(text, context = {}) {
     const index = Number.isInteger(context.index) ? context.index + 1 : 1;
     const clean = String(text || '').trim();
     if (!clean) return null;
-    const prefixByType = {
-        tongue_twister: 'Скороговорка. ',
-        fact: 'Факт. ',
-        mini_game: 'Игра. ',
-    };
     return normalizeItem({
         id: `${safeIdPart(packId)}_${String(index).padStart(3, '0')}_${sha(clean)}`,
         type,
         title: `${type} ${index}`,
-        text: type === 'riddle' || clean.startsWith(prefixByType[type] || '__no_prefix__') ? clean : `${prefixByType[type] || ''}${clean}`,
+        text: clean,
         lang,
         tags: ['content_pack', safeIdPart(type), safeIdPart(lang)],
         metadata: { generated_from_string_entry: true },
@@ -221,7 +216,7 @@ function generatedItemsForPack(packObject, context, existingCount) {
         } else if (type === 'joke') {
             raw = { text: buildGeneratedJoke(i), topic: 'юмор', generated: true };
         } else if (type === 'tongue_twister') {
-            raw = { text: `Скороговорка. ${buildGeneratedTongueTwister(i)} Давай сначала медленно, потом быстрее.`, topic: 'речь', generated: true };
+            raw = { text: buildGeneratedTongueTwister(i), topic: 'речь', generated: true };
         } else {
             break;
         }
