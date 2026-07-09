@@ -1,5 +1,7 @@
 'use strict';
 
+const voiceUx = require('./voiceUxPhrases');
+
 function normalizeText(text) {
     return String(text || '')
         .toLowerCase()
@@ -166,6 +168,15 @@ function resolveFollowup(state, text) {
     const pending = state?.pendingOffer;
     const lastIntent = state?.lastIntent || '';
 
+    if (!normalizeText(text)) {
+        return {
+            action: 'clarify',
+            type: 'chat',
+            reply: voiceUx.pick('empty_text'),
+            reason: 'empty_text',
+        };
+    }
+
     if (pending) {
         if (isAmbiguousNo(text)) {
             return {
@@ -182,10 +193,13 @@ function resolveFollowup(state, text) {
         }
 
         if (isNegative(text)) {
+            let rejectKey = 'rejected_default';
+            if (pending.type === 'story') rejectKey = 'rejected_story';
+            if (pending.type === 'riddle') rejectKey = 'rejected_riddle';
             return {
                 action: 'reject_offer',
                 type: pending.type,
-                reply: 'Хорошо, не буду. Можем просто поболтать или выбрать что-то другое.',
+                reply: voiceUx.pick(rejectKey),
             };
         }
 
