@@ -20,6 +20,10 @@ const PGSSL = process.env.PGSSL === 'true';
 const CONTENT_VOICE = process.env.CONTENT_VOICE || 'default';
 const SAMPLE_RATE = 16000;
 const LOCALIZATION_MODEL = process.env.CONTENT_LOCALIZATION_MODEL || 'gpt-4o-mini';
+const SEMANTIC_INTENT_MODEL = process.env.SEMANTIC_INTENT_MODEL || 'gpt-4o-mini';
+const SEMANTIC_INTENT_TIMEOUT_MS = Number(process.env.SEMANTIC_INTENT_TIMEOUT_MS || 800);
+const SEMANTIC_INTENTS = new Set(['riddle', 'story', 'joke', 'fact', 'mini_game', 'tongue_twister', 'chat', 'unclear']);
+const SEMANTIC_SENTIMENTS = new Set(['neutral', 'happy', 'sad', 'scared', 'angry', 'excited']);
 
 let pool = null;
 let ready = false;
@@ -851,6 +855,78 @@ async function getThemedItem(type, topic, targetLang, toyName = 'Lumi') {
     }
 }
 
+function withTimeout(promise, timeoutMs) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('semantic intent timeout')), timeoutMs);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function normalizeSemanticIntentResult(parsed) {
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+        intent: SEMANTIC_INTENTS.has(parsed.intent) ? parsed.intent : 'unclear',
+        topic: String(parsed.topic || '').trim().slice(0, 40),
+        sentiment: SEMANTIC_SENTIMENTS.has(parsed.sentiment) ? parsed.sentiment : 'neutral',
+        is_unsafe: parsed.is_unsafe === true,
+        confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+    };
+}
+
+// Rules-first: этот классификатор — НЕ первичный путь маршрутизации. Его вызывает
+// server.js только когда дешёвые regex-матчеры (classifyRequest/matchRequest) не
+// нашли ничего — т.е. для действительно неоднозначных фраз, а не на каждое сообщение.
+// На таймауте/ошибке/невалидном JSON возвращает null — вызывающий код обязан
+// откатиться на обычный llm.chat, не роняя пайплайн.
+async function getSemanticIntent(text, historyContext = '') {
+    const value = String(text || '').trim();
+    if (!value) return null;
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'test') return null;
+    if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    try {
+        const response = await withTimeout(
+            openai.chat.completions.create({
+                model: SEMANTIC_INTENT_MODEL,
+                temperature: 0,
+                max_tokens: 120,
+                response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: [
+                            'Ты — экспертный семантический классификатор коротких реплик ребёнка 3-8 лет для игрушки.',
+                            'Анализируй текст и контекст диалога.',
+                            'Верни ТОЛЬКО JSON: {"intent":"...","topic":"...","sentiment":"...","is_unsafe":false,"confidence":0.0}.',
+                            'intent — один из: riddle, story, joke, fact, mini_game, tongue_twister, chat, unclear.',
+                            'topic — короткий динамический ключ темы на английском (например pet_cat, space, school, weather). Пустая строка, если темы нет.',
+                            'sentiment — один из: neutral, happy, sad, scared, angry, excited.',
+                            'is_unsafe — true, если ребёнок говорит о реальной опасности, насилии, личных данных или просит недетский контент.',
+                            'confidence — твоя уверенность в intent, число от 0 до 1.',
+                        ].join('\n'),
+                    },
+                    {
+                        role: 'user',
+                        content: JSON.stringify({ history: String(historyContext || '').slice(0, 500), text: value }),
+                    },
+                ],
+            }),
+            SEMANTIC_INTENT_TIMEOUT_MS
+        );
+
+        const result = normalizeSemanticIntentResult(parseLocalizationJson(response.choices[0]?.message?.content));
+        if (!result) {
+            logger.warn('[Content] semantic intent returned invalid JSON');
+            return null;
+        }
+        return result;
+    } catch (err) {
+        logger.warn(`[Content] semantic intent classification failed/timeout: ${err.message}`);
+        return null;
+    }
+}
+
 async function ensureAudio(item, baseUrl) {
     if (!audioDir) throw new Error('content audioDir is not initialized');
 
@@ -1248,4 +1324,5 @@ module.exports = {
     checkPendingAnswer,
     normalizeAnswer,
     stats,
+    getSemanticIntent,
 };
