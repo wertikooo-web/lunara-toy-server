@@ -78,16 +78,16 @@ function classifyByRules(text) {
     }
 
     if (/^(да|ага|угу|давай|хочу|можно|ок|окей)$/.test(t)) {
-        return result('next_riddle', 0.72, 'short yes while riddle is active');
-    }
-
-    if (/(кто такая|кто такой|что такое|расскажи про|почему|зачем|как сделать|как работает|поговорим|я хочу рассказать|у меня|мама|папа|бабушка|дедушка)/.test(t) && !/загадк/.test(t)) {
-        return result('off_topic', 0.78, 'conversation changed away from riddle');
+        return result('next_riddle', 0.60, 'short yes while riddle is active');
     }
 
     const words = wordCount(t);
     if (words <= 4) {
         return result('answer_guess', 0.74, 'short phrase likely answer guess');
+    }
+
+    if (/(кто такая|кто такой|что такое|расскажи про|почему|зачем|как сделать|как работает|поговорим|я хочу рассказать|у меня)/.test(t) && !/загадк/.test(t)) {
+        return result('off_topic', 0.78, 'conversation changed away from riddle');
     }
 
     return result('unclear', 0.35, 'ambiguous riddle turn');
