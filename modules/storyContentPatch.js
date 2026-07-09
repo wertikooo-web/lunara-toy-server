@@ -369,8 +369,16 @@ function scoreStory(item, topic, groups, requestText) {
     const hay = storySearchText(item);
     let score = 0;
 
-    score += overlapScore(item, requestText);
+    // 1. Сначала проверяем точные ручные правила классики (Колобок, Репка и т.д.)
+    const classicScore = classicMatcherScore(item, requestText);
 
+    // 2. Проверяем строгий автоматический overlap по словам в названии
+    const autoScore = overlapScore(item, requestText);
+
+    // Берем максимальный балл из двух систем поиска
+    score += Math.max(classicScore, autoScore);
+
+    // 3. Добавляем контекстные баллы за топики и группы
     if (topic) {
         if (hasNeedle(item.title || '', topic)) score += 25;
         if (hasNeedle(item.metadata?.block || '', topic)) score += 7;
