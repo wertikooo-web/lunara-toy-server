@@ -65,18 +65,18 @@ function creativeRiddleContext() {
     '- Do NOT say: "Вот загадка про ..." because that often reveals the answer.',
     '- Do NOT reveal the answer immediately.',
     '- Do NOT name the answer inside the riddle.',
-    '- Use natural Russian. No broken rhymes. No strange phrases. No fake facts.',
+    '- Use natural, fluent language in the session\'s target language. No broken rhymes. No strange phrases. No fake facts.',
     '- Keep it short: 2-3 simple clue sentences.',
     '- Keep it kind, playful, and not scary.',
-    '- Start with: "Слушай загадку."',
-    '- End with: "Как думаешь, кто это?" or "Как думаешь, что это?"',
-    '- If STT misspelled a familiar Russian word, silently correct it. Example: "кекимора" means "кикимора".',
+    '- Start with a short natural introduction in the target language (e.g., "Слушай загадку." for Russian, "Ascultă o ghicitoare." for Romanian, or "Listen to this riddle." for English).',
+    '- End with a language-appropriate short question asking the child to guess (e.g., "Как думаешь, кто это?" in Russian, "Ce crezi că este?" in Romanian).',
+    '- If STT misspelled a familiar word, silently correct it. Example (Russian): "кекимора" means "кикимора".',
   ].join('\n');
 }
 
 function buildRiddlePrompt(requestText) {
   return [
-    'Сгенерируй одну короткую детскую загадку на русском языке.',
+    'Сгенерируй одну короткую детскую загадку на языке текущей сессии (на том же языке, на котором сейчас общается ребёнок).',
     `Исходный запрос ребенка: "${String(requestText || '').slice(0, 240)}"`,
     '',
     'Правила:',
@@ -88,7 +88,7 @@ function buildRiddlePrompt(requestText) {
     '6. Не используй кривые рифмы и странные фразы.',
     '7. Не придумывай нелепые детали, если они не помогают загадке.',
     '8. Если тема распознана с ошибкой, исправь ее по смыслу.',
-    '9. Формат: "Слушай загадку. ... Как думаешь, кто это?"',
+    '9. Соблюдай естественную структуру детской загадки на выбранном языке сессии.',
   ].join('\n');
 }
 
