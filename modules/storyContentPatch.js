@@ -432,6 +432,9 @@ content.classifyRequest = function patchedStoryClassifyRequest(text) {
     return originalClassifyRequest ? originalClassifyRequest(text) : null;
 };
 
+// Подключаем наш новый модуль с живыми фразами и падежами
+const voiceUx = require('./voiceUxPhrases');
+
 content.tryHandleShortRequest = async function patchedStoryTryHandleShortRequest(text, options = {}) {
     if (!isStoryRequest(text)) {
         return originalTryHandleShortRequest ? originalTryHandleShortRequest(text, options) : null;
@@ -445,16 +448,24 @@ content.tryHandleShortRequest = async function patchedStoryTryHandleShortRequest
     const baseUrl = options.baseUrl;
     if (!baseUrl) throw new Error('storyContentPatch requires baseUrl');
 
-    const audio = await content.ensureCachedReply(item.text, {
+    // 1. Берем случайное живое вступление с НАЗВАНИЕМ сказки в ПРАВИЛЬНОМ падеже
+    const chosenIntro = voiceUx.getRandomStoryIntro(item.title || 'story');
+    
+    // 2. Склеиваем: Вступление + Перенос строки (чтобы Яндекс сделал паузу в секунду) + Текст сказки
+    const fullSpeechText = `${chosenIntro}\n\n${item.text}`;
+
+    // 3. Отправляем этот склеенный текст на озвучку
+    const audio = await content.ensureCachedReply(fullSpeechText, {
         baseUrl,
         lang: item.lang || 'ru-RU',
-        key: `story_${item.id || 'item'}`,
+        // Ключ v3_slanted заставит сервер стереть старый кэш без названий и записать новый красивый звук
+        key: `story_${item.id || 'item'}_v3_slanted`, 
         title: item.title || 'story',
     });
 
     return {
         item,
-        reply: item.text,
+        reply: fullSpeechText,
         audioUrl: audio.audioUrl,
         durationMs: audio.durationMs,
         cached: audio.cached,
