@@ -37,12 +37,28 @@ function result(intent, confidence, reason, source = 'rules') {
     };
 }
 
+function isStoryLike(text) {
+    const t = normalizeText(text);
+    return /сказк|истори|рассказ|колобок|колобка|колобк|репка|репку|красная шапочка|рыбак|рыбка|золотая рыбка|story|povest/.test(t);
+}
+
+function isGeneralQuestion(text) {
+    const t = normalizeText(text);
+    return /(есть ли|у тебя есть|ты знаешь|знаешь ли|можешь рассказать|расскажи мне|хочу чтобы ты рассказала)/.test(t);
+}
+
 function classifyByRules(text) {
     const t = normalizeText(text);
     if (!t) return result('unclear', 1, 'empty input');
 
     if (/^(thank you|thanks|thank you very much|yeah boss|yes boss|ok boss|okay boss|subtitles|bye bye)$/.test(t)) {
         return result('unclear', 0.97, 'common STT filler or wrong-language hallucination, not a riddle answer');
+    }
+
+    // A child can change topic while a riddle is active. Story/book requests must not be
+    // trapped by the riddle answer flow, otherwise Lumi answers with riddle clarification.
+    if (isStoryLike(t) || (isGeneralQuestion(t) && !/загадк/.test(t))) {
+        return result('off_topic', 0.96, 'story or general request while riddle is active');
     }
 
     if (/(повтори|повторить|скажи еще раз|скажи ещё раз|еще раз|ещё раз|сначала|первую|прошлую|предыдущую|эту загадк)/.test(t)) {
@@ -117,9 +133,10 @@ async function classifyByModel({ transcript, activeRiddle }) {
                 '- repeat_riddle: просит повторить эту/первую/прошлую загадку.',
                 '- next_riddle: хочет другую/следующую загадку.',
                 '- stop_riddle_game: не хочет играть в загадки.',
-                '- off_topic: сменил тему и говорит не про загадку.',
+                '- off_topic: сменил тему и говорит не про загадку, например просит сказку или спрашивает про Колобка.',
                 '- unclear: непонятно.',
                 'Фразы вроде "я сдаюсь", "я пас", "не могу", "не знаю" = reveal_answer, а не эмоция и не плохое самочувствие.',
+                'Фразы вроде "расскажи сказку", "есть сказка про Колобка", "про рыбака и рыбку" = off_topic, а не unclear.',
                 'Фразы вроде "thank you", "yeah boss", "subtitles" во время русской загадки чаще являются ошибкой STT = unclear, не answer_guess.',
                 answerHint,
                 'Формат: {"intent":"...","confidence":0.0,"reason":"..."}',
