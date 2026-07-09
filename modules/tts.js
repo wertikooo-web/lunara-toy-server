@@ -13,38 +13,33 @@ const https  = require('https');
 const fs     = require('fs');
 const OpenAI = require('openai');
 const logger = require('./logger');
+const language = require('./language');
 
 const YANDEX_TTS_URL   = 'https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize';
 const YANDEX_FOLDER_ID = process.env.YANDEX_FOLDER_ID;
 const YANDEX_API_KEY   = process.env.YANDEX_API_KEY;
-const YANDEX_VOICE     = 'alena';
+const YANDEX_VOICE_FEMALE = 'alena';
+const YANDEX_VOICE_MALE   = 'ermil';
 const SAMPLE_RATE      = 16000;
 
 const openai       = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const OPENAI_MODEL = 'tts-1';
 
-// Language → voice mapping
+// Language + gender → voice mapping
 const OPENAI_VOICES = {
-    'ro': 'nova',     // Romanian — лёгкий, энергичный
-    'en': 'shimmer',  // English — мягкий, тёплый
-    'default': 'nova' // всё остальное
+    ro: { male: 'onyx', female: 'nova' },
+    en: { male: 'echo', female: 'shimmer' },
+    default: { male: 'fable', female: 'alloy' },
 };
 
 // ── Language detection ────────────────────────────────────────────────────────
-function isRussian(text) {
-    const letters  = (text.match(/\p{L}/gu) || []).length;
-    const cyrillic = (text.match(/[\u0400-\u04FF]/g) || []).length;
-    return letters > 0 && (cyrillic / letters) > 0.3;
-}
-
+// Делегируем в language.js — там уже проверенные паттерны для румынского
+// (в т.ч. короткие слова без диакритики), вместо собственной урезанной копии.
 function detectLang(text) {
-    if (isRussian(text)) return 'ru';
-    // Romanian specific chars
-    if (/[ăâîșțĂÂÎȘȚ]/i.test(text)) return 'ro';
-    // Basic English detection — mostly ASCII letters
-    const letters = (text.match(/\p{L}/gu) || []).length;
-    const ascii   = (text.match(/[a-zA-Z]/g) || []).length;
-    if (letters > 0 && ascii / letters > 0.8) return 'en';
+    const detected = language.detectLanguageFromText(text);
+    if (detected === 'ru-RU') return 'ru';
+    if (detected === 'ro-RO') return 'ro';
+    if (detected === 'en-US') return 'en';
     return 'default';
 }
 
@@ -83,10 +78,11 @@ function normalizeSpeechSpeed(voiceSpeed = 'normal') {
     return 0.9;
 }
 
-function yandexTTS(text, speed) {
+function yandexTTS(text, speed, toyGender) {
+    const voice = toyGender === 'male' ? YANDEX_VOICE_MALE : YANDEX_VOICE_FEMALE;
     return new Promise((resolve, reject) => {
         const body = new URLSearchParams({
-            text, voice: YANDEX_VOICE, speed: String(speed),
+            text, voice, speed: String(speed),
             format: 'lpcm', sampleRateHertz: String(SAMPLE_RATE),
             folderId: YANDEX_FOLDER_ID,
         }).toString();
@@ -116,15 +112,34 @@ function yandexTTS(text, speed) {
 }
 
 // ── OpenAI TTS → PCM 16kHz ───────────────────────────────────────────────────
-async function openaiTTS(text, lang, speed) {
-    const voice = OPENAI_VOICES[lang] || OPENAI_VOICES['default'];
-    logger.info(`[TTS] OpenAI voice: ${voice} (lang=${lang})`);
+async function callOpenaiTTSOnce(text, voice, speed) {
     const response = await openai.audio.speech.create({
         model: OPENAI_MODEL, voice, input: text,
         response_format: 'pcm',  // PCM16 LE 24kHz
         speed,
     });
-    const pcm24k = Buffer.from(await response.arrayBuffer());
+    return Buffer.from(await response.arrayBuffer());
+}
+
+async function openaiTTS(text, lang, speed, toyGender) {
+    const genderVoices = OPENAI_VOICES[lang] || OPENAI_VOICES.default;
+    const voice = toyGender === 'male' ? genderVoices.male : genderVoices.female;
+    logger.info(`[TTS] OpenAI voice: ${voice} (lang=${lang}, gender=${toyGender || 'female'})`);
+
+    let pcm24k;
+    try {
+        pcm24k = await callOpenaiTTSOnce(text, voice, speed);
+    } catch (err) {
+        logger.error(`[TTS] OpenAI TTS failed (voice=${voice}, lang=${lang}): ${err.message}`, err);
+        logger.warn('[TTS] retrying OpenAI TTS once before giving up');
+        try {
+            pcm24k = await callOpenaiTTSOnce(text, voice, speed);
+        } catch (retryErr) {
+            logger.error(`[TTS] OpenAI TTS retry also failed: ${retryErr.message}`, retryErr);
+            throw new Error(`OpenAI TTS unavailable: ${retryErr.message}`);
+        }
+    }
+
     return resample24to16(pcm24k);
 }
 
@@ -154,9 +169,9 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
     let pcmBuffer;
     if (detectedLang === 'ru') {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
-        pcmBuffer = await yandexTTS(text, speed);
+        pcmBuffer = await yandexTTS(text, speed, options.toyGender);
     } else {
-        pcmBuffer = await openaiTTS(text, detectedLang, speed);
+        pcmBuffer = await openaiTTS(text, detectedLang, speed, options.toyGender);
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);
