@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const content = require('./content');
 const logger = require('./logger');
+const voiceUx = require('./voiceUxPhrases');
 
 const ROOT = path.resolve(__dirname, '..');
 const PACKS_DIR = path.join(ROOT, 'data', 'content-packs');
@@ -21,9 +22,10 @@ const MATCHERS = [
         minClues: 2,
     },
     {
-        title: 'Сказка о рыбаке и рыбке',
+        title: 'Рыбака и рыбку',
         aliases: [
             'сказка о рыбаке и рыбке', 'сказка про рыбака и рыбку', 'рыбак и рыбка',
+            'сказку о рыбаке и рыбке', 'сказку про рыбака и рыбку',
             'рыбака и рыбку', 'золотая рыбка', 'золотую рыбку', 'старик и рыбка',
             'старуха и рыбка', 'синее море', 'разбитое корыто'
         ],
@@ -153,16 +155,19 @@ content.tryHandleShortRequest = async function classicStoryGuardTryHandleShortRe
 
     logger.info(`[ClassicStoryGuard] exact story matched request="${String(text || '').slice(0, 120)}" title="${item.title || ''}" id=${item.id || ''}`);
 
-    const audio = await content.ensureCachedReply(item.text, {
+    const chosenIntro = voiceUx.getRandomStoryIntro(item.title || 'story');
+    const fullSpeechText = `${chosenIntro}\n\n${item.text}`;
+
+    const audio = await content.ensureCachedReply(fullSpeechText, {
         baseUrl,
         lang: item.lang || 'ru-RU',
-        key: `story_exact_${item.id || 'item'}`,
+        key: `story_exact_${item.id || 'item'}_v4_slanted`,
         title: item.title || 'story',
     });
 
     return {
         item,
-        reply: item.text,
+        reply: fullSpeechText,
         audioUrl: audio.audioUrl,
         durationMs: audio.durationMs,
         cached: audio.cached,
