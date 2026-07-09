@@ -114,7 +114,7 @@ function isSimpleCachedRiddleRequest(text) {
 
     const looseSimplePattern = /^(загадк[ауие]|riddles?|ghicitor[i]?)$/u;
 
-    const matchesSimple = simple.some((phrase) => t === phrase || t.includes(phrase)) || looseSimplePattern.test(t);
+    const matchesSimple = simple.includes(t) || looseSimplePattern.test(t);
     if (!matchesSimple) return false;
     if (hasTopicRequest(t)) return false;
     if (hasCreativeWords(t)) return false;

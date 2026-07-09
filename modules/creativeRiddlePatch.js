@@ -114,7 +114,7 @@ function creativeRiddleContext() {
         '- Respect the requested topic if one is provided.',
         '- Do not reveal the answer immediately.',
         '- Keep it playful, kind, simple, and not scary.',
-        '- End with a short question like: "Как думаешь, что это?"',
+        '- End with a short, playful, language-appropriate question inviting the child to guess (e.g., "Как думаешь, кто это?" for Russian, "Ce crezi că este?" for Romanian, or "What do you think it is?" for English).',
         '- Remember the answer in conversation context so you can check the child’s next reply.',
         '- If the child answers next, say whether it is close or correct, then gently explain.',
     ].join('\n');
