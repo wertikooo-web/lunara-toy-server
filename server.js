@@ -114,6 +114,11 @@ const revokedParentTokens = new Set();
 const PARENT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const PARENT_TOKEN_SECRET = process.env.PARENT_TOKEN_SECRET || process.env.OPENAI_API_KEY || 'lunara-parent-demo-secret';
 
+// Feature flag: включает Hybrid Semantic Intent Pipeline (content.getSemanticIntent) в
+// handlePipeline. По умолчанию выключен — при USE_SEMANTIC_INTENT!=='true' роутинг работает
+// по-старому (чистый RegEx), классификатор вообще не вызывается.
+const USE_SEMANTIC_INTENT = process.env.USE_SEMANTIC_INTENT === 'true';
+
 function signParentPayload(payload) {
     return crypto.createHmac('sha256', PARENT_TOKEN_SECRET).update(payload).digest('base64url');
 }
@@ -1310,19 +1315,27 @@ async function handlePipeline(
             return;
         }
 
-        // Rules-first Semantic Intent Pipeline: LLM-классификатор дергается только
-        // если regex (classifyRequest/tryHandleShortRequest) не нашёл вообще ничего —
-        // не на каждой фразе, чтобы не жечь задержку/квоту.
+        // Hybrid Semantic Intent Pipeline (feature-flagged): включается только когда
+        // USE_SEMANTIC_INTENT=true. RegEx-роутинг выше уже отработал и ничего не нашёл
+        // (requestedContentType === null) — только тогда дёргаем LLM-классификатор.
         let semanticIntent = null;
-        if (!requestedContentType) {
+        if (USE_SEMANTIC_INTENT && !requestedContentType) {
             try {
                 semanticIntent = await content.getSemanticIntent(transcript, state.lastContentMode || '');
+                if (semanticIntent) {
+                    logger.info(`[Pipeline] Semantic intent detected: ${semanticIntent.intent} (conf: ${semanticIntent.confidence})`);
+                }
             } catch (err) {
-                logger.warn(`[Pipeline] semantic intent failed: ${err.message}`);
+                logger.warn(`[Pipeline] Semantic intent failed: ${err.message}`);
+                semanticIntent = null;
             }
         }
 
-        if (semanticIntent && semanticIntent.confidence > 0.8) {
+        // confidence <= 0.8 (или классификатор не сработал/выключен) — результат полностью
+        // игнорируется: не влияет ни на content-кэш, ни на modelName, ни на контекст llm.chat.
+        const semanticConfident = Boolean(semanticIntent && semanticIntent.confidence > 0.8);
+
+        if (semanticConfident) {
             const semanticContent = await content.tryHandleSemanticIntent(semanticIntent, transcript, { baseUrl, lang: effectiveLang });
             if (semanticContent && isContentTypeAllowed(settings, semanticContent.item?.type)) {
                 if (!isCurrent()) {
@@ -1342,7 +1355,7 @@ async function handlePipeline(
         const settingsContext = parentConfig.formatSettingsForPrompt(settings);
         const profile = await memory.getProfile(deviceId);
         const memoryContext = settings.memory_enabled === false ? '' : memory.formatProfileForPrompt(profile);
-        const modelName = semanticIntent?.is_unsafe ? 'gpt' : parentConfig.modelModeToModelName(settings);
+        const modelName = (semanticConfident && semanticIntent.is_unsafe) ? 'gpt' : parentConfig.modelModeToModelName(settings);
         const story = await storyEngine.buildStoryContext(transcript);
 
         if (story && !isContentTypeAllowed(settings, 'story')) {
@@ -1394,16 +1407,16 @@ async function handlePipeline(
                     model: modelName,
                     routingText: transcript,
                     isStory: true,
-                    topic: semanticIntent?.topic,
-                    sentiment: semanticIntent?.sentiment,
+                    topic: semanticConfident ? semanticIntent.topic : undefined,
+                    sentiment: semanticConfident ? semanticIntent.sentiment : undefined,
                 })
                 : await llm.chat(ws, transcript, effectiveLang, {
                     memoryContext,
                     contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
                     model: modelName,
                     routingText: transcript,
-                    topic: semanticIntent?.topic,
-                    sentiment: semanticIntent?.sentiment,
+                    topic: semanticConfident ? semanticIntent.topic : undefined,
+                    sentiment: semanticConfident ? semanticIntent.sentiment : undefined,
                 });
         } catch (err) {
             delayedThinking.cancel();
