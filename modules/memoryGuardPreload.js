@@ -26,15 +26,15 @@ function patchMemorySource(source) {
 
     patched = replaceOnce(
         patched,
-        "async function rememberFromText(deviceId, userText, profile = null) {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const actions = await extractPatchFromText(userText, profile);",
-        "async function rememberFromText(deviceId, userText, profile = null) {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const guard = memoryGuard.shouldRememberUserText(userText);\n    if (!guard.allow) {\n        logger.info(`[MemoryGuard] skipped ${normalizeDeviceId(deviceId)} reason=${guard.reason} chars=${String(userText || '').length}`);\n        return null;\n    }\n\n    const actions = await extractPatchFromText(userText, profile);",
+        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
+        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const guard = memoryGuard.shouldRememberUserText(userText);\n    if (!guard.allow) {\n        logger.info(`[MemoryGuard] skipped ${normalizeDeviceId(deviceId)} reason=${guard.reason} chars=${String(userText || '').length}`);\n        return null;\n    }\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
         'rememberFromText pre-extraction guard'
     );
 
     patched = replaceOnce(
         patched,
-        "    const actions = await extractPatchFromText(userText, profile);\n    if (!hasMemoryActions(actions)) {",
-        "    const actions = await extractPatchFromText(userText, profile);\n    const filtered = memoryGuard.filterUnsafeActions(actions);\n    if (filtered.removed > 0) {\n        logger.info(`[MemoryGuard] removed unsafe extracted values count=${filtered.removed}`);\n    }\n    if (!hasMemoryActions(filtered.actions)) {",
+        "    const actions = await extractPatchFromText(userText, profile, toyName);\n    if (!hasMemoryActions(actions)) {",
+        "    const actions = await extractPatchFromText(userText, profile, toyName);\n    const filtered = memoryGuard.filterUnsafeActions(actions);\n    if (filtered.removed > 0) {\n        logger.info(`[MemoryGuard] removed unsafe extracted values count=${filtered.removed}`);\n    }\n    if (!hasMemoryActions(filtered.actions)) {",
         'filter unsafe extracted actions'
     );
 

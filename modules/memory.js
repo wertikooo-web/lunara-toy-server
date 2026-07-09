@@ -360,7 +360,7 @@ async function applyMemoryActions(deviceId, actions) {
     return result.rows[0] || null;
 }
 
-async function extractPatchFromText(userText, profile = null) {
+async function extractPatchFromText(userText, profile = null, toyName = 'Lumi') {
     const text = String(userText || '').trim();
     if (!text || text.length < 3) return {};
 
@@ -373,7 +373,7 @@ async function extractPatchFromText(userText, profile = null) {
             {
                 role: 'system',
                 content: [
-                    'You extract safe child profile memory for a toy named Lumi.',
+                    `You extract safe child profile memory for a toy named ${toyName}.`,
                     'Return ONLY JSON in this shape: {"set":{},"add":{},"remove":{}}.',
                     'set may use only these scalar keys:',
                     PROFILE_FIELDS.join(', '),
@@ -412,11 +412,11 @@ async function extractPatchFromText(userText, profile = null) {
     return normalizeMemoryActions(parsed);
 }
 
-async function rememberFromText(deviceId, userText, profile = null) {
+async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {
     if (!AUTO_UPDATE) return null;
     if (!ready || !pool) return null;
 
-    const actions = await extractPatchFromText(userText, profile);
+    const actions = await extractPatchFromText(userText, profile, toyName);
     if (!hasMemoryActions(actions)) {
         logger.debug('[Memory] no new memory extracted');
         return null;
@@ -432,7 +432,7 @@ async function rememberFromText(deviceId, userText, profile = null) {
     return updated;
 }
 
-function formatProfileForPrompt(profile) {
+function formatProfileForPrompt(profile, toyName = 'Lumi') {
     if (!profile) return '';
 
     const labels = {
@@ -451,7 +451,7 @@ function formatProfileForPrompt(profile) {
         last_story: 'Последняя сказка',
         last_adventure: 'Последнее приключение',
         special_phrase: 'Особая фраза',
-        shared_world_state: 'Общий мир с Lumi',
+        shared_world_state: `Общий мир с ${toyName}`,
     };
 
     const lines = PROFILE_FIELDS
@@ -474,7 +474,7 @@ function formatProfileForPrompt(profile) {
         recent_stories: 'Недавние сказки',
         recent_adventures: 'Недавние приключения',
         special_phrases: 'Особые фразы',
-        shared_world_states: 'Общий мир с Lumi',
+        shared_world_states: `Общий мир с ${toyName}`,
     };
 
     const memoryJson = parseMemoryJson(profile.memory_json);
