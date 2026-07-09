@@ -254,6 +254,7 @@ function extractTopic(text) {
     const patterns = [
         /(?:про|о|об)\s+(.+)$/iu,
         /(?:сказк|истори|рассказ)\s+(?:про|о|об)?\s*(.+)$/iu,
+        /(?:about|despre)\s+(.+)$/iu,
     ];
 
     for (const pattern of patterns) {
@@ -378,6 +379,16 @@ function scoreStory(item, topic, groups, requestText) {
     // Берем максимальный балл из двух систем поиска
     score += Math.max(classicScore, autoScore);
 
+    // 2b. Классические матчеры и RU-суффиксный стемминг рассчитаны на русский язык
+    // и не сработают для en/ro паков. Даём прямое совпадение слова из названия
+    // с запросом отдельным высоким приоритетом, чтобы такие сказки тоже проходили
+    // порог кэша, а не всегда улетали в LLM.
+    if (item.lang && item.lang !== 'ru-RU') {
+        const titleWords = normalize(item.title || '').split(' ').filter((word) => word.length >= 3);
+        const reqNorm = normalize(requestText);
+        if (titleWords.some((word) => reqNorm.includes(word))) score += 60;
+    }
+
     // 3. Добавляем контекстные баллы за топики и группы
     if (topic) {
         if (hasNeedle(item.title || '', topic)) score += 25;
@@ -479,8 +490,9 @@ content.tryHandleShortRequest = async function patchedStoryTryHandleShortRequest
     const audio = await content.ensureCachedReply(fullSpeechText, {
         baseUrl,
         lang: item.lang || 'ru-RU',
-        // Ключ v3_slanted заставит сервер стереть старый кэш без названий и записать новый красивый звук
-        key: `story_${item.id || 'item'}_v3_slanted`, 
+        // Версия ключа управляется через AUDIO_CACHE_VERSION — меняя её на Railway,
+        // можно принудительно сбросить весь кэш озвучки сказок без деплоя кода.
+        key: `story_${item.id || 'item'}_${process.env.AUDIO_CACHE_VERSION || 'v3'}`,
         title: item.title || 'story',
     });
 
