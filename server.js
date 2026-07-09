@@ -404,6 +404,8 @@ app.post('/chat', async (req, res) => {
 
     try {
         const settings = await parentConfig.getSettings(deviceId);
+        sessionRef.childGender = settings.childGender || settings.child_gender || 'M';
+        sessionRef.toyGender = settings.toyGender || settings.toy_gender || 'female';
         const effectiveLang = settings.language || lang;
         const runtime = await parentConfig.getRuntimeState(deviceId, settings);
         if (!runtime.allowed) {
@@ -1060,6 +1062,8 @@ async function handlePipeline(
         sendStatus('responding');
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
+        state.childGender = settings.childGender || settings.child_gender || 'M';
+        state.toyGender = settings.toyGender || settings.toy_gender || 'female';
         const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';
                         // ── Riddle mode: local cached riddles without LLM ───────────────────
         // Важно: сначала проверяем, не просит ли ребёнок новую загадку.

@@ -22,6 +22,8 @@ const PERSONALITY_PRESETS = {
 const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
 const ADDRESS_MODES = ['name', 'varied'];
 const ADDRESS_TONES = ['warm', 'neutral'];
+const CHILD_GENDERS = ['M', 'F'];
+const TOY_GENDERS = ['female', 'male', 'neuter'];
 const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const ADDRESS_PRESETS = {
@@ -55,6 +57,8 @@ const DEFAULT_SETTINGS = {
     child_address_mode: 'varied',
     child_address_tone: 'warm',
     child_address_names: ['sunshine', 'friend'],
+    child_gender: 'M',
+    toy_gender: 'female',
     age_mode: 'auto',
     answer_length: 'short',
     humor_level: 'normal',
@@ -161,6 +165,14 @@ function normalizeSettingsPatch(raw = {}) {
         const values = cleanStringArray(raw.child_address_names, null, 8);
         patch.child_address_names = values.length ? values : DEFAULT_SETTINGS.child_address_names;
     }
+    if ('child_gender' in raw || 'childGender' in raw) {
+        const value = safeText(raw.child_gender ?? raw.childGender, 1).toUpperCase();
+        patch.child_gender = CHILD_GENDERS.includes(value) ? value : DEFAULT_SETTINGS.child_gender;
+    }
+    if ('toy_gender' in raw || 'toyGender' in raw) {
+        const value = safeText(raw.toy_gender ?? raw.toyGender, 12).toLowerCase();
+        patch.toy_gender = TOY_GENDERS.includes(value) ? value : DEFAULT_SETTINGS.toy_gender;
+    }
     if ('age_mode' in raw) {
         const value = safeText(raw.age_mode, 8);
         patch.age_mode = ['auto', '3-4', '5-6', '7-8', '9+'].includes(value) ? value : DEFAULT_SETTINGS.age_mode;
@@ -249,6 +261,8 @@ async function init() {
             child_address_mode TEXT NOT NULL DEFAULT 'varied',
             child_address_tone TEXT NOT NULL DEFAULT 'warm',
             child_address_names JSONB NOT NULL DEFAULT '["sunshine","friend"]'::jsonb,
+            child_gender TEXT NOT NULL DEFAULT 'M',
+            toy_gender TEXT NOT NULL DEFAULT 'female',
             age_mode TEXT NOT NULL DEFAULT 'auto',
             answer_length TEXT NOT NULL DEFAULT 'short',
             humor_level TEXT NOT NULL DEFAULT 'normal',
@@ -280,6 +294,8 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_mode TEXT NOT NULL DEFAULT 'varied'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_tone TEXT NOT NULL DEFAULT 'warm'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_address_names JSONB NOT NULL DEFAULT '[\"sunshine\",\"friend\"]'::jsonb");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS child_gender TEXT NOT NULL DEFAULT 'M'");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS toy_gender TEXT NOT NULL DEFAULT 'female'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS age_mode TEXT NOT NULL DEFAULT 'auto'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS daily_limit_minutes INTEGER NOT NULL DEFAULT 0");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS break_reminder_minutes INTEGER NOT NULL DEFAULT 0");
@@ -427,6 +443,10 @@ function normalizeSettingsRow(row = {}) {
     if (settings.child_address_mode === 'warm') settings.child_address_tone = 'warm';
     if (!ADDRESS_MODES.includes(settings.child_address_mode)) settings.child_address_mode = DEFAULT_SETTINGS.child_address_mode;
     if (!ADDRESS_TONES.includes(settings.child_address_tone)) settings.child_address_tone = DEFAULT_SETTINGS.child_address_tone;
+    settings.child_gender = CHILD_GENDERS.includes(settings.child_gender) ? settings.child_gender : DEFAULT_SETTINGS.child_gender;
+    settings.toy_gender = TOY_GENDERS.includes(settings.toy_gender) ? settings.toy_gender : DEFAULT_SETTINGS.toy_gender;
+    settings.childGender = settings.child_gender;
+    settings.toyGender = settings.toy_gender;
     if (!['ru-RU', 'ro-RO', 'en-US'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
     settings.memory_enabled = settings.memory_enabled !== false;
     return settings;
@@ -902,29 +922,31 @@ async function resetToDefaults(deviceId) {
              child_address_mode = $5,
              child_address_tone = $6,
              child_address_names = $7::jsonb,
-             age_mode = $8,
-             answer_length = $9,
-             humor_level = $10,
-             activity_level = $11,
-             question_frequency = $12,
-             voice = $13,
-             voice_speed = $14,
-             story_length = $15,
-             custom_toy_type = $16,
-             custom_personality = $17,
-             daily_limit_minutes = $18,
-             break_reminder_minutes = $19,
-             rest_schedule_enabled = $20,
-             rest_schedule_json = $21::jsonb,
-             evening_calm_enabled = $22,
-             evening_calm_start = $23,
-             quiet_hours_enabled = $24,
-             quiet_hours_start = $25,
-             quiet_hours_end = $26,
-             content_enabled = $27::jsonb,
-             allowed_topics = $28::jsonb,
-             blocked_topics = $29::jsonb,
-             memory_enabled = $30,
+             child_gender = $8,
+             toy_gender = $9,
+             age_mode = $10,
+             answer_length = $11,
+             humor_level = $12,
+             activity_level = $13,
+             question_frequency = $14,
+             voice = $15,
+             voice_speed = $16,
+             story_length = $17,
+             custom_toy_type = $18,
+             custom_personality = $19,
+             daily_limit_minutes = $20,
+             break_reminder_minutes = $21,
+             rest_schedule_enabled = $22,
+             rest_schedule_json = $23::jsonb,
+             evening_calm_enabled = $24,
+             evening_calm_start = $25,
+             quiet_hours_enabled = $26,
+             quiet_hours_start = $27,
+             quiet_hours_end = $28,
+             content_enabled = $29::jsonb,
+             allowed_topics = $30::jsonb,
+             blocked_topics = $31::jsonb,
+             memory_enabled = $32,
              updated_at = now()
          WHERE device_id = $1`,
         [
@@ -935,6 +957,8 @@ async function resetToDefaults(deviceId) {
             DEFAULT_SETTINGS.child_address_mode,
             DEFAULT_SETTINGS.child_address_tone,
             JSON.stringify(DEFAULT_SETTINGS.child_address_names),
+            DEFAULT_SETTINGS.child_gender,
+            DEFAULT_SETTINGS.toy_gender,
             DEFAULT_SETTINGS.age_mode,
             DEFAULT_SETTINGS.answer_length,
             DEFAULT_SETTINGS.humor_level,
@@ -1211,6 +1235,37 @@ function toyTypeForPrompt(value, lang = 'ru-RU') {
     return canonical ? settingText('toyType', canonical, lang, text) : text;
 }
 
+function getGenderSystemInstruction(state = {}) {
+    const childGen = CHILD_GENDERS.includes(state?.childGender)
+        ? state.childGender
+        : CHILD_GENDERS.includes(state?.child_gender)
+            ? state.child_gender
+            : DEFAULT_SETTINGS.child_gender;
+    const toyGen = TOY_GENDERS.includes(state?.toyGender)
+        ? state.toyGender
+        : TOY_GENDERS.includes(state?.toy_gender)
+            ? state.toy_gender
+            : DEFAULT_SETTINGS.toy_gender;
+
+    let instruction = '\n\n[ВАЖНОЕ СИСТЕМНОЕ ТРЕБОВАНИЕ К ГРАММАТИКЕ И РОЛЯМ]:\n';
+
+    if (childGen === 'M') {
+        instruction += '- Ты общаешься с МАЛЬЧИКОМ. Всегда используй обращения и глаголы в мужском роде применительно к собеседнику (например: ты пришёл, ты догадался, ты понял, ты красивый, молодец).\n';
+    } else {
+        instruction += '- Ты общаешься с ДЕВОЧКОЙ. Всегда используй обращения и глаголы в женском роде применительно к собеседнику (например: ты пришла, ты догадалась, ты поняла, ты красивая, умница).\n';
+    }
+
+    if (toyGen === 'female') {
+        instruction += '- Твой персонаж — девочка/подружка Lumi. Говори о себе СТРОГО в ЖЕНСКОМ роде (например: я подумала, я вспомнила, я рада, я сама догадалась).\n';
+    } else if (toyGen === 'male') {
+        instruction += '- Твой персонаж — мальчик/друг Lumi. Говори о себе СТРОГО в МУЖСКОМ роде (например: я подумал, я вспомнил, я рад, я сам догадался).\n';
+    } else {
+        instruction += '- Твой персонаж — маленький дружелюбный робот/ИИ Lumi. Говори о себе в СРЕДНЕМ роде или избегай явных гендерных глаголов там, где это возможно (например: мне кажется, я готово поиграть, я вспомнило историю, я радо тебя слышать).\n';
+    }
+
+    return instruction;
+}
+
 function formatSettingsForPrompt(settings = {}) {
     const s = { ...DEFAULT_SETTINGS, ...settings };
     const promptLang = s.language || DEFAULT_SETTINGS.language;
@@ -1234,7 +1289,10 @@ function formatSettingsForPrompt(settings = {}) {
         'PARENT CONFIG FOR THIS TOY:',
         `- Toy name: ${safeText(s.toy_name || 'Lumi', 40)}`,
         `- Toy character type: ${toyType}`,
+        `- Child gender: ${s.child_gender || DEFAULT_SETTINGS.child_gender}`,
+        `- Toy gender: ${s.toy_gender || DEFAULT_SETTINGS.toy_gender}`,
         `- Main language setting: ${promptLang}`,
+        getGenderSystemInstruction(s).trim(),
         '- All selected settings below are written for the toy language. Keep toy name, child name, nicknames, and other proper names exactly as written. If descriptive parent-entered text is in another language, silently translate or adapt its meaning into the toy language before speaking. Never quote raw internal keys or another-language setting values to the child.',
         `- Personality preset: ${personality}`,
         `- Age mode: ${settingText('ageMode', s.age_mode, promptLang, PROMPT_TEXT.en.ageMode.auto)}`,
@@ -1280,4 +1338,5 @@ module.exports = {
     getAnalytics,
     modelModeToModelName,
     formatSettingsForPrompt,
+    getGenderSystemInstruction,
 };

@@ -251,6 +251,14 @@
           <input id="custom_toy_type" maxlength="40" placeholder="Например: Чебурашка, единорог, робот">
         </div>
         <div>
+          <label>Пол Lumi</label>
+          <select id="toy_gender">
+            <option value="female">Женский</option>
+            <option value="male">Мужской</option>
+            <option value="neuter">Робот / средний</option>
+          </select>
+        </div>
+        <div>
           <label>Язык</label>
           <select id="language" onchange="setLanguageFromMain()">
             <option value="ru-RU">Русский</option>
@@ -271,6 +279,13 @@
         <div>
           <label>Возраст</label>
           <input id="age" maxlength="12">
+        </div>
+        <div>
+          <label>Пол ребёнка</label>
+          <select id="child_gender">
+            <option value="M">Мальчик</option>
+            <option value="F">Девочка</option>
+          </select>
         </div>
         <div>
           <label>Возрастной режим</label>
@@ -666,6 +681,10 @@ const UI_TEXT = {
     customToyType: 'Свой тип персонажа',
     customToyPlaceholder: 'Например: Чебурашка, единорог, робот',
     customToyOption: 'Свой тип',
+    toyGender: 'Пол Lumi',
+    toyGenderFemale: 'Женский',
+    toyGenderMale: 'Мужской',
+    toyGenderNeuter: 'Робот / средний',
     language: 'Язык',
     langRu: 'Русский',
     langRo: 'Румынский',
@@ -678,6 +697,9 @@ const UI_TEXT = {
     childTitle: 'Эти поля необязательные. Родитель отвечает за то, какие данные о ребёнке он добавляет. Не вводите фамилию, адрес, телефон, школу, точное место проживания, публичные аккаунты и другие чувствительные данные ребёнка.',
     childName: 'Имя ребёнка',
     age: 'Возраст',
+    childGender: 'Пол ребёнка',
+    childGenderMale: 'Мальчик',
+    childGenderFemale: 'Девочка',
     ageMode: 'Возрастной режим',
     ageModeAuto: 'Авто по возрасту',
     ageMode34: '3–4 года',
@@ -938,6 +960,10 @@ const UI_TEXT = {
     customToyType: 'Tip propriu de personaj',
     customToyPlaceholder: 'De exemplu: robot, unicorn, personaj propriu',
     customToyOption: 'Tip propriu',
+    toyGender: 'Gen Lumi',
+    toyGenderFemale: 'Feminin',
+    toyGenderMale: 'Masculin',
+    toyGenderNeuter: 'Robot / neutru',
     language: 'Limba',
     langRu: 'Rusa',
     langRo: 'Romana',
@@ -950,6 +976,9 @@ const UI_TEXT = {
     childTitle: 'Aceste campuri sunt optionale. Parintele este responsabil pentru datele despre copil pe care le adauga. Nu introduceti numele de familie, adresa, telefonul, scoala, locul exact de trai, conturi publice sau alte date sensibile ale copilului.',
     childName: 'Numele copilului',
     age: 'Varsta',
+    childGender: 'Gen copil',
+    childGenderMale: 'Baiat',
+    childGenderFemale: 'Fata',
     ageMode: 'Mod de varsta',
     ageModeAuto: 'Auto dupa varsta',
     ageMode34: '3-4 ani',
@@ -1210,6 +1239,10 @@ const UI_TEXT = {
     customToyType: 'Custom character type',
     customToyPlaceholder: 'For example: robot, unicorn, your own character',
     customToyOption: 'Custom type',
+    toyGender: 'Lumi gender',
+    toyGenderFemale: 'Female',
+    toyGenderMale: 'Male',
+    toyGenderNeuter: 'Robot / neuter',
     language: 'Language',
     langRu: 'Russian',
     langRo: 'Romanian',
@@ -1222,6 +1255,9 @@ const UI_TEXT = {
     childTitle: 'These fields are optional. The parent is responsible for what child data they add. Do not enter the child surname, address, phone number, school, exact home location, public accounts, or other sensitive child data.',
     childName: 'Child name',
     age: 'Age',
+    childGender: 'Child gender',
+    childGenderMale: 'Boy',
+    childGenderFemale: 'Girl',
     ageMode: 'Age mode',
     ageModeAuto: 'Auto by age',
     ageMode34: '3-4 years',
@@ -1858,11 +1894,13 @@ function applyConsoleLocale(lang) {
   setText('#consoleBox > section:nth-of-type(2) button', t.savePassword);
   setText('#consoleBox > section:nth-of-type(2) .small:nth-of-type(2)', t.forgotPassword);
 
-  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.language];
+  const toyLabels = [t.toyName, t.toyType, t.customToyType, t.toyGender, t.language];
   setText('#toyPanel h2', t.toy);
   document.querySelectorAll('#toyPanel label').forEach((el, i) => { if (toyLabels[i]) el.textContent = toyLabels[i]; });
   setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
   setToyTypeOptions(lang);
+  const toyGenderOptions = document.querySelectorAll('#toy_gender option');
+  [t.toyGenderFemale, t.toyGenderMale, t.toyGenderNeuter].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
@@ -1870,7 +1908,7 @@ function applyConsoleLocale(lang) {
   const modelOptions = document.querySelectorAll('#model_mode option');
   [t.modelAuto, t.modelEconomy, t.modelSmart].forEach((label, i) => { if (modelOptions[i]) modelOptions[i].textContent = label; });
 
-  const childLabels = [t.childName, t.age, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
+  const childLabels = [t.childName, t.age, t.childGender, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
   setText('#childPanel h2', t.child);
   const childHeading = document.querySelector('#childPanel h2');
   if (childHeading) childHeading.title = t.childTitle || '';
@@ -1884,6 +1922,8 @@ function applyConsoleLocale(lang) {
   setPlaceholder('#current_interest', t.interestPlaceholder);
   const ageOptions = document.querySelectorAll('#age_mode option');
   [t.ageModeAuto, t.ageMode34, t.ageMode56, t.ageMode78, t.ageMode9].forEach((label, i) => { if (ageOptions[i]) ageOptions[i].textContent = label; });
+  const childGenderOptions = document.querySelectorAll('#child_gender option');
+  [t.childGenderMale, t.childGenderFemale].forEach((label, i) => { if (childGenderOptions[i]) childGenderOptions[i].textContent = label; });
   setText('#childPanel .row-actions button:nth-of-type(1)', t.editChild);
   setText('#childPanel .row-actions button:nth-of-type(2)', t.saveChild);
   setText('#childPanel .row-actions button:nth-of-type(3)', t.clearChild);
@@ -2504,11 +2544,13 @@ async function loadState() {
   const s = data.settings || {};
   const p = data.profile || {};
   [
-    'toy_name', 'language', 'model_mode',
-    'age_mode', 'answer_length', 'humor_level', 'activity_level', 'question_frequency',
+    'toy_name', 'toy_gender', 'language', 'model_mode',
+    'child_gender', 'age_mode', 'answer_length', 'humor_level', 'activity_level', 'question_frequency',
     'voice_speed', 'story_length', 'custom_personality', 'child_address_mode',
     'daily_limit_minutes', 'break_reminder_minutes', 'evening_calm_start', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
+  setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
+  setValue('child_gender', s.child_gender || s.childGender || 'M');
   setToyTypeValue(s.toy_type);
   setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
   setRadioValue('child_address_tone', s.child_address_tone || 'warm', 'warm');
@@ -2581,8 +2623,10 @@ async function saveSettings() {
       body: JSON.stringify({
         toy_name: document.getElementById('toy_name').value,
         toy_type: getToyTypeValue(),
+        toy_gender: document.getElementById('toy_gender').value,
         language: document.getElementById('language').value,
         model_mode: document.getElementById('model_mode').value,
+        child_gender: document.getElementById('child_gender').value,
         age_mode: document.getElementById('age_mode').value,
         personality_preset: getCheckedValues('personalityChecks'),
         child_address_mode: document.getElementById('child_address_mode').value,
@@ -2634,6 +2678,7 @@ async function saveProfile() {
     await api('/api/parent/settings', {
       method: 'POST',
       body: JSON.stringify({
+        child_gender: document.getElementById('child_gender').value,
         age_mode: document.getElementById('age_mode').value,
       }),
     });
