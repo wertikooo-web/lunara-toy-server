@@ -66,7 +66,7 @@ const DEFAULT_SETTINGS = {
     humor_level: 'normal',
     activity_level: 'normal',
     question_frequency: 'sometimes',
-    voice: 'zara',
+    voice: '',
     voice_speed: 'normal',
     story_length: '5',
     custom_toy_type: '',
@@ -195,7 +195,12 @@ function normalizeSettingsPatch(raw = {}) {
         const value = safeText(raw.question_frequency, 16);
         patch.question_frequency = ['rare', 'sometimes', 'often'].includes(value) ? value : DEFAULT_SETTINGS.question_frequency;
     }
-    if ('voice' in raw) patch.voice = safeText(raw.voice, 40) || DEFAULT_SETTINGS.voice;
+    if ('voice' in raw) {
+        const value = safeText(raw.voice, 40);
+        // Пусто = автоматический выбор голоса по toy_gender (см. tts.js). Иначе — только
+        // реально существующий id из VOICE_REGISTRY, иначе игнорируем как невалидный.
+        patch.voice = value && VOICE_REGISTRY.some((v) => v.id === value) ? value : '';
+    }
     if ('voice_speed' in raw) {
         const value = safeText(raw.voice_speed, 16);
         patch.voice_speed = ['slow', 'normal', 'fast'].includes(value) ? value : DEFAULT_SETTINGS.voice_speed;
@@ -1386,6 +1391,10 @@ function isProviderCompatibleWithLang(provider, lang) {
     return (LANGUAGE_PROVIDERS[key] || []).includes(provider);
 }
 
+function getVoiceById(voiceId) {
+    return VOICE_REGISTRY.find((voice) => voice.id === voiceId) || null;
+}
+
 module.exports = {
     init,
     login,
@@ -1415,4 +1424,5 @@ module.exports = {
     LANGUAGE_PROVIDERS,
     getVoicesForLang,
     isProviderCompatibleWithLang,
+    getVoiceById,
 };

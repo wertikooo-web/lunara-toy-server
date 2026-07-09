@@ -265,6 +265,12 @@
             <option value="en-US">English</option>
           </select>
         </div>
+        <div>
+          <label id="voiceIdLabel">Голос</label>
+          <select id="voice_id">
+            <option value="">Автоматически (по полу)</option>
+          </select>
+        </div>
       </div>
     </section>
 
@@ -683,6 +689,8 @@ const UI_TEXT = {
     toyGender: 'Пол Lumi',
     toyGenderFemale: 'Женский',
     toyGenderMale: 'Мужской',
+    voiceIdLabel: 'Голос',
+    voiceAuto: 'Автоматически (по полу)',
     language: 'Язык',
     langRu: 'Русский',
     langRo: 'Румынский',
@@ -961,6 +969,8 @@ const UI_TEXT = {
     toyGender: 'Gen Lumi',
     toyGenderFemale: 'Feminin',
     toyGenderMale: 'Masculin',
+    voiceIdLabel: 'Voce',
+    voiceAuto: 'Automat (dupa gen)',
     language: 'Limba',
     langRu: 'Rusa',
     langRo: 'Romana',
@@ -1239,6 +1249,8 @@ const UI_TEXT = {
     toyGender: 'Lumi gender',
     toyGenderFemale: 'Female',
     toyGenderMale: 'Male',
+    voiceIdLabel: 'Voice',
+    voiceAuto: 'Automatic (by gender)',
     language: 'Language',
     langRu: 'Russian',
     langRo: 'Romanian',
@@ -1596,11 +1608,32 @@ function buildPreviewPhrase() {
   return formatText(t.previewPhrase, { child, toy });
 }
 
+// Подтягивает список голосов провайдера под текущий язык (GET /api/parent/voices) и
+// перерисовывает <select id="voice_id">, сохраняя текущий выбор, если он всё ещё валиден.
+async function refreshVoiceOptions() {
+  const select = document.getElementById('voice_id');
+  if (!select) return;
+  const lang = getToyLanguage();
+  const currentValue = select.value;
+  const langKey = normalizeLanguageKey(lang);
+  const t = UI_TEXT[langKey] || UI_TEXT['ru-RU'];
+  try {
+    const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang));
+    const voices = data.voices || [];
+    select.innerHTML = '<option value="">' + escapeHtml(t.voiceAuto) + '</option>'
+      + voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
+    if (voices.some(v => v.id === currentValue)) select.value = currentValue;
+  } catch (err) {
+    console.warn('[Parent] failed to load voices', err);
+  }
+}
+
 async function previewLumiVoice() {
   const status = document.getElementById('previewVoiceStatus');
   const button = document.getElementById('previewVoiceButton');
   const lang = getToyLanguage();
   const text = buildPreviewPhrase();
+  const voiceId = document.getElementById('voice_id')?.value || undefined;
 
   if (!text.trim()) return;
   if (button) button.disabled = true;
@@ -1609,7 +1642,7 @@ async function previewLumiVoice() {
   try {
     const data = await api('/api/parent/voice-preview', {
       method: 'POST',
-      body: JSON.stringify({ text, lang }),
+      body: JSON.stringify({ text, lang, voice_id: voiceId }),
     });
     if (!data.audio_url) throw new Error('audio_url is missing');
     if (previewVoiceAudio) {
@@ -1897,6 +1930,9 @@ function applyConsoleLocale(lang) {
   setToyTypeOptions(lang);
   const toyGenderOptions = document.querySelectorAll('#toy_gender option');
   [t.toyGenderFemale, t.toyGenderMale].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
+  setText('#voiceIdLabel', t.voiceIdLabel);
+  const voiceAutoOption = document.querySelector('#voice_id option[value=""]');
+  if (voiceAutoOption) voiceAutoOption.textContent = t.voiceAuto;
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
@@ -2546,6 +2582,8 @@ async function loadState() {
     'daily_limit_minutes', 'break_reminder_minutes', 'evening_calm_start', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
+  await refreshVoiceOptions();
+  setValue('voice_id', s.voice || '');
   setValue('child_gender', s.child_gender || s.childGender || 'M');
   setToyTypeValue(s.toy_type);
   setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
@@ -2601,6 +2639,7 @@ function setLanguageFromMain() {
   applyConsoleLocale(language);
   setToyTypeValue(toyTypeBefore);
   applyLanguageTopicDefaults(language);
+  refreshVoiceOptions();
   renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
   renderStatusOverview(window.lastParentState || {});
   renderRuntime(window.lastRuntime || {});
@@ -2620,6 +2659,7 @@ async function saveSettings() {
         toy_name: document.getElementById('toy_name').value,
         toy_type: getToyTypeValue(),
         toy_gender: document.getElementById('toy_gender').value,
+        voice: document.getElementById('voice_id').value,
         language: document.getElementById('language').value,
         model_mode: document.getElementById('model_mode').value,
         child_gender: document.getElementById('child_gender').value,

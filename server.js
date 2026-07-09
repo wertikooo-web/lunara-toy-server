@@ -374,9 +374,16 @@ app.post('/api/parent/voice-preview', async (req, res) => {
 
     try {
         const settings = await parentConfig.getSettings(session.device_id);
+        // Явный voice_id из тела запроса — превью ещё не сохранённого выбора в панели.
+        // Если не передан — превьюим текущий сохранённый голос (старое поведение).
+        const requestedVoiceId = req.body?.voice_id || req.body?.voice;
+        const previewVoice = requestedVoiceId ? parentConfig.getVoiceById(requestedVoiceId) : null;
+        const voiceConfig = previewVoice
+            ? { id: previewVoice.id, provider: previewVoice.provider, gender: settings.toyGender || settings.toy_gender }
+            : buildVoiceConfig(settings);
         const ts = Date.now();
         const outputPath = path.join(DIR_AUDIO, `preview_${ts}.pcm`);
-        const durationMs = await tts.synthesize(text, outputPath, lang, { voiceSpeed: settings.voice_speed });
+        const durationMs = await tts.synthesize(text, outputPath, lang, { voiceSpeed: settings.voice_speed, voiceConfig });
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         res.json({
             ok: true,
@@ -428,7 +435,7 @@ app.post('/chat', async (req, res) => {
         const runtime = await parentConfig.getRuntimeState(deviceId, settings);
         if (!runtime.allowed) {
             const reply = runtimeLimitReply(runtime, effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed, buildVoiceConfig(settings));
             recordAnalyticsSafe(deviceId, text, reply, { type: 'runtime_limit', durationMs: audio.durationMs, provider: 'system' });
             return res.json({
                 reply,
@@ -441,7 +448,7 @@ app.post('/chat', async (req, res) => {
         }
         if (shouldSendBreakReminder(deviceId, runtime, settings)) {
             const reply = breakReminderReply(effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed, buildVoiceConfig(settings));
             recordUsageSafe(deviceId, audio.durationMs);
             recordAnalyticsSafe(deviceId, text, reply, { type: 'break_reminder', durationMs: audio.durationMs, provider: 'system' });
             return res.json({
@@ -522,7 +529,7 @@ app.post('/chat', async (req, res) => {
         const requestedContentType = content.classifyRequest(text);
         if (requestedContentType && !isContentTypeAllowed(settings, requestedContentType)) {
             const reply = disabledContentReply(requestedContentType, effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed, buildVoiceConfig(settings));
             recordUsageSafe(deviceId, audio.durationMs);
             recordAnalyticsSafe(deviceId, text, reply, { type: requestedContentType, durationMs: audio.durationMs, provider: 'system' });
             return res.json({
@@ -560,7 +567,7 @@ app.post('/chat', async (req, res) => {
         const story = await storyEngine.buildStoryContext(text);
         if (story && !isContentTypeAllowed(settings, 'story')) {
             const reply = disabledContentReply('story', effectiveLang);
-            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed);
+            const audio = await synthesizeReply(reply, ts, effectiveLang, baseUrl, settings.voice_speed, buildVoiceConfig(settings));
             recordUsageSafe(deviceId, audio.durationMs);
             recordAnalyticsSafe(deviceId, text, reply, { type: 'story', durationMs: audio.durationMs, provider: 'system' });
             return res.json({
@@ -600,7 +607,7 @@ app.post('/chat', async (req, res) => {
 
         // TTS
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang, { voiceSpeed: settings.voice_speed });
+        const durationMs = await tts.synthesize(reply, outputPath, effectiveLang, { voiceSpeed: settings.voice_speed, voiceConfig: buildVoiceConfig(settings) });
         recordUsageSafe(deviceId, durationMs);
         recordAnalyticsSafe(deviceId, text, reply, { type: story ? 'story' : requestedContentType, durationMs, provider: 'llm' });
         const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
@@ -720,9 +727,18 @@ function clearDemoSession(deviceId) {
     logger.info(`[Parent] cleared browser demo session for device_id=${id}`);
 }
 
-async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal') {
+// Явный голос из настроек родителя (settings.voice — id из parentConfig.VOICE_REGISTRY).
+// Пусто/неизвестный id -> null -> tts.js сам выбирает голос по toyGender, как раньше.
+function buildVoiceConfig(settings) {
+    if (!settings?.voice) return null;
+    const voice = parentConfig.getVoiceById(settings.voice);
+    if (!voice) return null;
+    return { id: voice.id, provider: voice.provider, gender: settings.toyGender || settings.toy_gender };
+}
+
+async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal', voiceConfig = null) {
     const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
-    const durationMs = await tts.synthesize(reply, outputPath, lang, { voiceSpeed });
+    const durationMs = await tts.synthesize(reply, outputPath, lang, { voiceSpeed, voiceConfig });
     const audioUrl = `${baseUrl}/audio/response_${ts}.wav`;
     return { audioUrl, durationMs };
 }
@@ -925,7 +941,7 @@ wss.on('connection', (ws, req) => {
         const settings = await parentConfig.getSettings(deviceId);
         const lang = resolveSystemPhraseLang(settings.language);
         const gender = settings.toyGender || settings.toy_gender;
-        const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender);
+        const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender, { voiceConfig: buildVoiceConfig(settings) });
         send({
             type:         'ready',
             name:         settings.toy_name || 'Lumi',
@@ -990,7 +1006,7 @@ wss.on('connection', (ws, req) => {
             if (state.audioBytes < 1600) {
                 logger.info('[WS] audio too short — Lumi gently asks to repeat');
                 const shortAudioSettings = await parentConfig.getSettings(deviceId);
-                const r = await retryAudioCommand(shortAudioSettings.language, shortAudioSettings.toyGender || shortAudioSettings.toy_gender);
+                const r = await retryAudioCommand(shortAudioSettings.language, shortAudioSettings.toyGender || shortAudioSettings.toy_gender, buildVoiceConfig(shortAudioSettings));
                 if (r) sendAudio(r.url, r.durationMs);
                 state.status      = 'IDLE';
                 state.audioChunks = [];
@@ -1081,7 +1097,7 @@ async function handlePipeline(
         if (!transcript || transcript.trim().length === 0) {
             logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');
             const emptyTranscriptSettings = await parentConfig.getSettings(deviceId);
-            const r = await retryAudioCommand(emptyTranscriptSettings.language, emptyTranscriptSettings.toyGender || emptyTranscriptSettings.toy_gender);
+            const r = await retryAudioCommand(emptyTranscriptSettings.language, emptyTranscriptSettings.toyGender || emptyTranscriptSettings.toy_gender, buildVoiceConfig(emptyTranscriptSettings));
             if (r) sendAudio(r.url, r.durationMs);
             return; // finally{} сбросит state в IDLE и удалит upload
         }
@@ -1437,7 +1453,7 @@ async function handlePipeline(
         let durationMs;
 
         try {
-            durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed });
+            durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed, voiceConfig: buildVoiceConfig(settings) });
         } catch (err) {
             delayedThinking.cancel();
             throw err;
@@ -1509,10 +1525,10 @@ function resolveSystemPhraseLang(lang) {
 // Собирает команду воспроизведения retry-аудио, генерируя его лениво под
 // конкретные язык/пол игрушки, если ещё не закэшировано. На ошибке генерации
 // возвращает null — вызывающий код просто пропускает эту реплику, не падая.
-async function retryAudioCommand(lang, gender) {
+async function retryAudioCommand(lang, gender, voiceConfig = null) {
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
     const effectiveLang = resolveSystemPhraseLang(lang);
-    const asset = await tts.synthesizeAsset('retry', RETRY_TEXTS[effectiveLang], effectiveLang, gender);
+    const asset = await tts.synthesizeAsset('retry', RETRY_TEXTS[effectiveLang], effectiveLang, gender, { voiceConfig });
     if (!asset) return null;
     return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs };
 }

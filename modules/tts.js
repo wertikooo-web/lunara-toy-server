@@ -189,12 +189,37 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
     const provider = resolveProvider(detectedLang, voiceConfig);
     logger.info(`[TTS] lang=${detectedLang} provider=${provider} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}`);
 
-    let pcmBuffer;
-    if (provider === 'yandex') {
+    async function callYandex(useExplicitVoice) {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
-        pcmBuffer = await yandexTTS(text, speed, toyGender, voiceConfig?.id);
-    } else {
-        pcmBuffer = await openaiTTS(text, detectedLang, speed, toyGender, voiceConfig?.id);
+        return yandexTTS(text, speed, toyGender, useExplicitVoice ? voiceConfig?.id : null);
+    }
+    async function callOpenai(useExplicitVoice) {
+        return openaiTTS(text, detectedLang, speed, toyGender, useExplicitVoice ? voiceConfig?.id : null);
+    }
+
+    let pcmBuffer;
+    try {
+        pcmBuffer = provider === 'yandex' ? await callYandex(true) : await callOpenai(true);
+    } catch (primaryErr) {
+        const providerLabel = provider === 'yandex' ? 'Yandex' : 'OpenAI';
+        logger.error(`[TTS] ${providerLabel} failed: ${primaryErr.message}`);
+
+        // OpenAI — мультиязычный, безопасный fallback для любого языка. Yandex-голоса
+        // (alena/ermil) заточены под русский без явного lang в запросе — пробуем их как
+        // fallback только когда текст реально русский, иначе рискуем выдать ребёнку кашу.
+        const fallbackProvider = provider === 'yandex' ? 'openai' : (detectedLang === 'ru' ? 'yandex' : null);
+        if (!fallbackProvider) {
+            throw new Error(`TTS unavailable: ${providerLabel} failed and no safe fallback for lang=${detectedLang}: ${primaryErr.message}`);
+        }
+
+        const fallbackLabel = fallbackProvider === 'yandex' ? 'Yandex' : 'OpenAI';
+        logger.warn(`[TTS] falling back to ${fallbackLabel}`);
+        try {
+            pcmBuffer = fallbackProvider === 'yandex' ? await callYandex(false) : await callOpenai(false);
+        } catch (fallbackErr) {
+            logger.error(`[TTS] ${fallbackLabel} fallback also failed: ${fallbackErr.message}`);
+            throw new Error(`TTS unavailable: both providers failed (${providerLabel}: ${primaryErr.message}; ${fallbackLabel}: ${fallbackErr.message})`);
+        }
     }
 
     const durationMs = saveFiles(pcmBuffer, outputPath);
@@ -249,7 +274,9 @@ async function synthesizeAsset(type, text, lang, gender, options = {}) {
 
     try {
         fs.mkdirSync(path.dirname(pcmPath), { recursive: true });
-        const durationMs = await synthesize(text, pcmPath, lang, options);
+        // gender был только в имени файла (getAssetPath) и не долетал до synthesize(),
+        // из-за чего мужские ассеты озвучивались женским голосом по умолчанию.
+        const durationMs = await synthesize(text, pcmPath, lang, { ...options, toyGender: gender });
         return { pcmPath, wavPath, durationMs, cached: false };
     } catch (err) {
         logger.error(
