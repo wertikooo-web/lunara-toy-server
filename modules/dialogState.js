@@ -61,11 +61,13 @@ function hasCreativeWords(text) {
 
 function isRiddleLike(text) {
     const t = normalizeText(text);
-    return t.includes('загадк') || t.includes('загадай') || t.includes('отгадай') || t.includes('riddle') || t.includes('ghicitoare');
+    return /загадк|загадай|отгадай|riddle|riddles|ghicitoare|ghicitori|ghiceste|ghicește/.test(t);
 }
 
 function isSimpleCachedRiddleRequest(text) {
     const t = normalizeText(text);
+    if (!t) return false;
+
     const simple = [
         'загадай загадку',
         'дай загадку',
@@ -75,9 +77,37 @@ function isSimpleCachedRiddleRequest(text) {
         'другую загадку',
         'еще загадку',
         'ещё загадку',
+        'знаешь загадки',
+        'ты знаешь загадки',
+        'а загадки знаешь',
+        'какие загадки знаешь',
+        'какие нибудь загадки знаешь',
+        'какие-нибудь загадки знаешь',
+        'у тебя есть загадки',
+        'есть загадки',
+        'поиграем в загадки',
+        'давай поиграем в загадки',
+        'tell me a riddle',
+        'give me a riddle',
+        'do you know riddles',
+        'do you know any riddles',
+        'riddle please',
+        'lets do a riddle',
+        'let us do a riddle',
+        'spune o ghicitoare',
+        'dă-mi o ghicitoare',
+        'da-mi o ghicitoare',
+        'știi ghicitori',
+        'stii ghicitori',
+        'știi vreo ghicitoare',
+        'stii vreo ghicitoare',
+        'hai o ghicitoare',
     ];
 
-    if (!simple.some((phrase) => t === phrase || t.includes(phrase))) return false;
+    const looseSimplePattern = /(?:знаешь|есть|умеешь|можешь|расскажешь).{0,30}загадк|загадк.{0,20}(?:знаешь|есть|давай|расскажи)|(?:do you know|tell me|give me).{0,25}riddles?|riddles?.{0,20}(?:please|now)|(?:știi|stii|spune|dă-mi|da-mi).{0,25}ghicitori?|ghicitori?.{0,20}(?:te rog|acum)/u;
+
+    const matchesSimple = simple.some((phrase) => t === phrase || t.includes(phrase)) || looseSimplePattern.test(t);
+    if (!matchesSimple) return false;
     if (hasTopicRequest(t)) return false;
     if (hasCreativeWords(t)) return false;
     return true;
