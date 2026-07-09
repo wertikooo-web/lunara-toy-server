@@ -23,7 +23,7 @@ const PERSONALITY_KEYS = Object.keys(PERSONALITY_PRESETS);
 const ADDRESS_MODES = ['name', 'varied'];
 const ADDRESS_TONES = ['warm', 'neutral'];
 const CHILD_GENDERS = ['M', 'F'];
-const TOY_GENDERS = ['female', 'male', 'neuter'];
+const TOY_GENDERS = ['female', 'male'];
 const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const ADDRESS_PRESETS = {
@@ -1257,10 +1257,8 @@ function getGenderSystemInstruction(state = {}) {
 
     if (toyGen === 'female') {
         instruction += '- Твой персонаж — девочка/подружка Lumi. Говори о себе СТРОГО в ЖЕНСКОМ роде (например: я подумала, я вспомнила, я рада, я сама догадалась).\n';
-    } else if (toyGen === 'male') {
-        instruction += '- Твой персонаж — мальчик/друг Lumi. Говори о себе СТРОГО в МУЖСКОМ роде (например: я подумал, я вспомнил, я рад, я сам догадался).\n';
     } else {
-        instruction += '- Твой персонаж — маленький дружелюбный робот/ИИ Lumi. Говори о себе в СРЕДНЕМ роде или избегай явных гендерных глаголов там, где это возможно (например: мне кажется, я готово поиграть, я вспомнило историю, я радо тебя слышать).\n';
+        instruction += '- Твой персонаж — мальчик/друг Lumi. Говори о себе СТРОГО в МУЖСКОМ роде (например: я подумал, я вспомнил, я рад, я сам догадался).\n';
     }
 
     return instruction;

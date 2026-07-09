@@ -255,7 +255,6 @@
           <select id="toy_gender">
             <option value="female">Женский</option>
             <option value="male">Мужской</option>
-            <option value="neuter">Робот / средний</option>
           </select>
         </div>
         <div>
@@ -684,7 +683,6 @@ const UI_TEXT = {
     toyGender: 'Пол Lumi',
     toyGenderFemale: 'Женский',
     toyGenderMale: 'Мужской',
-    toyGenderNeuter: 'Робот / средний',
     language: 'Язык',
     langRu: 'Русский',
     langRo: 'Румынский',
@@ -963,7 +961,6 @@ const UI_TEXT = {
     toyGender: 'Gen Lumi',
     toyGenderFemale: 'Feminin',
     toyGenderMale: 'Masculin',
-    toyGenderNeuter: 'Robot / neutru',
     language: 'Limba',
     langRu: 'Rusa',
     langRo: 'Romana',
@@ -1242,7 +1239,6 @@ const UI_TEXT = {
     toyGender: 'Lumi gender',
     toyGenderFemale: 'Female',
     toyGenderMale: 'Male',
-    toyGenderNeuter: 'Robot / neuter',
     language: 'Language',
     langRu: 'Russian',
     langRo: 'Romanian',
@@ -1900,7 +1896,7 @@ function applyConsoleLocale(lang) {
   setPlaceholder('#custom_toy_type', t.customToyPlaceholder);
   setToyTypeOptions(lang);
   const toyGenderOptions = document.querySelectorAll('#toy_gender option');
-  [t.toyGenderFemale, t.toyGenderMale, t.toyGenderNeuter].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
+  [t.toyGenderFemale, t.toyGenderMale].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
