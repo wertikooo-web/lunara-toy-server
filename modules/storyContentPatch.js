@@ -10,6 +10,15 @@ const PACKS_DIR = path.join(ROOT, 'data', 'content-packs');
 const MANIFEST_PATH = path.join(PACKS_DIR, 'manifest.json');
 const FALLBACK_STORY_PACKS = ['stories_ru_v1.json'];
 
+const STOPWORDS = new Set([
+    'сказк', 'сказка', 'сказку', 'истори', 'история', 'историю', 'рассказ', 'расскажи', 'рассказывать',
+    'про', 'об', 'о', 'где', 'там', 'кто', 'кто-то', 'ктонибудь', 'кто-нибудь', 'что', 'что-то', 'чтонибудь',
+    'какой', 'какая', 'какие', 'какую', 'одна', 'один', 'одно', 'этот', 'эта', 'это', 'эту', 'тот', 'та',
+    'он', 'она', 'они', 'его', 'ее', 'её', 'ему', 'ней', 'него', 'себе', 'себя', 'мне', 'тебе', 'нам',
+    'и', 'а', 'но', 'или', 'да', 'ну', 'вот', 'же', 'бы', 'ли', 'на', 'в', 'во', 'из', 'за', 'под', 'над',
+    'для', 'без', 'по', 'с', 'со', 'у', 'от', 'до', 'как', 'потом', 'сначала', 'пожалуйста', 'слушай'
+]);
+
 const TOPIC_GROUPS = {
     animals: [
         'животные', 'звери', 'зверята', 'кот', 'котик', 'котенок', 'котёнок', 'кошка', 'собака', 'щенок', 'щеночек',
@@ -63,6 +72,81 @@ const TOPIC_GROUPS = {
     ],
 };
 
+const CLASSIC_STORY_MATCHERS = [
+    {
+        title: 'Колобок',
+        aliases: ['колобок', 'колобка', 'колобку', 'круглый хлеб', 'круглый пирожок', 'пирожок сбежал'],
+        clueGroups: [
+            ['испек', 'испеч', 'спек', 'печь', 'мука', 'тесто', 'хлеб', 'пирожок', 'булочка'],
+            ['сбежал', 'убежал', 'укатился', 'покатился', 'катится', 'свалил', 'убежал от бабушки', 'убежал от дедушки'],
+        ],
+    },
+    {
+        title: 'Репка',
+        aliases: ['репка', 'репку', 'репке', 'репы', 'большая репка'],
+        clueGroups: [
+            ['посадил', 'выросла', 'огород', 'репка', 'овощ'],
+            ['тянули', 'тянут', 'вытянуть', 'тащили', 'помогали', 'всей семьей', 'вместе'],
+        ],
+    },
+    {
+        title: 'Красная Шапочка',
+        aliases: ['красная шапочка', 'красную шапочку', 'девочка в красной шапочке'],
+        clueGroups: [
+            ['девочка', 'шапочка', 'красная', 'красной'],
+            ['волк', 'бабушка', 'пирожки', 'лес'],
+        ],
+    },
+    {
+        title: 'Кот в сапогах',
+        aliases: ['кот в сапогах', 'кота в сапогах', 'котик в сапогах'],
+        clueGroups: [
+            ['кот', 'сапоги', 'сапогах'],
+            ['маркиз', 'мельник', 'людоед', 'хозяин', 'король'],
+        ],
+    },
+    {
+        title: 'Три медведя',
+        aliases: ['три медведя', 'трех медведей', 'трёх медведей', 'про трех медведей', 'про трёх медведей'],
+        clueGroups: [
+            ['девочка', 'маша', 'машенька', 'домик', 'дом'],
+            ['медведь', 'медведи', 'каша', 'стул', 'кровать'],
+        ],
+    },
+    {
+        title: 'Теремок',
+        aliases: ['теремок', 'теремка', 'теремке', 'домик в поле'],
+        clueGroups: [
+            ['домик', 'теремок', 'поле'],
+            ['мышка', 'лягушка', 'зайчик', 'лисичка', 'волк', 'медведь', 'жили вместе'],
+        ],
+    },
+    {
+        title: 'Гуси-лебеди',
+        aliases: ['гуси лебеди', 'гуси-лебеди', 'гусей лебедей'],
+        clueGroups: [
+            ['гуси', 'лебеди', 'птицы'],
+            ['унесли', 'брата', 'братца', 'баба яга', 'печка', 'яблоня', 'молочная река'],
+        ],
+    },
+    {
+        title: 'Золушка',
+        aliases: ['золушка', 'золушку', 'золушке'],
+        clueGroups: [
+            ['туфелька', 'башмачок', 'хрустальная', 'платье', 'бал'],
+            ['мачеха', 'фея', 'принц', 'тыква'],
+        ],
+    },
+    {
+        title: 'Дюймовочка',
+        aliases: ['дюймовочка', 'дюймовочку', 'маленькая девочка из цветка'],
+        clueGroups: [
+            ['маленькая', 'крошечная', 'цветок', 'тюльпан'],
+            ['жаба', 'крот', 'ласточка', 'эльф'],
+        ],
+    },
+];
+
 let storyItems = [];
 
 function normalize(value) {
@@ -76,7 +160,7 @@ function normalize(value) {
 
 function stemWord(value) {
     return normalize(value)
-        .replace(/(ами|ями|ого|ему|ыми|ими|ая|яя|ое|ее|ые|ие|ую|юю|ом|ем|ой|ей|ах|ях|ам|ям|ов|ев|а|я|у|ю|ы|и|е|о)$/iu, '')
+        .replace(/(иями|ями|ами|ого|ему|ыми|ими|ая|яя|ое|ее|ые|ие|ую|юю|ом|ем|ой|ей|ах|ях|ам|ям|ов|ев|ия|ий|ый|а|я|у|ю|ы|и|е|о)$/iu, '')
         .trim();
 }
 
@@ -102,6 +186,13 @@ function approxHasNeedle(haystack, needle) {
 
 function hasNeedle(haystack, needle) {
     return approxHasNeedle(haystack, needle);
+}
+
+function meaningfulStems(text) {
+    return normalize(text)
+        .split(' ')
+        .map(stemWord)
+        .filter((word) => word.length >= 4 && !STOPWORDS.has(word));
 }
 
 function getStoryPackFiles() {
@@ -196,9 +287,77 @@ function storySearchText(item) {
     ].join(' ');
 }
 
-function scoreStory(item, topic, groups) {
+function storyIdentityText(item) {
+    return [
+        item.id || '',
+        item.title || '',
+        Array.isArray(item.tags) ? item.tags.join(' ') : '',
+    ].join(' ');
+}
+
+function matcherTargetsItem(item, matcher) {
+    const identity = storyIdentityText(item);
+    return [matcher.title, ...(matcher.aliases || [])].some((alias) => hasNeedle(identity, alias));
+}
+
+function requestMatchesAlias(requestText, matcher) {
+    return (matcher.aliases || []).some((alias) => hasNeedle(requestText, alias));
+}
+
+function requestMatchesClues(requestText, matcher) {
+    const groups = matcher.clueGroups || [];
+    if (groups.length === 0) return false;
+
+    return groups.every((group) => group.some((phrase) => hasNeedle(requestText, phrase)));
+}
+
+function classicMatcherScore(item, requestText) {
+    if (!requestText) return 0;
+
+    let score = 0;
+    for (const matcher of CLASSIC_STORY_MATCHERS) {
+        if (!matcherTargetsItem(item, matcher)) continue;
+
+        if (requestMatchesAlias(requestText, matcher)) score += 120;
+
+        if (requestMatchesClues(requestText, matcher)) {
+            score += 90;
+            logger.debug?.(`[StoryContentPatch] semantic story clue matched title="${matcher.title}" request="${requestText}"`);
+        }
+
+        for (const group of matcher.clueGroups || []) {
+            for (const phrase of group) {
+                if (hasNeedle(requestText, phrase)) score += 2;
+            }
+        }
+    }
+
+    return score;
+}
+
+function overlapScore(item, requestText) {
+    const stems = Array.from(new Set(meaningfulStems(requestText)));
+    if (stems.length === 0) return 0;
+
+    const title = normalize(item.title || '');
+    const hay = normalize(storySearchText(item));
+    let score = 0;
+
+    for (const stem of stems) {
+        if (stem.length < 4) continue;
+        if (title.includes(stem)) score += 5;
+        else if (hay.includes(stem)) score += 1;
+    }
+
+    return Math.min(score, 18);
+}
+
+function scoreStory(item, topic, groups, requestText) {
     const hay = storySearchText(item);
     let score = 0;
+
+    score += classicMatcherScore(item, requestText);
+    score += overlapScore(item, requestText);
 
     if (topic) {
         if (hasNeedle(item.title || '', topic)) score += 25;
@@ -230,20 +389,27 @@ function pickPreparedStory(text) {
     const topic = extractTopic(text);
     const groups = topicGroups(`${topic} ${text}`);
 
-    if (!topic && groups.length === 0) {
+    if (!topic && groups.length === 0 && meaningfulStems(text).length === 0) {
         return pickRandom(storyItems);
     }
 
     const scored = storyItems
-        .map((item) => ({ item, score: scoreStory(item, topic, groups) }))
+        .map((item) => ({ item, score: scoreStory(item, topic, groups, text) }))
         .filter((entry) => entry.score > 0)
         .sort((a, b) => b.score - a.score);
 
     if (scored.length === 0) return null;
 
     const bestScore = scored[0].score;
-    const best = scored.filter((entry) => entry.score >= Math.max(1, bestScore - 2)).slice(0, 12);
-    return pickRandom(best.map((entry) => entry.item));
+    const bestWindow = bestScore >= 80 ? 0 : 2;
+    const best = scored.filter((entry) => entry.score >= Math.max(1, bestScore - bestWindow)).slice(0, 12);
+    const picked = pickRandom(best.map((entry) => entry.item));
+
+    if (picked) {
+        logger.info(`[StoryContentPatch] selected prepared story id=${picked.id || ''} title="${picked.title || ''}" score=${bestScore}`);
+    }
+
+    return picked;
 }
 
 const originalClassifyRequest = typeof content.classifyRequest === 'function'
