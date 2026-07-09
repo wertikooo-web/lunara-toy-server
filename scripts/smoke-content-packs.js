@@ -2,7 +2,7 @@
 
 const assert = require('assert');
 const path = require('path');
-const loader = require('../modules/contentPackLoaderV2');
+const loader = require('../modules/contentPackLoader');
 
 const result = loader.loadContentItems({ rootDir: path.resolve(__dirname, '..') });
 
