@@ -49,7 +49,7 @@ function directResult(reply, options = {}) {
 
 function inferTypeFromRequest(text) {
   const t = dialogState.normalizeText(text);
-  if (/загадк|riddle|ghicitoare/.test(t)) return 'riddle';
+  if (/загадк|riddle|ghicitoare|ghicitori/.test(t)) return 'riddle';
   if (/сказк|истори|story/.test(t)) return 'story';
   if (/игр|поигр|game|play/.test(t)) return 'game';
   if (/факт|интересн/.test(t)) return 'fact';
@@ -110,7 +110,13 @@ if (typeof originalIsRiddleRequest === 'function') {
       console.log(`[TopicRiddle] routing to LLM: ${JSON.stringify(String(text || '').slice(0, 120))}`);
       return false;
     }
-    return dialogState.isSimpleCachedRiddleRequest(text) && originalIsRiddleRequest.call(this, text);
+
+    if (dialogState.isSimpleCachedRiddleRequest(text)) {
+      console.log(`[TopicRiddle] routing to cached riddle: ${JSON.stringify(String(text || '').slice(0, 120))}`);
+      return true;
+    }
+
+    return originalIsRiddleRequest.call(this, text);
   };
 }
 riddleEngine.shouldUseLlmRiddle = shouldRouteToLlm;
@@ -138,6 +144,7 @@ const originalClassifyRequest = content.classifyRequest;
 if (typeof originalClassifyRequest === 'function') {
   content.classifyRequest = function patchedClassifyRequest(text) {
     if (shouldRouteToLlm(text)) return 'riddle';
+    if (dialogState.isSimpleCachedRiddleRequest(text)) return 'riddle';
     return originalClassifyRequest.call(this, text);
   };
 }
