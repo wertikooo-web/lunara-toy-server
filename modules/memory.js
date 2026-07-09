@@ -360,6 +360,45 @@ async function applyMemoryActions(deviceId, actions) {
     return result.rows[0] || null;
 }
 
+// Rules-first фильтр перед дорогим LLM-вызовом извлечения памяти (тот же приём, что и
+// content.getSemanticIntent: дешёвая проверка сначала, LLM — только когда есть смысл).
+// Намеренно НЕ "щедрый" — только явные маркеры запоминаемого + отсечение банальных реплик.
+const MEMORABLE_KEYWORD_PATTERNS = [
+    // имя
+    /меня зовут|зовут меня|моё имя|мое имя/i,
+    /my name is|call me/i,
+    /ma numesc|numele meu/i,
+    // предпочтения
+    /я люблю|мне нравится|обожаю|мой любим|моя любим|моё любим|мое любим/i,
+    /i like|i love|my favorite|my favourite/i,
+    /imi place|preferatul meu|preferata mea/i,
+    // "у меня есть" — питомцы, вещи
+    /у меня есть|у меня (кот|кошка|собака|пёс|пес|хомяк|попугай|рыбк)/i,
+    /i have a|i've got a/i,
+    /am un |am o /i,
+    // друзья
+    /лучший друг|лучшая подруга|мой друг|моя подруга/i,
+    /best friend|my friend/i,
+    /cel mai bun prieten|prietena mea/i,
+    // возраст
+    /мне \d+ (год|лет|года)/i,
+    /i am \d+ years/i,
+];
+
+const TRIVIAL_REPLY_PATTERN = /^(ага|угу|ок|окей|да|нет|неа|спасибо|пока|привет|хорошо|ладно|давай ещё|давай еще|ещё|еще|продолжай|хочу ещё|хочу еще)[\s!.,?]*$/i;
+
+function isTrivialReply(text) {
+    if (text.length < 5) return true;
+    return TRIVIAL_REPLY_PATTERN.test(text);
+}
+
+function looksMemorable(userText) {
+    const text = String(userText || '').trim();
+    if (!text) return false;
+    if (isTrivialReply(text)) return false;
+    return MEMORABLE_KEYWORD_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 async function extractPatchFromText(userText, profile = null, toyName = 'Lumi') {
     const text = String(userText || '').trim();
     if (!text || text.length < 3) return {};
@@ -415,6 +454,10 @@ async function extractPatchFromText(userText, profile = null, toyName = 'Lumi') 
 async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {
     if (!AUTO_UPDATE) return null;
     if (!ready || !pool) return null;
+    if (!looksMemorable(userText)) {
+        logger.debug('[Memory] skipped extraction: text does not look memorable');
+        return null;
+    }
 
     const actions = await extractPatchFromText(userText, profile, toyName);
     if (!hasMemoryActions(actions)) {
@@ -509,4 +552,5 @@ module.exports = {
     rememberFromText,
     formatProfileForPrompt,
     normalizeDeviceId,
+    looksMemorable,
 };

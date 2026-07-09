@@ -26,8 +26,8 @@ function patchMemorySource(source) {
 
     patched = replaceOnce(
         patched,
-        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
-        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n\n    const guard = memoryGuard.shouldRememberUserText(userText);\n    if (!guard.allow) {\n        logger.info(`[MemoryGuard] skipped ${normalizeDeviceId(deviceId)} reason=${guard.reason} chars=${String(userText || '').length}`);\n        return null;\n    }\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
+        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n    if (!looksMemorable(userText)) {\n        logger.debug('[Memory] skipped extraction: text does not look memorable');\n        return null;\n    }\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
+        "async function rememberFromText(deviceId, userText, profile = null, toyName = 'Lumi') {\n    if (!AUTO_UPDATE) return null;\n    if (!ready || !pool) return null;\n    if (!looksMemorable(userText)) {\n        logger.debug('[Memory] skipped extraction: text does not look memorable');\n        return null;\n    }\n\n    const guard = memoryGuard.shouldRememberUserText(userText);\n    if (!guard.allow) {\n        logger.info(`[MemoryGuard] skipped ${normalizeDeviceId(deviceId)} reason=${guard.reason} chars=${String(userText || '').length}`);\n        return null;\n    }\n\n    const actions = await extractPatchFromText(userText, profile, toyName);",
         'rememberFromText pre-extraction guard'
     );
 
