@@ -72,6 +72,10 @@
     }
     button.unsaved-save { animation: unsavedPulse 1.15s ease-in-out infinite; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+    /* Поля, которые не должны участвовать в парной раскладке 2 колонок (иначе при
+       скрытии соседних необязательных полей вроде customToyTypeWrap чётность съезжает
+       и следующее поле "повисает" одно в своей строке — так и получилось с voice_id). */
+    .grid-full { grid-column: 1 / -1; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
     .small { color: #a999d6; font-size: 12px; line-height: 1.35; }
@@ -246,7 +250,7 @@
           <label>Тип персонажа</label>
           <select id="toy_type" onchange="toggleCustomToyType()"></select>
         </div>
-        <div id="customToyTypeWrap" class="hidden">
+        <div id="customToyTypeWrap" class="hidden grid-full">
           <label>Свой тип персонажа</label>
           <input id="custom_toy_type" maxlength="40" placeholder="Например: Чебурашка, единорог, робот">
         </div>
@@ -265,7 +269,7 @@
             <option value="en-US">English</option>
           </select>
         </div>
-        <div>
+        <div class="grid-full">
           <label id="voiceIdLabel">Голос</label>
           <select id="voice_id">
             <option value="">Автоматически (по полу)</option>
