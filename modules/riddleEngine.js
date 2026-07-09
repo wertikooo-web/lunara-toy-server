@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const voiceUx = require('./voiceUxPhrases');
 
 let audioDir = null;
 let ttsModule = null;
@@ -17,27 +19,6 @@ const BYTES_PER_SAMPLE = 2;
 // Можно переопределить в Railway через RIDDLE_ACTIVE_LIMIT.
 const DEFAULT_ACTIVE_LIMIT = 200;
 
-const REPLIES = {
-    correct: [
-        'Правильно! Вот это да!',
-        'Да! Ты угадал!',
-        'Точно! Молодец!',
-        'Верно!',
-    ],
-
-    wrong: [
-        'Почти! Попробуй ещё раз.',
-        'Интересная версия! Давай ещё попытку.',
-        'Не совсем. Подумай ещё чуть-чуть.',
-        'Попробуй ещё.',
-    ],
-
-    noActive: [
-        'Сначала я загадаю загадку, хорошо?',
-        'Давай сначала выберем загадку.',
-    ],
-};
-
 function activeLimit() {
     const raw = Number(process.env.RIDDLE_ACTIVE_LIMIT || DEFAULT_ACTIVE_LIMIT);
     if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_ACTIVE_LIMIT;
@@ -51,6 +32,10 @@ function normalizeText(text) {
         .replace(/[.,!?;:()[\]{}"«»]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function shortHash(text) {
+    return crypto.createHash('sha1').update(String(text || '')).digest('hex').slice(0, 8);
 }
 
 function stripAnswerNoise(text) {
@@ -362,7 +347,7 @@ async function buildRiddleAudioCommand(riddle, baseUrl) {
 
     // Не говорим "загадка про жирафа", даже если ребёнок просил тему.
     // Просто даём загадку.
-    const spokenText = `Загадка. ${riddle.question}`;
+    const spokenText = riddle.question;
 
     await ensureAudio(spokenText, pcmPath, 'ru-RU');
 
@@ -400,10 +385,12 @@ async function startRiddle(baseUrl, requestText = '') {
     };
 }
 
-async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
+async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl, options = {}) {
+    const childGender = options.childGender || options.gender || 'M';
+
     if (!activeRiddle) {
-        const phrase = REPLIES.noActive[0];
-        const audio = await buildReplyAudioCommand('no_active_1', phrase, baseUrl);
+        const phrase = voiceUx.pick('riddle_no_active');
+        const audio = await buildReplyAudioCommand(`no_active_${shortHash(phrase)}`, phrase, baseUrl);
 
         return {
             handled: true,
@@ -439,8 +426,8 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
     }
 
     if (isCorrectAnswer(text, activeRiddle)) {
-        const phrase = REPLIES.correct[Math.floor(Math.random() * REPLIES.correct.length)];
-        const audio = await buildReplyAudioCommand(`correct_${Math.floor(Math.random() * 4) + 1}`, phrase, baseUrl);
+        const phrase = voiceUx.pick('riddle_correct', { gender: childGender });
+        const audio = await buildReplyAudioCommand(`correct_${childGender}_${shortHash(phrase)}`, phrase, baseUrl);
 
         log.info(`[Riddle] correct answer for ${activeRiddle.id}`);
 
@@ -473,8 +460,8 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl) {
         attempts,
     };
 
-    const phrase = REPLIES.wrong[Math.floor(Math.random() * REPLIES.wrong.length)];
-    const audio = await buildReplyAudioCommand(`wrong_${Math.floor(Math.random() * 4) + 1}`, phrase, baseUrl);
+    const phrase = voiceUx.pick('riddle_wrong', { gender: childGender });
+    const audio = await buildReplyAudioCommand(`wrong_${childGender}_${shortHash(phrase)}`, phrase, baseUrl);
 
     log.info(`[Riddle] wrong attempt ${attempts} for ${activeRiddle.id}`);
 
