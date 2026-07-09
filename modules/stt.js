@@ -7,7 +7,8 @@ let openaiClient = null;
 let groqClient = null;
 
 const STT_PROVIDER = String(process.env.STT_PROVIDER || 'openai').trim().toLowerCase();
-const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo';
+// Использовать обычный whisper-large-v3 для Groq, он в разы точнее на русском, чем turbo
+const GROQ_STT_MODEL = process.env.GROQ_STT_MODEL || 'whisper-large-v3'; 
 const OPENAI_STT_MODEL = 'whisper-1';
 const DEFAULT_STT_LANGUAGE = process.env.DEFAULT_STT_LANGUAGE || process.env.STT_LANGUAGE || 'ru-RU';
 const MIN_STT_PCM_BYTES = Number(process.env.MIN_STT_PCM_BYTES || 6000);
@@ -16,6 +17,9 @@ const SAMPLE_RATE = 16000;
 const CHANNELS = 1;
 const BITS = 16;
 const BYTES_PER_SAMPLE = BITS / 8;
+
+// Секретное оружие: контекстный промпт, обучающий Whisper правильному распознаванию
+const WHISPER_PROMPT = "Разговор ребенка с умной игрушкой Lumi. Короткие ответы, детская речь, русские слова, подсказки, названия животных, да, нет, окей.";
 
 function buildWavHeader(pcmByteLength) {
     const header = Buffer.alloc(44);
@@ -92,11 +96,11 @@ function normalizeText(text) {
 function sanitizeShortRussianTranscript(text, options = {}) {
     const targetLanguage = normalizeDetectedLanguage(options.language || DEFAULT_STT_LANGUAGE);
     const raw = normalizeText(text);
-    const lower = raw.toLowerCase();
 
     if (!raw) return raw;
     if (targetLanguage !== 'ru-RU') return raw;
 
+    const lower = raw.toLowerCase();
     const words = lower.split(/\s+/).filter(Boolean);
     const short = words.length <= 3 && raw.length <= 24;
     if (!short) return raw;
@@ -129,7 +133,8 @@ async function transcribeFile(audioPath, options = {}) {
             file: fs.createReadStream(audioPath),
             model,
             response_format: 'verbose_json',
-            temperature: 0,
+            temperature: 0.1, // Даем модели микро-флекс на игнорирование шумов
+            prompt: WHISPER_PROMPT // Направляем контекст
         };
         if (languageHint) request.language = languageHint;
         response = await getGroqClient().audio.transcriptions.create(request);
@@ -139,7 +144,8 @@ async function transcribeFile(audioPath, options = {}) {
             file: fs.createReadStream(audioPath),
             model,
             response_format: 'verbose_json',
-            temperature: 0,
+            temperature: 0.1,
+            prompt: WHISPER_PROMPT
         };
         if (languageHint) request.language = languageHint;
         response = await getOpenAIClient().audio.transcriptions.create(request);
