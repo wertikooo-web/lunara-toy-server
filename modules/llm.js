@@ -11,8 +11,8 @@ const logger = require('./logger');
 const llmRouter = require('./llmRouter');
 const { sanitizeVoiceReply } = require('./voiceSanitizer');
 
-const MAX_TOKENS = 180;
-const MAX_STORY_TOKENS = 230;
+const MAX_TOKENS = 120;
+const MAX_STORY_TOKENS = 200;
 const DEFAULT_MODEL = 'auto';
 
 // Часовой пояс рынка. Можно переопределить через переменную окружения TZ_MARKET.
@@ -118,6 +118,7 @@ const SYSTEM_PROMPT = `
 
 КАК ТЫ ГОВОРИШЬ
 Обычно отвечай 2-3 короткими предложениями.
+Если ребенок просит сказку или историю — отвечай не длиннее 4-8 предложений. 
 Если вопрос совсем простой — можно 1 короткое предложение.
 Если нужно утешить или объяснить — максимум 3 коротких предложения.
 Делай фразы короткими, с маленькими паузами через точку.
