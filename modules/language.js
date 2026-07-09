@@ -23,9 +23,12 @@ function words(text) {
 
 function explicitLanguageCommand(text) {
     const value = String(text || '').toLocaleLowerCase('ru-RU');
-    if (/(?:говори|ответь|перейди|давай).{0,24}(?:по-английски|на английском)|(?:speak|answer).{0,20}english|(?:vorbeste|vorbește|raspunde|răspunde).{0,20}englez/i.test(value)) return 'en-US';
-    if (/(?:говори|ответь|перейди|давай).{0,24}(?:по-румынски|на румынском)|(?:speak|answer).{0,20}romanian|(?:vorbeste|vorbește|raspunde|răspunde).{0,20}romaneste|românește/i.test(value)) return 'ro-RO';
-    if (/(?:говори|ответь|перейди|давай).{0,24}(?:по-русски|на русском)|(?:speak|answer).{0,20}russian|(?:vorbeste|vorbește|raspunde|răspunde).{0,20}rusa|rusă/i.test(value)) return 'ru-RU';
+    // Триггерим по предлогу направления (на/по-/pe/in/to/включи), а не по глаголу.
+    // Это защищает от случайных срабатываний вроде "мы учим английский в школе",
+    // где название языка просто упомянуто, а не запрошена смена языка.
+    if (/на\s+английск|по-английск|включи\s+английск|switch\s+to\s+english|in\s+english|to\s+english|pe\s+englez|în\s+englez/i.test(value)) return 'en-US';
+    if (/на\s+румынск|по-румынск|включи\s+румынск|in\s+romanian|to\s+romanian|pe\s+român|în\s+român/i.test(value)) return 'ro-RO';
+    if (/на\s+русск|по-русски|включи\s+русск|in\s+russian|to\s+russian|pe\s+rus[aă]|în\s+rus[aă]/i.test(value)) return 'ru-RU';
     return null;
 }
 
@@ -37,15 +40,15 @@ function detectLanguageFromText(text) {
     const cyrillic = (value.match(/[\u0400-\u04FF]/g) || []).length;
     if (letters > 0 && cyrillic / letters > 0.3) return 'ru-RU';
 
-    const lower = value.toLocaleLowerCase('ro-RO');
     const romanianTokens = new Set([
         'buna', 'bună', 'salut', 'ce', 'cum', 'mai', 'faci', 'sunt', 'este', 'esti', 'ești',
         'vreau', 'spune', 'poveste', 'ghicitoare', 'joc', 'hai', 'multumesc', 'mulțumesc',
         'pentru', 'despre', 'unde', 'cine', 'de', 'la', 'cu', 'si', 'și', 'nu', 'da', 'imi', 'îmi',
         'place', 'frumos', 'copil', 'urs', 'ursulet', 'ursuleț', 'pisica', 'pisică', 'mancare', 'mâncare',
+        'banc', 'gluma', 'glume', 'ghici', 'ghicitori', 'povesti', 'cantece', 'cantec', 'vulpe', 'lup', 'ursu',
     ]);
     const roHits = tokenList.filter(token => romanianTokens.has(token)).length;
-    if (/[ăâîșțĂÂÎȘȚ]/.test(value) || roHits >= 2 || (tokenList.length === 1 && roHits === 1 && !AMBIGUOUS_SHORT_WORDS.has(lower))) {
+    if (/[ăâîșțĂÂÎȘȚ]/.test(value) || roHits >= 1) {
         return 'ro-RO';
     }
 
