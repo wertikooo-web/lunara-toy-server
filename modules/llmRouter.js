@@ -42,15 +42,19 @@ function hasAny(text, patterns) {
 function routeAutoModel(input = {}) {
     const text = String(input.text || '').toLowerCase();
 
+    // Одиночные корни мама/папа/друг/школ/бабуш/дедуш убраны: они цепляли обычные
+    // сказки/загадки/игры ("сказка про друга", "посчитай до семь") и без того
+    // покрыты протоколом тревоги в SYSTEM_PROMPT самого llm.js независимо от модели.
+    // "Семь" сужен до реальных форм слова "семья", чтобы не ломать счёт до 7.
     const sensitive = [
-        /страшн|боюсь|плак|груст|одинок|обид|ссор|руга|удар|бьют|больно|плохой|не любят|исчез/i,
-        /мама|папа|семь|бабуш|дедуш|школ|друг/i,
+        /страшн|боюсь|плак|груст|одинок|обид|ссор|ругае|ругал|ругань|удар|бь[ёю]|бил|больно|плохой|не любят|исчез/i,
+        /семь[яиею]/i,
         /помнишь|запомни|забыл|что я люблю|мой любим|моя любим|я люблю|я не люблю/i,
         /адрес|телефон|фамили|лекарств|огонь|нож|окн/i,
         /remember|my favorite|i like|i do not like|i don't like/i,
-        /scared|afraid|sad|lonely|hurt|fight|family|mother|father|school|friend/i,
+        /scared|afraid|sad|lonely|hurt|fight/i,
         /tine minte|imi place|nu imi place|preferat|preferata/i,
-        /frica|trist|singur|doare|familie|mama|tata|scoala|prieten/i,
+        /frica|trist|singur|doare/i,
     ];
 
     const simple = [
