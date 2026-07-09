@@ -893,9 +893,19 @@ async function updateChildProfile(deviceId, raw = {}) {
     if (entries.length > 0) {
         const sets = entries.map(([field], index) => `${field} = $${index + 2}`);
         const values = entries.map(([, value]) => value);
+        // Помечаем источник поля: непустое значение от родителя блокирует авто-перезапись
+        // из голоса ребёнка (проверяется в memory.js/applyMemoryActions), пустое — снимает
+        // блокировку. child_name сюда не входит — у него отдельная защита в memory.js.
+        const sourcePatch = Object.fromEntries(
+            entries
+                .filter(([field]) => field !== 'child_name')
+                .map(([field, value]) => [field, value ? 'parent' : null])
+        );
         await pool.query(
-            `UPDATE child_profiles SET ${sets.join(', ')}, updated_at = now() WHERE device_id = $1`,
-            [id, ...values]
+            `UPDATE child_profiles
+             SET ${sets.join(', ')}, field_sources = field_sources || $${values.length + 2}::jsonb, updated_at = now()
+             WHERE device_id = $1`,
+            [id, ...values, JSON.stringify(sourcePatch)]
         );
         await setActiveProfile(id, null);
     }

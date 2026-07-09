@@ -107,6 +107,10 @@ const FIELD_TO_LIST = {
     shared_world_state: 'shared_world_states',
 };
 
+// Поля, которые родитель может редактировать в панели (parentConfig.updateChildProfile).
+// child_name сюда не входит — у него уже своя защита от перезаписи ниже, не трогаем.
+const PARENT_LOCKABLE_FIELDS = ['age', 'favorite_color', 'favorite_animal', 'favorite_game', 'favorite_toy', 'favorite_food', 'current_interest'];
+
 function normalizeDeviceId(value) {
     const deviceId = String(value || '').trim();
     return deviceId || DEFAULT_DEVICE_ID;
@@ -150,6 +154,10 @@ async function init() {
     await pool.query(`
         ALTER TABLE child_profiles
         ADD COLUMN IF NOT EXISTS memory_json JSONB NOT NULL DEFAULT '{}'::jsonb
+    `);
+    await pool.query(`
+        ALTER TABLE child_profiles
+        ADD COLUMN IF NOT EXISTS field_sources JSONB NOT NULL DEFAULT '{}'::jsonb
     `);
 
     ready = true;
@@ -317,6 +325,7 @@ async function applyMemoryActions(deviceId, actions) {
 
     const profile = await getProfile(id);
     const memoryJson = parseMemoryJson(profile?.memory_json);
+    const fieldSources = parseMemoryJson(profile?.field_sources);
     const scalarPatch = cleanPatch(actions.set || {});
     if (scalarPatch.child_name && profile?.child_name) {
         const existingName = String(profile.child_name).trim().toLocaleLowerCase('ru-RU');
@@ -324,6 +333,24 @@ async function applyMemoryActions(deviceId, actions) {
         if (existingName && nextName && existingName !== nextName) {
             actions.add.nicknames = cleanListValues([scalarPatch.child_name, ...(actions.add.nicknames || [])]);
             delete scalarPatch.child_name;
+        }
+    }
+
+    // Поля, явно заданные родителем в панели (field_sources[field] === 'parent'),
+    // авто-экстрактор больше не перезаписывает — новое значение уходит в список
+    // рядом со скаляром, а не поверх него. Остальные поля остаются свободно
+    // изменяемыми авто-экстрактором, как и раньше — только помечаем их 'auto'.
+    const sourceUpdates = {};
+    for (const field of PARENT_LOCKABLE_FIELDS) {
+        if (!(field in scalarPatch)) continue;
+        if (fieldSources[field] === 'parent') {
+            const listField = FIELD_TO_LIST[field];
+            if (listField) {
+                actions.add[listField] = cleanListValues([scalarPatch[field], ...(actions.add[listField] || [])]);
+            }
+            delete scalarPatch[field];
+        } else {
+            sourceUpdates[field] = 'auto';
         }
     }
 
@@ -348,13 +375,15 @@ async function applyMemoryActions(deviceId, actions) {
     const sets = scalarEntries.map(([key], index) => `${key} = $${index + 2}`);
     const values = scalarEntries.map(([, value]) => value);
     const memoryParamIndex = values.length + 2;
+    const sourcesParamIndex = memoryParamIndex + 1;
 
     const result = await pool.query(
         `UPDATE child_profiles
-         SET ${sets.length ? sets.join(', ') + ',' : ''} memory_json = $${memoryParamIndex}::jsonb, updated_at = now()
+         SET ${sets.length ? sets.join(', ') + ',' : ''} memory_json = $${memoryParamIndex}::jsonb,
+             field_sources = field_sources || $${sourcesParamIndex}::jsonb, updated_at = now()
          WHERE device_id = $1
          RETURNING *`,
-        [id, ...values, JSON.stringify(memoryJson)]
+        [id, ...values, JSON.stringify(memoryJson), JSON.stringify(sourceUpdates)]
     );
 
     return result.rows[0] || null;
