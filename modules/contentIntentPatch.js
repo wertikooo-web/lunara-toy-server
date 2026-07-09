@@ -80,12 +80,19 @@ async function handleJokeOrFact(type, text, options = {}) {
     if (!baseUrl) throw new Error('contentIntentPatch requires baseUrl');
 
     const requestedLang = normalizeContentLang(options.lang, text);
+    // Точное совпадение по языку и только оно. Раньше падение на 'ru-RU' или на
+    // первый попавшийся элемент означало, что румынский/английский ребёнок мог
+    // получить русскую шутку. Теперь при отсутствии контента на нужном языке
+    // возвращаем null — пайплайн уйдёт в LLM и сгенерирует ответ на лету.
     const items = await content.pickItems(type, 10);
-    const item = (items || []).find((candidate) => normalizeContentLang(candidate.lang || 'ru-RU') === requestedLang)
-        || (items || []).find((candidate) => normalizeContentLang(candidate.lang || 'ru-RU') === 'ru-RU')
-        || (items || [])[0];
+    const item = (items || []).find((candidate) => normalizeContentLang(candidate.lang || 'ru-RU') === requestedLang);
 
-    if (!item) return null;
+    if (!item) {
+        if (requestedLang !== 'ru-RU') {
+            logger.info(`[ContentIntentPatch] no cached ${type} for lang=${requestedLang}; falling through to LLM`);
+        }
+        return null;
+    }
 
     const reply = cleanSpokenText(item.text, type);
     if (!reply) return null;
@@ -93,7 +100,7 @@ async function handleJokeOrFact(type, text, options = {}) {
     const audio = await content.ensureCachedReply(reply, {
         baseUrl,
         lang: item.lang || requestedLang,
-        key: `${type}_${item.id || 'item'}`,
+        key: `${type}_${item.id || 'item'}_${process.env.AUDIO_CACHE_VERSION || 'v3'}`,
         title: item.title || type,
     });
 
