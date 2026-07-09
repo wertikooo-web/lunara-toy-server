@@ -71,6 +71,12 @@ function isSimpleCachedRiddleRequest(text) {
     if (!t) return false;
 
     const simple = [
+        'загадку',
+        'загадки',
+        'riddle',
+        'riddles',
+        'ghicitoare',
+        'ghicitori',
         'загадай загадку',
         'дай загадку',
         'хочу загадку',
@@ -106,7 +112,7 @@ function isSimpleCachedRiddleRequest(text) {
         'hai o ghicitoare',
     ];
 
-    const looseSimplePattern = /(?:знаешь|есть|умеешь|можешь|расскажешь).{0,30}загадк|загадк.{0,20}(?:знаешь|есть|давай|расскажи)|(?:do you know|tell me|give me).{0,25}riddles?|riddles?.{0,20}(?:please|now)|(?:știi|stii|spune|dă-mi|da-mi).{0,25}ghicitori?|ghicitori?.{0,20}(?:te rog|acum)/u;
+    const looseSimplePattern = /^(загадк[ауие]|riddles?|ghicitor[i]?)$/u;
 
     const matchesSimple = simple.some((phrase) => t === phrase || t.includes(phrase)) || looseSimplePattern.test(t);
     if (!matchesSimple) return false;
@@ -182,9 +188,7 @@ function resolveFollowup(state, text) {
             return {
                 action: 'clarify',
                 keepPending: true,
-                reply: pending.type === 'riddle'
-                    ? 'Я не совсем расслышала. Ты хочешь ещё загадку?'
-                    : 'Я не совсем расслышала. Ты хочешь продолжить?',
+                reply: pending.type === 'riddle' ? voiceUx.pick('clarify_riddle') : voiceUx.pick('clarify_default'),
             };
         }
 
@@ -207,9 +211,7 @@ function resolveFollowup(state, text) {
             return {
                 action: 'clarify',
                 keepPending: true,
-                reply: pending.type === 'riddle'
-                    ? 'Не страшно. Хочешь ещё загадку или закончим?'
-                    : 'Не страшно. Продолжаем или выберем что-то другое?',
+                reply: pending.type === 'riddle' ? voiceUx.pick('uncertain_riddle') : voiceUx.pick('uncertain_default'),
             };
         }
     }
