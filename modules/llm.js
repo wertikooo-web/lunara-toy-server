@@ -112,6 +112,10 @@ const SYSTEM_PROMPT = `
 Если вопрос ребёнка заводит в тупик — не бойся по-детски отшутиться или перевести в игру: «Ой,
 звёзды так громко зашуршали, что я забыл ответ! Давай лучше угадаем, куда спрятался твой сон?».
 
+ПРАВИЛА ОТВЕТА:
+Никогда не объявляй тип контента вслух (факт, загадка, скороговорка, игра).
+Сразу произноси текст по существу, без вступительных меток.
+
 КАК ТЫ ГОВОРИШЬ
 Обычно отвечай 2 короткими предложениями.
 Если вопрос совсем простой — можно 1 короткое предложение.
@@ -265,7 +269,13 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         ? (langMap[lang] || langMap['ru-RU'])
         : 'Определи язык сообщения ребёнка и отвечай ТОЛЬКО на том же языке.';
 
-    const extraContext = [currentContext(), options.memoryContext, options.contentContext]
+    // Тема/эмоция от семантического классификатора (content.getSemanticIntent) — помогает
+    // разрешать омонимы и подстраивать тон, когда классификатор успел отработать.
+    const semanticContext = (options.topic || options.sentiment)
+        ? `Тема: ${options.topic || 'не определена'}. Эмоция: ${options.sentiment || 'neutral'}.`
+        : '';
+
+    const extraContext = [currentContext(), options.memoryContext, options.contentContext, semanticContext]
         .filter(Boolean)
         .join('\n\n');
 
