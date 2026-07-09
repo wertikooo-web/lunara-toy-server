@@ -1,10 +1,10 @@
 'use strict';
 
 const ACTION_WORDS = [
-    'улыб', 'сме', 'смотр', 'маш', 'подмиг', 'вздых', 'шепч', 'шепот', 'шёпот', 'шепотом', 'шёпотом', 'говорит',
+    'улыб', 'сме', 'смотр', 'маш', 'подмиг', 'вздых', 'говорит',
     'приподнима', 'наклон', 'кива', 'хлоп', 'радост', 'удивл', 'задум',
-    'smile', 'laugh', 'look', 'wink', 'whisper', 'sigh', 'nod',
-    'zamb', 'zâmb', 'rade', 'râde', 'priv', 'sopteste', 'șoptește',
+    'smile', 'laugh', 'look', 'wink', 'sigh', 'nod',
+    'zamb', 'zâmb', 'rade', 'râde', 'priv',
 ];
 
 function stripWrappingQuotes(text) {
