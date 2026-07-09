@@ -14,7 +14,8 @@
     "check:riddles": "node scripts/check_riddle_answers.js",
     "check:voice": "node scripts/check_voice_sanitizer.js",
     "export:content-packs": "node scripts/export-content-packs-from-db.js",
-    "export:content-packs:all": "node scripts/export-content-packs-from-db.js --legacy-all"
+    "export:content-packs:all": "node scripts/export-content-packs-from-db.js --legacy-all",
+    "migrate:thinking-assets": "node scripts/migrate-thinking-assets.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
