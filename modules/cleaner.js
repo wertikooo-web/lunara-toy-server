@@ -1,8 +1,12 @@
 'use strict';
 
 /**
- * Cleaner — auto-delete old PCM files from /audio/ directory.
- * Runs on an interval, removes files older than ttlMs.
+ * Cleaner — auto-delete only transient response audio files from /audio/ directory.
+ *
+ * Important:
+ * - The cleaner runs against the top-level AUDIO_DIR only.
+ * - Persistent cache subdirectories such as /audio/content and /audio/riddles are not cleaned here.
+ * - Only temporary response_*.pcm / response_*.wav files are eligible for deletion.
  */
 
 const fs     = require('fs');
@@ -10,6 +14,11 @@ const path   = require('path');
 const logger = require('./logger');
 
 const INTERVAL_MS = 60 * 1000;   // run every 60 seconds
+const TRANSIENT_AUDIO_RE = /^response_.*\.(?:pcm|wav)$/i;
+
+function isTransientAudioFile(file) {
+    return TRANSIENT_AUDIO_RE.test(String(file || ''));
+}
 
 /**
  * Start the cleaner.
@@ -19,7 +28,7 @@ const INTERVAL_MS = 60 * 1000;   // run every 60 seconds
  */
 function start(dir, ttlMs = 10 * 60 * 1000, keepFiles = []) {
     const keep = new Set(keepFiles);
-    logger.info(`[Cleaner] started — watching ${dir}, TTL=${ttlMs / 1000}s`);
+    logger.info(`[Cleaner] started — watching ${dir}, TTL=${ttlMs / 1000}s, mode=transient-response-only`);
 
     setInterval(() => {
         const now = Date.now();
@@ -34,8 +43,8 @@ function start(dir, ttlMs = 10 * 60 * 1000, keepFiles = []) {
 
         let deleted = 0;
         for (const file of files) {
-            if (!file.endsWith('.pcm') && !file.endsWith('.wav')) continue;
             if (keep.has(file)) continue;
+            if (!isTransientAudioFile(file)) continue;
 
             const filePath = path.join(dir, file);
             try {
@@ -51,9 +60,9 @@ function start(dir, ttlMs = 10 * 60 * 1000, keepFiles = []) {
         }
 
         if (deleted > 0) {
-            logger.info(`[Cleaner] deleted ${deleted} old file(s) from ${dir}`);
+            logger.info(`[Cleaner] deleted ${deleted} transient response file(s) from ${dir}`);
         }
     }, INTERVAL_MS);
 }
 
-module.exports = { start };
+module.exports = { start, isTransientAudioFile };
