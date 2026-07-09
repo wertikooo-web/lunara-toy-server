@@ -1124,7 +1124,7 @@ function checkPendingAnswer(pending, userText) {
                 `Почти поймали, но она ускользнула. Это ${correctAnswer}. Давай реванш?`,
                 `Хи-хи, загадка сегодня хитрит. Правильный ответ: ${correctAnswer}. Ещё одну?`,
                 `Нет, но мне нравится твоя идея. Ответ был ${correctAnswer}. Попробуем снова?`,
-                `Не совсем. Загадочный сундук открылся: там ${correctAnswer}. Давай следующую?`,
+                `Не совсем. Это: ${correctAnswer}. Давай следующую?`,
             ],
         },
         ro: {
@@ -1234,6 +1234,7 @@ async function stats() {
         cached_audio: audio.rows[0]?.count || 0,
     };
 }
+
 
 module.exports = {
     init,
