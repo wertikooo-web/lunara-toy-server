@@ -11,6 +11,7 @@
 
 const https  = require('https');
 const fs     = require('fs');
+const path   = require('path');
 const OpenAI = require('openai');
 const logger = require('./logger');
 const language = require('./language');
@@ -21,6 +22,11 @@ const YANDEX_API_KEY   = process.env.YANDEX_API_KEY;
 const YANDEX_VOICE_FEMALE = 'alena';
 const YANDEX_VOICE_MALE   = 'ermil';
 const SAMPLE_RATE      = 16000;
+
+// Каталог для "именованных" системных аудио-ассетов (greeting/retry/thinking).
+// Тот же каталог, что server.js вычисляет для DIR_AUDIO — единый источник истины
+// для файла-имени живёт здесь, а не в server.js.
+const DIR_AUDIO = process.env.AUDIO_DIR ? path.resolve(process.env.AUDIO_DIR) : path.join(__dirname, '..', 'audio');
 
 const openai       = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const OPENAI_MODEL = 'tts-1';
@@ -196,4 +202,103 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
     return durationMs;
 }
 
-module.exports = { synthesize, detectLang, normalizeExplicitLang };
+// ── Named audio assets (greeting/retry/thinking-filler system phrases) ─────────
+// Единый источник истины для имени файла: <type>[_<variant>]_<lang>_<gender>.pcm.
+// server.js больше не знает, как называется файл на диске — он просто просит
+// "дай мне озвучку типа X на языке Y голосом Z", а tts.js решает, есть ли она
+// в кэше или нужно сгенерировать.
+function normalizeAssetLangKey(lang) {
+    const value = String(lang || '').toLowerCase();
+    if (value.startsWith('ru')) return 'ru';
+    if (value.startsWith('ro')) return 'ro';
+    if (value.startsWith('en')) return 'en';
+    return 'ru';
+}
+
+function normalizeAssetGenderKey(gender) {
+    return gender === 'male' ? 'male' : 'female';
+}
+
+function getAssetPath(type, lang, gender, variant) {
+    const langKey = normalizeAssetLangKey(lang);
+    const genderKey = normalizeAssetGenderKey(gender);
+    const parts = [String(type || 'asset'), variant, langKey, genderKey].filter(Boolean);
+    return path.join(DIR_AUDIO, `${parts.join('_')}.pcm`);
+}
+
+function durationFromExistingPcm(pcmPath) {
+    try {
+        const bytes = fs.statSync(pcmPath).size;
+        return Math.ceil((bytes / (SAMPLE_RATE * 2)) * 1000);
+    } catch (_) {
+        return 1500;
+    }
+}
+
+// Ленивая генерация: если ассет уже есть на диске — отдаём его сразу, без обращения
+// к провайдерам TTS. Если нет — генерируем один раз и кладём в тот же именованный слот.
+// На ошибке генерации логирует и возвращает null — сервер не падает, просто пропускает
+// эту конкретную реплику (retry/greeting/thinking — не критичные для работы пути).
+async function synthesizeAsset(type, text, lang, gender, options = {}) {
+    const pcmPath = getAssetPath(type, lang, gender, options.variant);
+    const wavPath = pcmPath.replace(/\.pcm$/, '.wav');
+
+    if (fs.existsSync(pcmPath) && fs.existsSync(wavPath)) {
+        return { pcmPath, wavPath, durationMs: durationFromExistingPcm(pcmPath), cached: true };
+    }
+
+    try {
+        fs.mkdirSync(path.dirname(pcmPath), { recursive: true });
+        const durationMs = await synthesize(text, pcmPath, lang, options);
+        return { pcmPath, wavPath, durationMs, cached: false };
+    } catch (err) {
+        logger.error(
+            `[TTS] synthesizeAsset failed (type=${type}, lang=${lang}, gender=${gender || 'female'}, variant=${options.variant || '-'}): ${err.message}`,
+            err
+        );
+        return null;
+    }
+}
+
+// Общий (не привязанный к устройству) кэш: имя файла складывается из
+// type+variant+lang+gender, deviceId в нём не участвует — один и тот же ассет
+// переиспользуется всеми устройствами с одинаковыми настройками языка/пола.
+// Поэтому у смены настроек ОДНОГО устройства нет "своих" файлов для удаления —
+// оно просто начинает запрашивать другой (lang,gender) слот, который либо уже
+// в кэше (другое устройство его прогрело), либо сгенерируется лениво при первом
+// обращении. clearCache здесь — инструмент для принудительного сброса конкретного
+// слота (например, когда поменялся сам текст фразы в коде), а не автоматика на
+// каждое сохранение настроек.
+function clearCache(filter = {}) {
+    if (!fs.existsSync(DIR_AUDIO)) return 0;
+
+    const langKey = filter.lang ? normalizeAssetLangKey(filter.lang) : null;
+    const genderKey = filter.gender ? normalizeAssetGenderKey(filter.gender) : null;
+    let removed = 0;
+
+    for (const fileName of fs.readdirSync(DIR_AUDIO)) {
+        if (!/\.(pcm|wav)$/.test(fileName)) continue;
+        if (filter.type && !fileName.startsWith(`${filter.type}_`)) continue;
+        if (langKey && !fileName.includes(`_${langKey}_`)) continue;
+        if (genderKey && !fileName.endsWith(`_${genderKey}.pcm`) && !fileName.endsWith(`_${genderKey}.wav`)) continue;
+
+        try {
+            fs.unlinkSync(path.join(DIR_AUDIO, fileName));
+            removed += 1;
+        } catch (err) {
+            logger.warn(`[TTS] clearCache failed to remove ${fileName}: ${err.message}`);
+        }
+    }
+
+    logger.info(`[TTS] clearCache removed ${removed} file(s) matching ${JSON.stringify(filter)}`);
+    return removed;
+}
+
+module.exports = {
+    synthesize,
+    detectLang,
+    normalizeExplicitLang,
+    getAssetPath,
+    synthesizeAsset,
+    clearCache,
+};

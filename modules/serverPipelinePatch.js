@@ -158,29 +158,36 @@ function patchServerSource(source) {
 
     patched = replaceOnce(
         patched,
-        "function thinkingAudioCommand(intent = 'default') {\n    if (Math.random() >= THINKING_CHANCE) return null;",
-        "function thinkingAudioCommand(intent = 'default', chance = THINKING_CHANCE) {\n    if (Math.random() >= chance) return null;",
+        "async function thinkingAudioCommand(intent = 'default') {\n    if (Math.random() >= THINKING_CHANCE) return null;",
+        "async function thinkingAudioCommand(intent = 'default', chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female') {\n    if (Math.random() >= chance) return null;",
         'thinking chance argument'
     );
 
     patched = replaceOnce(
         patched,
+        "tts.synthesizeAsset('thinking', phrase.text, 'ru-RU', 'female', { variant })",
+        "tts.synthesizeAsset('thinking', phrase.text, lang, gender, { variant })",
+        'thinking asset lang/gender'
+    );
+
+    patched = replaceOnce(
+        patched,
         "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS }) {",
-        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS, chance = THINKING_CHANCE }) {",
+        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS, chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female' }) {",
         'startDelayedThinking chance argument'
     );
 
     patched = replaceOnce(
         patched,
         "        const thinking = thinkingAudioCommand(intent);",
-        "        const thinking = thinkingAudioCommand(intent, chance);",
+        "        const thinking = await thinkingAudioCommand(intent, chance, lang, gender);",
         'thinking command chance use'
     );
 
     patched = replaceOnce(
         patched,
         "        const delayedThinking = startDelayedThinking({\n            intent,\n            isCurrent,\n            sendAudio,\n            delayMs: THINKING_DELAY_MS,\n        });",
-        "        const thinkingChance = thinkingChanceForSettings(settings);\n        const delayedThinking = thinkingChance > 0\n            ? startDelayedThinking({\n                intent,\n                isCurrent,\n                sendAudio,\n                delayMs: thinkingDelayForSettings(settings),\n                chance: thinkingChance,\n            })\n            : noopDelayedThinking();\n        logger.info(`[Thinking] mode=${settings.thinking_phrases_enabled === false ? 'off' : settings.thinking_frequency || 'normal'} chance=${thinkingChance}`);",
+        "        const thinkingChance = thinkingChanceForSettings(settings);\n        const delayedThinking = thinkingChance > 0\n            ? startDelayedThinking({\n                intent,\n                isCurrent,\n                sendAudio,\n                delayMs: thinkingDelayForSettings(settings),\n                chance: thinkingChance,\n                lang: effectiveLang,\n                gender: settings.toyGender || settings.toy_gender,\n            })\n            : noopDelayedThinking();\n        logger.info(`[Thinking] mode=${settings.thinking_phrases_enabled === false ? 'off' : settings.thinking_frequency || 'normal'} chance=${thinkingChance}`);",
         'thinking settings in pipeline'
     );
 

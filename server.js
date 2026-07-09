@@ -913,16 +913,24 @@ wss.on('connection', (ws, req) => {
     }
 
     // ── Greeting ─────────────────────────────────────────────────────────────
-    {
+    // Ленивая генерация под настройки конкретного устройства (язык/пол игрушки),
+    // а не заранее захардкоженный русский файл на все случаи.
+    (async () => {
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-        const greetingUrl = `${baseUrl}/audio/greeting_ru.wav`;
+        const settings = await parentConfig.getSettings(deviceId);
+        const lang = resolveSystemPhraseLang(settings.language);
+        const gender = settings.toyGender || settings.toy_gender;
+        const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender);
         send({
             type:         'ready',
-            name:         'Lumi',
+            name:         settings.toy_name || 'Lumi',
             device_id:    deviceId,
-            greeting_url: greetingUrl,
+            greeting_url: asset ? `${baseUrl}/audio/${path.basename(asset.wavPath)}` : null,
         });
-    }
+    })().catch((err) => {
+        logger.error(`[Greeting] failed to prepare greeting for ${deviceId}: ${err.message}`, err);
+        send({ type: 'ready', name: 'Lumi', device_id: deviceId, greeting_url: null });
+    });
 
     // ── Message handler ───────────────────────────────────────────────────────
     ws.on('message', async (data, isBinary) => {
@@ -976,8 +984,9 @@ wss.on('connection', (ws, req) => {
             }
             if (state.audioBytes < 1600) {
                 logger.info('[WS] audio too short — Lumi gently asks to repeat');
-                const r = retryAudioCommand();
-                sendAudio(r.url, r.durationMs);
+                const shortAudioSettings = await parentConfig.getSettings(deviceId);
+                const r = await retryAudioCommand(shortAudioSettings.language, shortAudioSettings.toyGender || shortAudioSettings.toy_gender);
+                if (r) sendAudio(r.url, r.durationMs);
                 state.status      = 'IDLE';
                 state.audioChunks = [];
                 state.audioBytes  = 0;
@@ -1066,8 +1075,9 @@ async function handlePipeline(
 
         if (!transcript || transcript.trim().length === 0) {
             logger.info('[Pipeline] empty transcript — Lumi gently asks to repeat');
-            const r = retryAudioCommand();
-            sendAudio(r.url, r.durationMs);
+            const emptyTranscriptSettings = await parentConfig.getSettings(deviceId);
+            const r = await retryAudioCommand(emptyTranscriptSettings.language, emptyTranscriptSettings.toyGender || emptyTranscriptSettings.toy_gender);
+            if (r) sendAudio(r.url, r.durationMs);
             return; // finally{} сбросит state в IDLE и удалит upload
         }
 
@@ -1428,39 +1438,38 @@ async function handlePipeline(
 }
 
 
-// ── Pre-generate greeting PCM ─────────────────────────────────────────────────
-const GREETING_TEXT = 'Привет! Я - Луми, твой друг! Нажми кнопку и давай поговорим!';
-const GREETING_FILE = path.join(DIR_AUDIO, 'greeting_ru.pcm');
+// ── Named system audio assets (greeting/retry) ────────────────────────────────
+// Имя файла на диске больше не хардкодится тут — его вычисляет tts.getAssetPath()
+// из (type, lang, gender). Ленивая генерация: если ассета ещё нет, tts.js сам
+// его создаст при первом реальном обращении, а не заранее при старте сервера.
+const GREETING_TEXTS = {
+    'ru-RU': 'Привет! Я - Луми, твой друг! Нажми кнопку и давай поговорим!',
+    'ro-RO': 'Salut! Eu sunt Lumi, prietenul tău! Apasă butonul și hai să vorbim!',
+    'en-US': "Hi! I am Lumi, your friend! Press the button and let's talk!",
+};
 
 // Тёплая просьба повторить — играется когда нажатие слишком короткое
 // или речь не распозналась. Lumi не выдаёт сухую ошибку, а ласково просит ещё разок.
-const RETRY_TEXT = 'Ой! Скажи ещё раз, пожалуйста! Я не расслышал!';
-const RETRY_FILE = path.join(DIR_AUDIO, 'retry_ru.pcm');
+const RETRY_TEXTS = {
+    'ru-RU': 'Ой! Скажи ещё раз, пожалуйста! Я не расслышал!',
+    'ro-RO': 'Ups! Poți să spui din nou, te rog! Nu am auzit bine!',
+    'en-US': 'Oops! Can you say that again, please! I did not hear you!',
+};
 
-// Собирает команду воспроизведения для кешированного retry-аудио.
-function retryAudioCommand() {
-    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-    const url = `${baseUrl}/audio/retry_ru.wav`;
-    let durationMs = 1500; // запасное значение, если файл ещё не готов
-    try {
-        const bytes = fs.statSync(RETRY_FILE).size;
-        durationMs = Math.ceil((bytes / (16000 * 2)) * 1000);
-    } catch (_) { /* файл ещё не сгенерирован — отдаём запасную длительность */ }
-    return { url, durationMs };
+function resolveSystemPhraseLang(lang) {
+    if (lang && GREETING_TEXTS[lang]) return lang;
+    return 'ru-RU';
 }
 
-async function ensureRetry() {
-    if (fs.existsSync(RETRY_FILE)) {
-        logger.info('[Retry] Using cached retry_ru.pcm');
-        return;
-    }
-    try {
-        logger.info('[Retry] Generating retry_ru.pcm...');
-        await tts.synthesize(RETRY_TEXT, RETRY_FILE, 'ru-RU');
-        logger.info('[Retry] retry_ru.pcm ready');
-    } catch (err) {
-        logger.error(`[Retry] Failed to generate: ${err.message}`);
-    }
+// Собирает команду воспроизведения retry-аудио, генерируя его лениво под
+// конкретные язык/пол игрушки, если ещё не закэшировано. На ошибке генерации
+// возвращает null — вызывающий код просто пропускает эту реплику, не падая.
+async function retryAudioCommand(lang, gender) {
+    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    const effectiveLang = resolveSystemPhraseLang(lang);
+    const asset = await tts.synthesizeAsset('retry', RETRY_TEXTS[effectiveLang], effectiveLang, gender);
+    if (!asset) return null;
+    return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs };
 }
 
 
@@ -1617,23 +1626,21 @@ function pickWeightedPhrase(list) {
     return list[list.length - 1];
 }
 
-function thinkingAudioCommand(intent = 'default') {
+async function thinkingAudioCommand(intent = 'default') {
     if (Math.random() >= THINKING_CHANCE) return null;
 
     const list = THINKING_BY_INTENT[intent] || THINKING_BY_INTENT.default;
     const phrase = pickWeightedPhrase(list);
+    // 'thinking_story_1_ru' -> 'story_1' — язык/пол больше не зашиты в имени файла,
+    // их отдаёт вызывающая сторона (см. serverPipelinePatch.js), тут остаётся
+    // только устойчивый ключ варианта фразы внутри интента.
+    const variant = phrase.file.replace(/^thinking_/, '').replace(/_ru$/, '');
 
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
-    const url = `${baseUrl}/audio/${phrase.file}.wav`;
+    const asset = await tts.synthesizeAsset('thinking', phrase.text, 'ru-RU', 'female', { variant });
+    if (!asset) return null;
 
-    let durationMs = 1200;
-
-    try {
-        const bytes = fs.statSync(path.join(DIR_AUDIO, `${phrase.file}.pcm`)).size;
-        durationMs = Math.ceil((bytes / (16000 * 2)) * 1000);
-    } catch (_) {}
-
-    return { url, durationMs };
+    return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs };
 }
 
 function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS }) {
@@ -1681,48 +1688,10 @@ function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING
     };
 }
 
-async function ensureThinking() {
-    const allPhrases = Object.values(THINKING_BY_INTENT).flat();
-
-    for (const phrase of allPhrases) {
-        const pcmPath = path.join(DIR_AUDIO, `${phrase.file}.pcm`);
-
-        if (fs.existsSync(pcmPath)) {
-            logger.info(`[Thinking] Using cached ${phrase.file}.pcm`);
-            continue;
-        }
-
-        try {
-            logger.info(`[Thinking] Generating ${phrase.file}.pcm...`);
-            await tts.synthesize(phrase.text, pcmPath, 'ru-RU');
-            logger.info(`[Thinking] ${phrase.file}.pcm ready`);
-        } catch (err) {
-            logger.error(`[Thinking] Failed to generate ${phrase.file}: ${err.message}`);
-        }
-    }
-}
-
-function thinkingKeepFiles() {
-    return Object.values(THINKING_BY_INTENT)
-        .flat()
-        .flatMap(phrase => [`${phrase.file}.pcm`, `${phrase.file}.wav`]);
-}
-
-async function ensureGreeting() {
-    if (fs.existsSync(GREETING_FILE)) {
-        logger.info('[Greeting] Using cached greeting_ru.pcm');
-        return;
-    }
-    try {
-        logger.info('[Greeting] Generating greeting_ru.pcm...');
-        await tts.synthesize(GREETING_TEXT, GREETING_FILE, 'ru-RU');
-        logger.info('[Greeting] greeting_ru.pcm ready');
-    } catch (err) {
-        logger.error(`[Greeting] Failed to generate: ${err.message}`);
-    }
-}
-
 // ── Start ─────────────────────────────────────────────────────────────────────
+// Greeting/retry/thinking больше не прогреваются заранее при старте — сервер
+// поднимается мгновенно, а каждый ассет генерируется лениво через
+// tts.synthesizeAsset() при первом реальном обращении под конкретные язык/пол.
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
     logger.info(`Lunara TOY server listening on port ${PORT}`);
@@ -1734,14 +1703,8 @@ server.listen(PORT, async () => {
         tts,
         logger,
     });
-    cleaner.start(DIR_AUDIO, 10 * 60 * 1000, [
-        'greeting_ru.pcm',
-        'greeting_ru.wav',
-        'retry_ru.pcm',
-        'retry_ru.wav',
-        ...thinkingKeepFiles(),
-    ]); // clean /audio/ every 10 min, keep greeting + retry + thinking phrases
-    await ensureGreeting();
-    await ensureRetry();
-    await ensureThinking();
+    // cleaner.js удаляет только файлы response_*.pcm/.wav (см. TRANSIENT_AUDIO_RE) —
+    // именованные ассеты greeting/retry/thinking под этот паттерн не попадают
+    // в принципе, отдельный keep-list им не требуется.
+    cleaner.start(DIR_AUDIO, 10 * 60 * 1000);
 });
