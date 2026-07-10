@@ -261,12 +261,12 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
 
     // Language instruction
     const langMap = {
-        'ru-RU': 'ОБЯЗАТЕЛЬНО отвечай ТОЛЬКО на русском языке. Никакого другого языка.',
-        'ro-RO': 'OBLIGATORIU răspunde NUMAI în limba română. Nicio altă limbă.',
-        'en-US': 'MANDATORY reply ONLY in English. No other language whatsoever.',
-        'es-ES': 'OBLIGATORIO responde SOLO en español. Ningún otro idioma.',
-        'fr-FR': 'OBLIGATOIRE réponds UNIQUEMENT en français. Aucune autre langue.',
-        'it-IT': 'OBBLIGATORIO rispondi SOLO in italiano. Nessun\'altra lingua.',
+        'ru-RU': 'ОБЯЗАТЕЛЬНО отвечай ТОЛЬКО на русском языке. Никакого другого языка. Даже если ребёнок говорит на другом языке — не переключайся, отвечай по-русски, а если не понял — вежливо попроси его говорить по-русски.',
+        'ro-RO': 'OBLIGATORIU răspunde NUMAI în limba română. Nicio altă limbă. Chiar dacă copilul vorbește altă limbă, nu comuta — răspunde tot în română, iar dacă nu înțelegi, roagă-l politicos să vorbească în română.',
+        'en-US': 'MANDATORY reply ONLY in English. No other language whatsoever. Even if the child speaks another language, do not switch — keep replying in English, and if you do not understand, politely ask them to speak in English.',
+        'es-ES': 'OBLIGATORIO responde SOLO en español. Ningún otro idioma. Aunque el niño hable en otro idioma, no cambies — sigue respondiendo en español, y si no entiendes, pídele amablemente que hable en español.',
+        'fr-FR': 'OBLIGATOIRE réponds UNIQUEMENT en français. Aucune autre langue. Même si l\'enfant parle une autre langue, ne change pas — continue de répondre en français, et si tu ne comprends pas, demande-lui poliment de parler en français.',
+        'it-IT': 'OBBLIGATORIO rispondi SOLO in italiano. Nessun\'altra lingua. Anche se il bambino parla un\'altra lingua, non cambiare — continua a rispondere in italiano, e se non capisci, chiedigli gentilmente di parlare in italiano.',
     };
     // 'auto' = ESP32 mode: detect language from child's message and reply in same language
     const langInstruction = (lang && lang !== 'auto')
