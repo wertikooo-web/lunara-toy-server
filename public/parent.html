@@ -732,7 +732,6 @@ const UI_TEXT = {
     toyGenderFemale: 'Женский',
     toyGenderMale: 'Мужской',
     voiceIdLabel: 'Голос',
-    voiceAuto: 'Автоматически (по полу)',
     language: 'Язык',
     langRu: 'Русский',
     langRo: 'Румынский',
@@ -1018,7 +1017,6 @@ const UI_TEXT = {
     toyGenderFemale: 'Feminin',
     toyGenderMale: 'Masculin',
     voiceIdLabel: 'Voce',
-    voiceAuto: 'Automat (dupa gen)',
     language: 'Limba',
     langRu: 'Rusa',
     langRo: 'Romana',
@@ -1304,7 +1302,6 @@ const UI_TEXT = {
     toyGenderFemale: 'Female',
     toyGenderMale: 'Male',
     voiceIdLabel: 'Voice',
-    voiceAuto: 'Automatic (by gender)',
     language: 'Language',
     langRu: 'Russian',
     langRo: 'Romanian',
@@ -1680,6 +1677,19 @@ function buildPreviewPhrase() {
   return formatText(t.previewPhrase, { child, toy });
 }
 
+// "Автоматически (по полу)" — подпись голоса ИГРУШКИ, должна следовать за языком
+// игрушки (#language), а не за языком консоли админ-панели (UI_TEXT/consoleLanguage —
+// это другое поле, переводить всю панель на ES/FR/IT — отдельная, намного большая
+// задача). Держим отдельно от UI_TEXT именно поэтому.
+const VOICE_AUTO_LABELS = {
+  'ru-RU': 'Автоматически (по полу)',
+  'ro-RO': 'Automat (dupa gen)',
+  'en-US': 'Automatic (by gender)',
+  'es-ES': 'Automático (según el género)',
+  'fr-FR': 'Automatique (selon le genre)',
+  'it-IT': 'Automatico (in base al genere)',
+};
+
 // Подтягивает список голосов провайдера под текущий язык (GET /api/parent/voices) и
 // перерисовывает <select id="voice_id">, сохраняя текущий выбор, если он всё ещё валиден.
 async function refreshVoiceOptions() {
@@ -1687,12 +1697,11 @@ async function refreshVoiceOptions() {
   if (!select) return;
   const lang = getToyLanguage();
   const currentValue = select.value;
-  const langKey = normalizeLanguageKey(lang);
-  const t = UI_TEXT[langKey] || UI_TEXT['ru-RU'];
+  const autoLabel = VOICE_AUTO_LABELS[lang] || VOICE_AUTO_LABELS['en-US'];
   try {
     const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang));
     const voices = data.voices || [];
-    select.innerHTML = '<option value="">' + escapeHtml(t.voiceAuto) + '</option>'
+    select.innerHTML = '<option value="">' + escapeHtml(autoLabel) + '</option>'
       + voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
     if (voices.some(v => v.id === currentValue)) select.value = currentValue;
   } catch (err) {
@@ -2062,8 +2071,9 @@ function applyConsoleLocale(lang) {
   const toyGenderOptions = document.querySelectorAll('#toy_gender option');
   [t.toyGenderFemale, t.toyGenderMale].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
   setText('#voiceIdLabel', t.voiceIdLabel);
-  const voiceAutoOption = document.querySelector('#voice_id option[value=""]');
-  if (voiceAutoOption) voiceAutoOption.textContent = t.voiceAuto;
+  // "Автоматически (по полу)" — подпись голоса ИГРУШКИ (см. VOICE_AUTO_LABELS/
+  // refreshVoiceOptions), не консоли админки. Не перезаписываем её тут языком консоли —
+  // иначе переключение языка панели затирает правильную toy-language подпись обратно.
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
