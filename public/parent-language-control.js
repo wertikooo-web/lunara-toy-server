@@ -6,6 +6,9 @@
   function autoOptionText(consoleLang) {
     if (consoleLang === 'ro-RO') return 'AUTO — răspunde în limba copilului';
     if (consoleLang === 'en-US') return "AUTO — reply in the child's language";
+    if (consoleLang === 'es-ES') return 'AUTO — responder en el idioma del niño';
+    if (consoleLang === 'fr-FR') return "AUTO — répondre dans la langue de l'enfant";
+    if (consoleLang === 'it-IT') return 'AUTO — rispondi nella lingua del bambino';
     return 'AUTO — отвечать на языке ребёнка';
   }
 
@@ -17,6 +20,18 @@
     if (consoleLang === 'en-US') return {
       label: 'If the language is unclear',
       help: 'Used at the start of a conversation and for short ambiguous words.',
+    };
+    if (consoleLang === 'es-ES') return {
+      label: 'Si el idioma no está claro',
+      help: 'Se usa al principio de la conversación y para palabras cortas ambiguas.',
+    };
+    if (consoleLang === 'fr-FR') return {
+      label: "Si la langue n'est pas claire",
+      help: "Utilisé au début de la conversation et pour les mots courts ambigus.",
+    };
+    if (consoleLang === 'it-IT') return {
+      label: 'Se la lingua non è chiara',
+      help: "Usato all'inizio della conversazione e per parole brevi ambigue.",
     };
     return {
       label: 'Если язык не определён',
@@ -40,6 +55,18 @@
     if (consoleLang === 'en-US') return {
       save: 'Save child data',
       clear: 'Clear child data',
+    };
+    if (consoleLang === 'es-ES') return {
+      save: 'Guardar datos del niño',
+      clear: 'Borrar datos del niño',
+    };
+    if (consoleLang === 'fr-FR') return {
+      save: "Enregistrer les données de l'enfant",
+      clear: "Effacer les données de l'enfant",
+    };
+    if (consoleLang === 'it-IT') return {
+      save: 'Salva dati del bambino',
+      clear: 'Cancella dati del bambino',
     };
     return {
       save: 'Сохранить данные ребёнка',
@@ -113,15 +140,10 @@
       const chosen = languageSelect.value === 'auto'
         ? document.getElementById('auto_language_fallback')?.value || 'ru-RU'
         : languageSelect.value;
-      // Текст самой панели (UI_TEXT) переведён только для ru/ro/en — applyConsoleLocale
-      // для чего угодно другого (es/fr/it, 'auto') молча откатывает весь текст на
-      // русский и запоминает это как язык консоли. Для остальных случаев — только
-      // пересчёт подсветки верхних кнопок под фактический язык игрушки.
-      if (['ru-RU', 'ro-RO', 'en-US'].includes(languageSelect.value) && typeof window.applyConsoleLocale === 'function') {
-        window.applyConsoleLocale(languageSelect.value);
-      } else if (typeof window.setConsoleLanguageButtons === 'function') {
-        window.setConsoleLanguageButtons();
-      }
+      // UI_TEXT переведён на все 6 языков игрушки — applyConsoleLocale можно звать всегда.
+      // 'chosen' уже резолвлен: сам язык, либо (если выбран 'auto') язык фолбэка —
+      // 'auto' сам по себе не язык, UI_TEXT['auto'] не существует.
+      if (typeof window.applyConsoleLocale === 'function') window.applyConsoleLocale(chosen);
       if (typeof window.refreshVoiceOptions === 'function') window.refreshVoiceOptions();
       if (typeof window.applyLanguageTopicDefaults === 'function') window.applyLanguageTopicDefaults(chosen);
       if (typeof window.updateUnsavedIndicator === 'function') window.updateUnsavedIndicator();
