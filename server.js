@@ -111,6 +111,7 @@ app.use(express.json());
 
 const parentSessions = new Map();
 const revokedParentTokens = new Set();
+const deviceSockets = new Map();
 const PARENT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const PARENT_TOKEN_SECRET = process.env.PARENT_TOKEN_SECRET || process.env.OPENAI_API_KEY || 'lunara-parent-demo-secret';
 
@@ -177,6 +178,27 @@ function requireParent(req, res) {
     return session;
 }
 
+function clampVolumeLevel(value) {
+    const level = Number(value);
+    return Number.isFinite(level) ? Math.max(2, Math.min(10, Math.round(level))) : 7;
+}
+
+function sendDeviceCommand(deviceId, payload) {
+    const id = memory.normalizeDeviceId(deviceId);
+    const ws = deviceSockets.get(id);
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(payload));
+    return true;
+}
+
+function sendVolumeToDevice(deviceId, volumeLevel) {
+    const id = memory.normalizeDeviceId(deviceId);
+    const level = clampVolumeLevel(volumeLevel);
+    const sent = sendDeviceCommand(id, { type: 'set_volume', volumeLevel: level });
+    if (sent) logger.info(`[Volume] sent set_volume level=${level} device_id=${id}`);
+    return sent;
+}
+
 app.post('/api/parent/login', async (req, res) => {
     try {
         const deviceId = req.body?.device_id || 'lumi_001';
@@ -227,10 +249,52 @@ app.post('/api/parent/settings', async (req, res) => {
     if (!session) return;
     try {
         const settings = await parentConfig.updateSettings(session.device_id, req.body || {});
+        const volumeLevel = clampVolumeLevel(settings.volume_level);
+        logger.info(`[Volume] saved level=${volumeLevel} source=parent_panel device_id=${session.device_id}`);
+        sendVolumeToDevice(session.device_id, volumeLevel);
         clearDemoSession(session.device_id);
         res.json({ ok: true, settings, session_reset: true });
     } catch (err) {
         logger.error(`[Parent] settings error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/volume-test', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const settings = await parentConfig.getSettings(session.device_id);
+        const volumeLevel = clampVolumeLevel(req.body?.volume_level ?? settings.volume_level);
+        const sentVolume = sendVolumeToDevice(session.device_id, volumeLevel);
+        if (!sentVolume) {
+            return res.status(409).json({ ok: false, online: false, error: 'device is offline' });
+        }
+
+        const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+        const lang = 'ru-RU';
+        const gender = settings.toyGender || settings.toy_gender;
+        const text = 'Вот так я сейчас говорю. Хорошо слышно?';
+        const asset = await tts.synthesizeAsset('volume_test', text, lang, gender, { voiceConfig: buildVoiceConfig(settings) });
+        if (!asset) throw new Error('volume test audio is unavailable');
+
+        const audioUrl = `${baseUrl}/audio/${path.basename(asset.wavPath)}`;
+        const sentAudio = sendDeviceCommand(session.device_id, {
+            type: 'audio',
+            url: audioUrl,
+            duration_ms: asset.durationMs,
+            sample_rate: 16000,
+            channels: 1,
+            bits: 16,
+        });
+        if (!sentAudio) {
+            return res.status(409).json({ ok: false, online: false, error: 'device is offline' });
+        }
+
+        logger.info(`[Volume] test_play level=${volumeLevel} device_id=${session.device_id}`);
+        res.json({ ok: true, online: true, volume_level: volumeLevel, audio_url: audioUrl, duration_ms: asset.durationMs });
+    } catch (err) {
+        logger.error(`[Volume] test error: ${err.message}`);
         res.status(500).json({ error: err.message });
     }
 });
@@ -872,6 +936,7 @@ wss.on('connection', (ws, req) => {
     const url = new URL(req.url || '/', 'http://localhost');
     const deviceId = memory.normalizeDeviceId(url.searchParams.get('device_id'));
     logger.info(`[WS] ESP32 connected from ${clientIp} device_id=${deviceId}`);
+    deviceSockets.set(deviceId, ws);
     parentConfig.touchDevice(deviceId).catch(err => logger.warn(`[Parent] touch failed: ${err.message}`));
 
     // Per-connection state
@@ -939,6 +1004,10 @@ wss.on('connection', (ws, req) => {
     (async () => {
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
+        const volumeLevel = clampVolumeLevel(settings.volume_level);
+        if (sendVolumeToDevice(deviceId, volumeLevel)) {
+            logger.info(`[Volume] synced_on_connect level=${volumeLevel} device_id=${deviceId}`);
+        }
         const lang = resolveSystemPhraseLang(settings.language);
         const gender = settings.toyGender || settings.toy_gender;
         const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender, { voiceConfig: buildVoiceConfig(settings) });
@@ -1046,6 +1115,7 @@ wss.on('connection', (ws, req) => {
 
     ws.on('close', () => {
         clearInterval(heartbeatInterval);
+        if (deviceSockets.get(deviceId) === ws) deviceSockets.delete(deviceId);
         llm.resetHistory(ws);
         logger.info('[WS] ESP32 disconnected');
     });

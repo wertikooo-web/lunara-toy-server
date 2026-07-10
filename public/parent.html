@@ -78,6 +78,9 @@
     .grid-full { grid-column: 1 / -1; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
+    .range-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 10px; align-items: center; }
+    .range-row input { margin: 0; }
+    .range-row span { color: #f7f3ff; font-weight: 700; text-align: center; }
     .small { color: #a999d6; font-size: 12px; line-height: 1.35; }
     .checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
     .checks label { display: flex; gap: 8px; align-items: center; margin: 0; color: #f7f3ff; }
@@ -410,6 +413,15 @@
             <option value="normal">Нормально</option>
             <option value="fast">Быстро</option>
           </select>
+        </div>
+        <div class="advanced-field">
+          <label id="volumeLevelLabel">Громкость игрушки</label>
+          <div class="range-row">
+            <input id="volume_level" type="range" min="2" max="10" step="1" value="7" oninput="updateVolumeLevelLabel()">
+            <span id="volumeLevelValue">7</span>
+          </div>
+          <button id="volumeTestButton" class="secondary" type="button" onclick="testLumiVolume()">Проверить громкость</button>
+          <div id="volumeTestStatus" class="status"></div>
         </div>
       </div>
       <div class="advanced-field">
@@ -774,6 +786,8 @@ const UI_TEXT = {
     voiceSlow: 'Медленно',
     voiceNormal: 'Нормально',
     voiceFast: 'Быстро',
+    volumeLevel: 'Громкость игрушки',
+    volumeListen: 'Проверить громкость',
     customPersonality: 'Свободное описание характера',
     customPersonalityPlaceholder: 'Например: мягкая, немного смешная, любит космос и спокойные истории. (Ваш выбор не влияет на правила безопасности.)',
     runtime: 'Время работы',
@@ -1054,6 +1068,8 @@ const UI_TEXT = {
     voiceSlow: 'Incet',
     voiceNormal: 'Normal',
     voiceFast: 'Repede',
+    volumeLevel: 'Volumul jucariei',
+    volumeListen: 'Asculta',
     customPersonality: 'Descriere libera a caracterului',
     customPersonalityPlaceholder: 'De exemplu: blanda, putin amuzanta, iubeste spatiul si povestile calme. (Alegerea dvs. nu modifica regulile de siguranta.)',
     runtime: 'Timp de functionare',
@@ -1334,6 +1350,8 @@ const UI_TEXT = {
     voiceSlow: 'Slow',
     voiceNormal: 'Normal',
     voiceFast: 'Fast',
+    volumeLevel: 'Toy volume',
+    volumeListen: 'Listen',
     customPersonality: 'Free personality notes',
     customPersonalityPlaceholder: 'For example: gentle, a little funny, loves space and calm stories. (Your choice does not affect safety rules.)',
     runtime: 'Runtime',
@@ -1512,6 +1530,10 @@ const STATUS_TEXT = {
     previewLoading: 'Готовлю пример голоса...',
     previewPlaying: 'Пример голоса воспроизводится.',
     previewError: 'Не удалось воспроизвести пример голоса.',
+    volumeTestLoading: 'Проверяю громкость...',
+    volumeTestPlaying: 'Проверка громкости отправлена игрушке.',
+    volumeTestOffline: 'Игрушка сейчас не в сети.',
+    volumeTestError: 'Не удалось проверить громкость.',
   },
   'ro-RO': {
     loggingIn: 'Intram...',
@@ -1542,6 +1564,10 @@ const STATUS_TEXT = {
     previewLoading: 'Pregatesc exemplul de voce...',
     previewPlaying: 'Exemplul de voce este redat.',
     previewError: 'Nu am putut reda exemplul de voce.',
+    volumeTestLoading: 'Verific volumul...',
+    volumeTestPlaying: 'Testul de volum a fost trimis jucariei.',
+    volumeTestOffline: 'Jucaria nu este online acum.',
+    volumeTestError: 'Nu am putut verifica volumul.',
   },
   'en-US': {
     loggingIn: 'Logging in...',
@@ -1572,6 +1598,10 @@ const STATUS_TEXT = {
     previewLoading: 'Preparing voice preview...',
     previewPlaying: 'Voice preview is playing.',
     previewError: 'Could not play the voice preview.',
+    volumeTestLoading: 'Checking volume...',
+    volumeTestPlaying: 'Volume test sent to the toy.',
+    volumeTestOffline: 'The toy is offline right now.',
+    volumeTestError: 'Could not test volume.',
   },
 };
 
@@ -1662,6 +1692,28 @@ async function previewLumiVoice() {
   }
 }
 
+async function testLumiVolume() {
+  const status = document.getElementById('volumeTestStatus');
+  const button = document.getElementById('volumeTestButton');
+  const level = Math.max(2, Math.min(10, Math.round(Number(document.getElementById('volume_level')?.value || 7))));
+  if (button) button.disabled = true;
+  updateVolumeLevelLabel();
+  setStatus(status, 'volumeTestLoading');
+
+  try {
+    await api('/api/parent/volume-test', {
+      method: 'POST',
+      body: JSON.stringify({ volume_level: level }),
+    });
+    setStatus(status, 'volumeTestPlaying');
+  } catch (err) {
+    console.warn('[Parent] volume test failed', err);
+    setStatus(status, err.status === 409 ? 'volumeTestOffline' : 'volumeTestError', {}, true);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function setConsoleLanguageButtons(lang) {
   document.getElementById('langRu').classList.toggle('active', lang === 'ru-RU');
   document.getElementById('langRo').classList.toggle('active', lang === 'ro-RO');
@@ -1742,6 +1794,14 @@ function clearStatus(idOrEl) {
   delete el.dataset.statusParams;
   el.textContent = '';
   el.className = 'status';
+}
+
+function updateVolumeLevelLabel() {
+  const input = document.getElementById('volume_level');
+  const value = document.getElementById('volumeLevelValue');
+  const level = Math.max(2, Math.min(10, Math.round(Number(input?.value || 7))));
+  if (input) input.value = String(level);
+  if (value) value.textContent = String(level);
 }
 
 function relocalizeStatusMessages() {
@@ -1968,7 +2028,7 @@ function applyConsoleLocale(lang) {
   setText('#childPanel .row-actions button:nth-of-type(2)', t.saveChild);
   setText('#childPanel .row-actions button:nth-of-type(3)', t.clearChild);
 
-  const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
+  const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.volumeLevel, t.customPersonality];
   setText('#characterPanel h2', t.characterVoice);
   document.querySelectorAll('#characterPanel > .grid > div > label, #characterPanel > label, #characterPanel > .advanced-field > label')
     .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
@@ -1979,6 +2039,8 @@ function applyConsoleLocale(lang) {
     if (input) el.prepend(input);
   });
   setText('#previewVoiceButton', t.listenLumi);
+  setText('#volumeLevelLabel', t.volumeLevel);
+  setText('#volumeTestButton', t.volumeListen);
   const addressOptions = document.querySelectorAll('#child_address_mode option');
   [t.addressVaried, t.addressByName].forEach((label, i) => { if (addressOptions[i]) addressOptions[i].textContent = label; });
   const answerOptions = document.querySelectorAll('#answer_length option');
@@ -2586,13 +2648,15 @@ async function loadState() {
   [
     'toy_name', 'toy_gender', 'language', 'model_mode',
     'child_gender', 'age_mode', 'answer_length', 'humor_level', 'activity_level', 'question_frequency',
-    'voice_speed', 'story_length', 'custom_personality', 'child_address_mode',
+    'voice_speed', 'volume_level', 'story_length', 'custom_personality', 'child_address_mode',
     'daily_limit_minutes', 'break_reminder_minutes', 'evening_calm_start', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
   await refreshVoiceOptions();
   setValue('voice_id', s.voice || '');
   setValue('child_gender', s.child_gender || s.childGender || 'M');
+  setValue('volume_level', s.volume_level || s.volumeLevel || 7);
+  updateVolumeLevelLabel();
   setToyTypeValue(s.toy_type);
   setCheckedValues('personalityChecks', String(s.personality_preset || 'gentle').split(',').map(value => value.trim()).filter(Boolean));
   setRadioValue('child_address_tone', s.child_address_tone || 'warm', 'warm');
@@ -2681,6 +2745,7 @@ async function saveSettings() {
         activity_level: document.getElementById('activity_level').value,
         question_frequency: document.getElementById('question_frequency').value,
         voice_speed: document.getElementById('voice_speed').value,
+        volume_level: document.getElementById('volume_level').value,
         story_length: document.getElementById('story_length').value,
         custom_toy_type: '',
         custom_personality: document.getElementById('custom_personality').value,

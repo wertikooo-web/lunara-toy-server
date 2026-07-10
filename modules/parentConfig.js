@@ -68,6 +68,7 @@ const DEFAULT_SETTINGS = {
     question_frequency: 'sometimes',
     voice: '',
     voice_speed: 'normal',
+    volume_level: 7,
     story_length: '5',
     custom_toy_type: '',
     custom_personality: '',
@@ -134,6 +135,11 @@ function normalizeRestSchedule(value) {
         if (result.length >= 16) break;
     }
     return result;
+}
+
+function normalizeVolumeLevel(value) {
+    const level = Number(value);
+    return Number.isFinite(level) ? Math.max(2, Math.min(10, Math.round(level))) : DEFAULT_SETTINGS.volume_level;
 }
 
 function normalizeSettingsPatch(raw = {}) {
@@ -204,6 +210,9 @@ function normalizeSettingsPatch(raw = {}) {
     if ('voice_speed' in raw) {
         const value = safeText(raw.voice_speed, 16);
         patch.voice_speed = ['slow', 'normal', 'fast'].includes(value) ? value : DEFAULT_SETTINGS.voice_speed;
+    }
+    if ('volume_level' in raw || 'volumeLevel' in raw) {
+        patch.volume_level = normalizeVolumeLevel(raw.volume_level ?? raw.volumeLevel);
     }
     if ('story_length' in raw) {
         const value = safeText(raw.story_length, 4);
@@ -277,6 +286,7 @@ async function init() {
             question_frequency TEXT NOT NULL DEFAULT 'sometimes',
             voice TEXT NOT NULL DEFAULT 'zara',
             voice_speed TEXT NOT NULL DEFAULT 'normal',
+            volume_level INTEGER NOT NULL DEFAULT 7,
             story_length TEXT NOT NULL DEFAULT '5',
             custom_toy_type TEXT NOT NULL DEFAULT '',
             custom_personality TEXT NOT NULL DEFAULT '',
@@ -313,6 +323,7 @@ async function init() {
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_enabled BOOLEAN NOT NULL DEFAULT false");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_start TEXT NOT NULL DEFAULT '22:00'");
     await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'");
+    await pool.query("ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS volume_level INTEGER NOT NULL DEFAULT 7");
     await pool.query("UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'");
     await pool.query(`
         CREATE TABLE IF NOT EXISTS parent_config_profiles (
@@ -454,6 +465,8 @@ function normalizeSettingsRow(row = {}) {
     settings.toy_gender = TOY_GENDERS.includes(settings.toy_gender) ? settings.toy_gender : DEFAULT_SETTINGS.toy_gender;
     settings.childGender = settings.child_gender;
     settings.toyGender = settings.toy_gender;
+    settings.volume_level = normalizeVolumeLevel(settings.volume_level);
+    settings.volumeLevel = settings.volume_level;
     if (!['ru-RU', 'ro-RO', 'en-US'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
     settings.memory_enabled = settings.memory_enabled !== false;
     return settings;
@@ -977,10 +990,11 @@ async function resetToDefaults(deviceId) {
              quiet_hours_start = $27,
              quiet_hours_end = $28,
              content_enabled = $29::jsonb,
-             allowed_topics = $30::jsonb,
-             blocked_topics = $31::jsonb,
-             memory_enabled = $32,
-             updated_at = now()
+              allowed_topics = $30::jsonb,
+              blocked_topics = $31::jsonb,
+              memory_enabled = $32,
+              volume_level = $33,
+              updated_at = now()
          WHERE device_id = $1`,
         [
             id,
@@ -1015,6 +1029,7 @@ async function resetToDefaults(deviceId) {
             JSON.stringify(DEFAULT_SETTINGS.allowed_topics),
             JSON.stringify(DEFAULT_SETTINGS.blocked_topics),
             DEFAULT_SETTINGS.memory_enabled,
+            DEFAULT_SETTINGS.volume_level,
         ]
     );
     await pool.query('DELETE FROM child_profiles WHERE device_id = $1', [id]);
