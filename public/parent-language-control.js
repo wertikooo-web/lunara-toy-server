@@ -105,11 +105,18 @@
       languageSelect.closest('div')?.insertAdjacentElement('afterend', wrap);
     }
 
+    // .onchange = ... тут ПОЛНОСТЬЮ заменяет inline onchange="setLanguageFromMain()" из
+    // HTML — после первого loadState() смена языка внизу переставала обновлять голос
+    // (#voice_id оставался со старого языка) и консольную локаль. Явно вызываем оба.
     languageSelect.onchange = () => {
       toggleFallback();
       const chosen = languageSelect.value === 'auto'
         ? document.getElementById('auto_language_fallback')?.value || 'ru-RU'
         : languageSelect.value;
+      if (languageSelect.value !== 'auto' && typeof window.applyConsoleLocale === 'function') {
+        window.applyConsoleLocale(languageSelect.value);
+      }
+      if (typeof window.refreshVoiceOptions === 'function') window.refreshVoiceOptions();
       if (typeof window.applyLanguageTopicDefaults === 'function') window.applyLanguageTopicDefaults(chosen);
       if (typeof window.updateUnsavedIndicator === 'function') window.updateUnsavedIndicator();
     };
