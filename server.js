@@ -1033,10 +1033,15 @@ function bareVoiceId(voice) {
 }
 
 function buildVoiceConfig(settings) {
-    if (!settings?.voice) return null;
+    const gender = settings?.toyGender || settings?.toy_gender;
+    // gender собираем ВСЕГДА (даже без явного voice/при нерезолвящемся id) — иначе
+    // toyGender молча терялся: synthesizeReply() не прокидывает его отдельным options
+    // полем, а tts.js берёт gender только из voiceConfig.gender, и без него откатывался
+    // на дефолтную женщину, полностью игнорируя настройку "Пол" в панели.
+    if (!settings?.voice) return gender ? { gender } : null;
     const voice = parentConfig.getVoiceById(settings.voice);
-    if (!voice) return null;
-    return { id: bareVoiceId(voice), provider: voice.provider, gender: settings.toyGender || settings.toy_gender };
+    if (!voice) return gender ? { gender } : null;
+    return { id: bareVoiceId(voice), provider: voice.provider, gender };
 }
 
 async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal', voiceConfig = null) {
