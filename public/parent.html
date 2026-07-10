@@ -165,6 +165,10 @@
     .runtime-card .inline-check { margin: 0 0 12px; color: #f7f3ff; }
     .runtime-fields { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .runtime-fields label { margin-top: 0; }
+    .toy-voice-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+    .toy-voice-row button { margin: 0; white-space: nowrap; }
+    .toy-volume-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+    .toy-volume-row button { margin: 0; white-space: nowrap; }
     .rest-schedule-card { grid-column: 1 / -1; min-height: auto; }
     .rest-schedule-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 10px; align-items: end; margin-top: 10px; }
     .rest-schedule-row label { margin: 0 0 5px; }
@@ -328,11 +332,26 @@
             <option value="it-IT">Italiano</option>
           </select>
         </div>
-        <div>
+        <div class="toy-voice-row grid-full">
+          <div>
           <label id="voiceIdLabel">Голос</label>
           <select id="voice_id"></select>
+          </div>
+          <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">Прослушать голос</button>
+        </div>
+        <div class="toy-volume-row grid-full">
+          <div>
+            <label id="volumeLevelLabel">Громкость голоса</label>
+            <div class="range-row">
+              <input id="volume_level" type="range" min="2" max="10" step="1" value="7" oninput="updateVolumeLevelLabel()">
+              <span id="volumeLevelValue">7</span>
+            </div>
+          </div>
+          <button id="volumeTestButton" class="secondary" type="button" onclick="testLumiVolume()">Послушать</button>
         </div>
       </div>
+      <div id="previewVoiceStatus" class="status"></div>
+      <div id="volumeTestStatus" class="status"></div>
     </section>
 
     <section id="childPanel">
@@ -395,7 +414,7 @@
     </section>
 
     <section id="characterPanel">
-      <h2>Характер и голос</h2>
+      <h2>Характер и стиль</h2>
       <div class="grid">
         <div>
           <label>Характер</label>
@@ -472,19 +491,6 @@
             <option value="normal">Нормально</option>
             <option value="fast">Быстро</option>
           </select>
-        </div>
-        <div class="advanced-field">
-          <label id="volumeLevelLabel">Громкость игрушки</label>
-          <div class="range-row">
-            <input id="volume_level" type="range" min="2" max="10" step="1" value="7" oninput="updateVolumeLevelLabel()">
-            <span id="volumeLevelValue">7</span>
-          </div>
-          <div class="row-actions volume-preview-row">
-            <button id="volumeTestButton" class="secondary" type="button" onclick="testLumiVolume()">Проверить громкость</button>
-            <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">▶ Послушать голос</button>
-          </div>
-          <div id="volumeTestStatus" class="status"></div>
-          <div id="previewVoiceStatus" class="status"></div>
         </div>
       </div>
       <div class="advanced-field">
@@ -867,7 +873,7 @@ const UI_TEXT = {
     editChild: 'Редактировать',
     saveChild: 'Сохранить данные ребёнка',
     clearChild: 'Очистить данные',
-    characterVoice: 'Характер и голос',
+    characterVoice: 'Характер и стиль',
     character: 'Образ Lumi',
     gentle: 'Добрый друг',
     playful: 'Весёлый исследователь',
@@ -875,7 +881,7 @@ const UI_TEXT = {
     curious: 'Любознательная',
     fairy: 'Сказочная',
     teacher: 'Помощник в обучении',
-    listenLumi: '▶ Послушать голос',
+    listenLumi: 'Прослушать голос',
     previewChildFallback: 'дружок',
     previewPhrase: 'Привет, {child}! Я {toy}. Хочешь сегодня придумать маленькое приключение?',
     addressMode: 'Как обращаться к ребёнку',
@@ -912,8 +918,8 @@ const UI_TEXT = {
     voiceSlow: 'Медленно',
     voiceNormal: 'Нормально',
     voiceFast: 'Быстро',
-    volumeLevel: 'Громкость игрушки',
-    volumeListen: 'Проверить громкость',
+    volumeLevel: 'Громкость голоса',
+    volumeListen: 'Послушать',
     customPersonality: 'Свободное описание характера',
     customPersonalityPlaceholder: 'Например: мягкая, немного смешная, любит космос и спокойные истории. (Ваш выбор не влияет на правила безопасности.)',
     runtime: 'Время работы',
@@ -1168,7 +1174,7 @@ const UI_TEXT = {
     editChild: 'Editeaza',
     saveChild: 'Salveaza datele copilului',
     clearChild: 'Curata datele',
-    characterVoice: 'Caracter si voce',
+    characterVoice: 'Caracter si stil',
     character: 'Imaginea Lumi',
     gentle: 'Prieten bland',
     playful: 'Explorator vesel',
@@ -1176,7 +1182,7 @@ const UI_TEXT = {
     curious: 'Curioasa',
     fairy: 'De basm',
     teacher: 'Ajutor la invatare',
-    listenLumi: '▶ Ascultă vocea',
+    listenLumi: 'Ascultă vocea',
     previewChildFallback: 'prietene',
     previewPhrase: 'Buna, {child}! Eu sunt {toy}. Vrei sa inventam azi o mica aventura?',
     addressMode: 'Cum se adreseaza copilului',
@@ -1213,7 +1219,7 @@ const UI_TEXT = {
     voiceSlow: 'Incet',
     voiceNormal: 'Normal',
     voiceFast: 'Repede',
-    volumeLevel: 'Volumul jucariei',
+    volumeLevel: 'Volumul vocii',
     volumeListen: 'Asculta',
     customPersonality: 'Descriere libera a caracterului',
     customPersonalityPlaceholder: 'De exemplu: blanda, putin amuzanta, iubeste spatiul si povestile calme. (Alegerea dvs. nu modifica regulile de siguranta.)',
@@ -1469,7 +1475,7 @@ const UI_TEXT = {
     editChild: 'Edit',
     saveChild: 'Save child data',
     clearChild: 'Clear data',
-    characterVoice: 'Personality and voice',
+    characterVoice: 'Personality and style',
     character: 'Lumi style',
     gentle: 'Kind friend',
     playful: 'Cheerful explorer',
@@ -1477,7 +1483,7 @@ const UI_TEXT = {
     curious: 'Curious',
     fairy: 'Fairy-tale',
     teacher: 'Learning helper',
-    listenLumi: '▶ Listen to voice',
+    listenLumi: 'Listen to voice',
     previewChildFallback: 'friend',
     previewPhrase: 'Hi, {child}! I am {toy}. Would you like to make up a little adventure today?',
     addressMode: 'How to address the child',
@@ -1514,7 +1520,7 @@ const UI_TEXT = {
     voiceSlow: 'Slow',
     voiceNormal: 'Normal',
     voiceFast: 'Fast',
-    volumeLevel: 'Toy volume',
+    volumeLevel: 'Voice volume',
     volumeListen: 'Listen',
     customPersonality: 'Free personality notes',
     customPersonalityPlaceholder: 'For example: gentle, a little funny, loves space and calm stories. (Your choice does not affect safety rules.)',
@@ -1754,7 +1760,7 @@ const UI_TEXT = {
     editChild: 'Editar',
     saveChild: 'Guardar datos del niño',
     clearChild: 'Borrar datos',
-    characterVoice: 'Personalidad y voz',
+    characterVoice: 'Personalidad y estilo',
     character: 'Estilo de Lumi',
     gentle: 'Amigo bondadoso',
     playful: 'Explorador alegre',
@@ -1762,7 +1768,7 @@ const UI_TEXT = {
     curious: 'Curioso',
     fairy: 'De cuento de hadas',
     teacher: 'Ayudante de aprendizaje',
-    listenLumi: '▶ Escuchar voz',
+    listenLumi: 'Escuchar voz',
     previewChildFallback: 'amiguito',
     previewPhrase: '¡Hola, {child}! Soy {toy}. ¿Quieres que inventemos hoy una pequeña aventura?',
     addressMode: 'Cómo dirigirse al niño',
@@ -1799,7 +1805,7 @@ const UI_TEXT = {
     voiceSlow: 'Lenta',
     voiceNormal: 'Normal',
     voiceFast: 'Rápida',
-    volumeLevel: 'Volumen del juguete',
+    volumeLevel: 'Volumen de voz',
     volumeListen: 'Escuchar',
     customPersonality: 'Notas libres de personalidad',
     customPersonalityPlaceholder: 'Por ejemplo: dulce, un poco graciosa, le encanta el espacio y las historias tranquilas. (Tu elección no afecta a las reglas de seguridad.)',
@@ -2039,7 +2045,7 @@ const UI_TEXT = {
     editChild: 'Modifier',
     saveChild: 'Enregistrer les données de l\'enfant',
     clearChild: 'Effacer les données',
-    characterVoice: 'Personnalité et voix',
+    characterVoice: 'Personnalité et style',
     character: 'Style de Lumi',
     gentle: 'Ami bienveillant',
     playful: 'Explorateur joyeux',
@@ -2047,7 +2053,7 @@ const UI_TEXT = {
     curious: 'Curieux',
     fairy: 'Conte de fées',
     teacher: 'Assistant d\'apprentissage',
-    listenLumi: '▶ Écouter la voix',
+    listenLumi: 'Écouter la voix',
     previewChildFallback: 'mon copain',
     previewPhrase: 'Salut, {child} ! Je suis {toy}. Tu veux qu\'on invente une petite aventure aujourd\'hui ?',
     addressMode: 'Comment s\'adresser à l\'enfant',
@@ -2084,7 +2090,7 @@ const UI_TEXT = {
     voiceSlow: 'Lente',
     voiceNormal: 'Normale',
     voiceFast: 'Rapide',
-    volumeLevel: 'Volume du jouet',
+    volumeLevel: 'Volume de la voix',
     volumeListen: 'Écouter',
     customPersonality: 'Notes de personnalité libres',
     customPersonalityPlaceholder: 'Par exemple : douce, un peu drôle, adore l\'espace et les histoires calmes. (Ton choix n\'affecte pas les règles de sécurité.)',
@@ -2324,7 +2330,7 @@ const UI_TEXT = {
     editChild: 'Modifica',
     saveChild: 'Salva dati del bambino',
     clearChild: 'Cancella dati',
-    characterVoice: 'Personalità e voce',
+    characterVoice: 'Personalità e stile',
     character: 'Stile di Lumi',
     gentle: 'Amico gentile',
     playful: 'Esploratore allegro',
@@ -2332,7 +2338,7 @@ const UI_TEXT = {
     curious: 'Curioso',
     fairy: 'Fiabesco',
     teacher: 'Aiutante per l\'apprendimento',
-    listenLumi: '▶ Ascolta voce',
+    listenLumi: 'Ascolta voce',
     previewChildFallback: 'amichetto',
     previewPhrase: 'Ciao, {child}! Sono {toy}. Vuoi inventare oggi una piccola avventura?',
     addressMode: 'Come rivolgersi al bambino',
@@ -2369,7 +2375,7 @@ const UI_TEXT = {
     voiceSlow: 'Lenta',
     voiceNormal: 'Normale',
     voiceFast: 'Veloce',
-    volumeLevel: 'Volume del giocattolo',
+    volumeLevel: 'Volume della voce',
     volumeListen: 'Ascolta',
     customPersonality: 'Note libere di personalità',
     customPersonalityPlaceholder: 'Per esempio: dolce, un po\' buffa, ama lo spazio e le storie tranquille. (La tua scelta non influisce sulle regole di sicurezza.)',
@@ -3503,7 +3509,7 @@ function applyConsoleLocale(lang) {
   setText('#childDeleteButton', t.deleteChildData);
   setText('#childSaveButton', t.saveChild);
 
-  const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.volumeLevel, t.customPersonality];
+  const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.customPersonality];
   setText('#characterPanel h2', t.characterVoice);
   document.querySelectorAll('#characterPanel > .grid > div > label, #characterPanel > label, #characterPanel > .advanced-field > label')
     .forEach((el, i) => { if (characterLabels[i]) el.textContent = characterLabels[i]; });
