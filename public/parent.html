@@ -92,7 +92,9 @@
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
     #characterPanel > .row-actions { justify-content: space-between; }
     #childPanel > .row-actions { justify-content: space-between; }
+    .volume-preview-row { justify-content: space-between; }
     #quickSaveSettingsButton { display: block; margin-left: auto; margin-right: 0; }
+    #characterSaveButton { margin-left: auto; }
     #childSaveButton,
     #characterSaveButton,
     #saveSettingsButton { margin-right: 0; }
@@ -460,8 +462,12 @@
             <input id="volume_level" type="range" min="2" max="10" step="1" value="7" oninput="updateVolumeLevelLabel()">
             <span id="volumeLevelValue">7</span>
           </div>
-          <button id="volumeTestButton" class="secondary" type="button" onclick="testLumiVolume()">Проверить громкость</button>
+          <div class="row-actions volume-preview-row">
+            <button id="volumeTestButton" class="secondary" type="button" onclick="testLumiVolume()">Проверить громкость</button>
+            <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">▶ Послушать голос</button>
+          </div>
           <div id="volumeTestStatus" class="status"></div>
+          <div id="previewVoiceStatus" class="status"></div>
         </div>
       </div>
       <div class="advanced-field">
@@ -469,10 +475,8 @@
         <textarea id="custom_personality" maxlength="220" placeholder="Например: мягкая, немного смешная, любит космос и спокойные истории. Не влияет на правила безопасности."></textarea>
       </div>
       <div class="row-actions">
-        <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">▶ Послушать Lumi</button>
         <button id="characterSaveButton" type="button" onclick="saveSettings()">Сохранить настройки</button>
       </div>
-      <div id="previewVoiceStatus" class="status"></div>
       <div id="characterSaveStatus" class="status"></div>
     </section>
 
@@ -803,7 +807,7 @@ const UI_TEXT = {
     curious: 'Любознательная',
     fairy: 'Сказочная',
     teacher: 'Помощник в обучении',
-    listenLumi: '▶ Послушать Lumi',
+    listenLumi: '▶ Послушать голос',
     previewChildFallback: 'дружок',
     previewPhrase: 'Привет, {child}! Я {toy}. Хочешь сегодня придумать маленькое приключение?',
     addressMode: 'Как обращаться к ребёнку',
@@ -1088,7 +1092,7 @@ const UI_TEXT = {
     curious: 'Curioasa',
     fairy: 'De basm',
     teacher: 'Ajutor la invatare',
-    listenLumi: '▶ Asculta Lumi',
+    listenLumi: '▶ Ascultă vocea',
     previewChildFallback: 'prietene',
     previewPhrase: 'Buna, {child}! Eu sunt {toy}. Vrei sa inventam azi o mica aventura?',
     addressMode: 'Cum se adreseaza copilului',
@@ -1373,7 +1377,7 @@ const UI_TEXT = {
     curious: 'Curious',
     fairy: 'Fairy-tale',
     teacher: 'Learning helper',
-    listenLumi: '▶ Listen to Lumi',
+    listenLumi: '▶ Listen to voice',
     previewChildFallback: 'friend',
     previewPhrase: 'Hi, {child}! I am {toy}. Would you like to make up a little adventure today?',
     addressMode: 'How to address the child',
@@ -1658,7 +1662,7 @@ const UI_TEXT = {
     curious: 'Curioso',
     fairy: 'De cuento de hadas',
     teacher: 'Ayudante de aprendizaje',
-    listenLumi: '▶ Escuchar a Lumi',
+    listenLumi: '▶ Escuchar voz',
     previewChildFallback: 'amiguito',
     previewPhrase: '¡Hola, {child}! Soy {toy}. ¿Quieres que inventemos hoy una pequeña aventura?',
     addressMode: 'Cómo dirigirse al niño',
@@ -1943,7 +1947,7 @@ const UI_TEXT = {
     curious: 'Curieux',
     fairy: 'Conte de fées',
     teacher: 'Assistant d\'apprentissage',
-    listenLumi: '▶ Écouter Lumi',
+    listenLumi: '▶ Écouter la voix',
     previewChildFallback: 'mon copain',
     previewPhrase: 'Salut, {child} ! Je suis {toy}. Tu veux qu\'on invente une petite aventure aujourd\'hui ?',
     addressMode: 'Comment s\'adresser à l\'enfant',
@@ -2228,7 +2232,7 @@ const UI_TEXT = {
     curious: 'Curioso',
     fairy: 'Fiabesco',
     teacher: 'Aiutante per l\'apprendimento',
-    listenLumi: '▶ Ascolta Lumi',
+    listenLumi: '▶ Ascolta voce',
     previewChildFallback: 'amichetto',
     previewPhrase: 'Ciao, {child}! Sono {toy}. Vuoi inventare oggi una piccola avventura?',
     addressMode: 'Come rivolgersi al bambino',
@@ -2447,7 +2451,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Удаляю всё...',
     everythingDeleted: 'Всё удалено. Игрушка вернулась к исходным настройкам.',
     previewLoading: 'Готовлю пример голоса...',
-    previewPlaying: 'Пример голоса воспроизводится.',
     previewError: 'Не удалось воспроизвести пример голоса.',
     volumeTestLoading: 'Проверяю громкость...',
     volumeTestPlaying: 'Проверка громкости отправлена игрушке.',
@@ -2481,7 +2484,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Se sterge tot...',
     everythingDeleted: 'Totul a fost sters. Jucaria a revenit la setarile initiale.',
     previewLoading: 'Pregatesc exemplul de voce...',
-    previewPlaying: 'Exemplul de voce este redat.',
     previewError: 'Nu am putut reda exemplul de voce.',
     volumeTestLoading: 'Verific volumul...',
     volumeTestPlaying: 'Testul de volum a fost trimis jucariei.',
@@ -2515,7 +2517,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Deleting everything...',
     everythingDeleted: 'Everything deleted. The toy returned to default settings.',
     previewLoading: 'Preparing voice preview...',
-    previewPlaying: 'Voice preview is playing.',
     previewError: 'Could not play the voice preview.',
     volumeTestLoading: 'Checking volume...',
     volumeTestPlaying: 'Volume test sent to the toy.',
@@ -2549,7 +2550,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Eliminando todo...',
     everythingDeleted: 'Todo eliminado. El juguete volvió a los ajustes originales.',
     previewLoading: 'Preparando ejemplo de voz...',
-    previewPlaying: 'Reproduciendo ejemplo de voz.',
     previewError: 'No se pudo reproducir el ejemplo de voz.',
     volumeTestLoading: 'Comprobando volumen...',
     volumeTestPlaying: 'Prueba de volumen enviada al juguete.',
@@ -2583,7 +2583,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Suppression de tout...',
     everythingDeleted: 'Tout a été supprimé. Le jouet est revenu aux réglages d\'origine.',
     previewLoading: 'Préparation de l\'exemple de voix...',
-    previewPlaying: 'L\'exemple de voix est en cours de lecture.',
     previewError: 'Impossible de lire l\'exemple de voix.',
     volumeTestLoading: 'Vérification du volume...',
     volumeTestPlaying: 'Test de volume envoyé au jouet.',
@@ -2617,7 +2616,6 @@ const STATUS_TEXT = {
     deletingEverything: 'Eliminazione di tutto...',
     everythingDeleted: 'Tutto eliminato. Il giocattolo è tornato alle impostazioni originali.',
     previewLoading: 'Preparazione esempio vocale...',
-    previewPlaying: 'Esempio vocale in riproduzione.',
     previewError: 'Impossibile riprodurre l\'esempio vocale.',
     volumeTestLoading: 'Controllo volume...',
     volumeTestPlaying: 'Test del volume inviato al giocattolo.',
@@ -2751,7 +2749,7 @@ async function previewLumiVoice() {
     }
     previewVoiceAudio = new Audio(data.audio_url);
     await previewVoiceAudio.play();
-    setStatus(status, 'previewPlaying');
+    clearStatus(status);
   } catch (err) {
     console.warn('[Parent] voice preview failed', err);
     setStatus(status, 'previewError', {}, true);
