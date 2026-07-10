@@ -8,6 +8,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const DEFAULT_DEVICE_ID = process.env.DEFAULT_DEVICE_ID || 'lumi_001';
 const AUTO_UPDATE = process.env.MEMORY_AUTO_UPDATE !== 'false';
 const EXTRACT_MODEL = process.env.MEMORY_EXTRACT_MODEL || 'gpt-4o-mini';
+const PROFILE_TRANSLATE_MODEL = process.env.CONTENT_LOCALIZATION_MODEL || 'gpt-4o-mini';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -111,6 +112,20 @@ const FIELD_TO_LIST = {
 // child_name сюда не входит — у него уже своя защита от перезаписи ниже, не трогаем.
 const PARENT_LOCKABLE_FIELDS = ['age', 'favorite_color', 'favorite_animal', 'favorite_game', 'favorite_toy', 'favorite_food', 'current_interest'];
 
+// Поля профиля, которые переводим для отображения в панели на языке консоли (не путать
+// с formatProfileForPrompt — там перевод "по инструкции" внутри промпта, тут реальный
+// перевод текста через OpenAI, с кешем в child_profiles.translations по каждому языку.
+const PROFILE_TRANSLATE_FIELDS = ['favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
+
+const PROFILE_TRANSLATE_LANGUAGE_NAMES = {
+    'ru-RU': 'Russian',
+    'ro-RO': 'Romanian',
+    'en-US': 'English',
+    'es-ES': 'Spanish',
+    'fr-FR': 'French',
+    'it-IT': 'Italian',
+};
+
 function normalizeDeviceId(value) {
     const deviceId = String(value || '').trim();
     return deviceId || DEFAULT_DEVICE_ID;
@@ -158,6 +173,10 @@ async function init() {
     await pool.query(`
         ALTER TABLE child_profiles
         ADD COLUMN IF NOT EXISTS field_sources JSONB NOT NULL DEFAULT '{}'::jsonb
+    `);
+    await pool.query(`
+        ALTER TABLE child_profiles
+        ADD COLUMN IF NOT EXISTS translations JSONB NOT NULL DEFAULT '{}'::jsonb
     `);
 
     ready = true;
@@ -574,6 +593,84 @@ function formatProfileForPrompt(profile, toyName = 'Lumi') {
     ].join('\n');
 }
 
+function parseProfileTranslationJson(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return null;
+    try {
+        return JSON.parse(text);
+    } catch (_) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return null;
+        try {
+            return JSON.parse(match[0]);
+        } catch (_) {
+            return null;
+        }
+    }
+}
+
+async function translateProfileForLang(deviceId, profile, targetLang) {
+    const id = normalizeDeviceId(deviceId);
+    const fieldsToTranslate = PROFILE_TRANSLATE_FIELDS.filter((field) => String(profile?.[field] || '').trim());
+    if (fieldsToTranslate.length === 0) return {};
+
+    const sourceKey = PROFILE_TRANSLATE_FIELDS.map((field) => String(profile?.[field] || '').trim()).join('␟');
+    const cached = profile?.translations?.[targetLang];
+    if (cached && cached.source_hash === sourceKey) {
+        const { source_hash, ...values } = cached;
+        return values;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+        return Object.fromEntries(fieldsToTranslate.map((field) => [field, profile[field]]));
+    }
+
+    const languageName = PROFILE_TRANSLATE_LANGUAGE_NAMES[targetLang] || 'English';
+    const sourcePayload = Object.fromEntries(fieldsToTranslate.map((field) => [field, profile[field]]));
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: PROFILE_TRANSLATE_MODEL,
+            max_tokens: 300,
+            response_format: { type: 'json_object' },
+            messages: [
+                {
+                    role: 'system',
+                    content: [
+                        `Translate short parent-entered child-preference values into ${languageName}.`,
+                        'Return only valid JSON with the exact same keys as the input.',
+                        'If a value is already in the target language, return it unchanged.',
+                        'Keep proper names (characters, brands) as-is, just adapted to natural spelling if needed.',
+                        'No markdown, no extra keys, no commentary.',
+                    ].join(' '),
+                },
+                { role: 'user', content: JSON.stringify(sourcePayload) },
+            ],
+        });
+
+        const parsed = parseProfileTranslationJson(response.choices[0]?.message?.content);
+        if (!parsed) throw new Error('translation returned invalid JSON');
+
+        const translated = Object.fromEntries(
+            fieldsToTranslate.map((field) => [field, String(parsed[field] || profile[field]).trim() || profile[field]])
+        );
+
+        if (ready && pool) {
+            await pool.query(
+                `UPDATE child_profiles
+                 SET translations = jsonb_set(translations, $2::text[], $3::jsonb), updated_at = now()
+                 WHERE device_id = $1`,
+                [id, `{${targetLang}}`, JSON.stringify({ source_hash: sourceKey, ...translated })]
+            );
+        }
+
+        return translated;
+    } catch (err) {
+        logger.warn(`[Memory] profile translation failed for ${id} -> ${targetLang}: ${err.message}`);
+        return Object.fromEntries(fieldsToTranslate.map((field) => [field, profile[field]]));
+    }
+}
+
 module.exports = {
     init,
     getProfile,
@@ -583,4 +680,5 @@ module.exports = {
     formatProfileForPrompt,
     normalizeDeviceId,
     looksMemorable,
+    translateProfileForLang,
 };

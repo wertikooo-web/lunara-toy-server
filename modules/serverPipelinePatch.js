@@ -15,7 +15,7 @@ const PARENT_THINKING_UI_HTML = `
             <input id="thinking_phrases_enabled" type="checkbox" checked>
             <span id="thinkingPhrasesEnabledLabel">Включены</span>
           </label>
-          <p class="small">Промежуточные фразы вроде «секундочку...» перед долгим LLM-ответом. На заготовки/кеш они не нужны.</p>
+          <p class="small" id="thinkingPhrasesHelp">Промежуточные фразы вроде «секундочку...» перед долгим LLM-ответом. На заготовки/кеш они не нужны.</p>
         </div>
         <div>
           <label id="thinkingFrequencyLabel">Частота thinking-фраз</label>
@@ -44,6 +44,29 @@ const PARENT_THINKING_UI_SCRIPT = `
       thinking_frequency: byId('thinking_frequency')?.value || 'normal',
     };
   }
+  const THINKING_UI_TEXT = {
+    'ru-RU': { label: 'Thinking-фразы', enabled: 'Включены', help: 'Промежуточные фразы вроде «секундочку...» перед долгим LLM-ответом. На заготовки/кеш они не нужны.', freqLabel: 'Частота thinking-фраз', freqHelp: 'Для демо лучше: редко или выключено.', rare: 'Редко', normal: 'Иногда', often: 'Часто' },
+    'ro-RO': { label: 'Fraze de tip „gandire”', enabled: 'Activate', help: 'Fraze de tranzitie de tipul „o clipa...” inainte de un raspuns lung al LLM-ului. Nu sunt necesare pentru raspunsuri din cache/presetate.', freqLabel: 'Frecventa frazelor de gandire', freqHelp: 'Pentru demo e mai bine: rar sau dezactivat.', rare: 'Rar', normal: 'Uneori', often: 'Des' },
+    'en-US': { label: 'Thinking phrases', enabled: 'Enabled', help: 'Filler phrases like "just a moment..." before a long LLM reply. Not needed for cached/preset replies.', freqLabel: 'Thinking-phrase frequency', freqHelp: 'Best for demos: rare or off.', rare: 'Rarely', normal: 'Sometimes', often: 'Often' },
+    'es-ES': { label: 'Frases de "pensando"', enabled: 'Activadas', help: 'Frases de transicion como «un momento...» antes de una respuesta larga del LLM. No son necesarias para respuestas predefinidas o en cache.', freqLabel: 'Frecuencia de las frases de "pensando"', freqHelp: 'Para demos, mejor: pocas veces o desactivado.', rare: 'Pocas veces', normal: 'A veces', often: 'A menudo' },
+    'fr-FR': { label: 'Phrases de reflexion', enabled: 'Activees', help: 'Phrases de transition du type « un instant... » avant une longue reponse du LLM. Inutiles pour les reponses preenregistrees ou en cache.', freqLabel: 'Frequence des phrases de reflexion', freqHelp: 'Pour les demos, mieux vaut : rarement ou desactive.', rare: 'Rarement', normal: 'Parfois', often: 'Souvent' },
+    'it-IT': { label: 'Frasi di pensiero', enabled: 'Attive', help: 'Frasi di transizione tipo «un attimo...» prima di una risposta lunga del LLM. Non servono per risposte predefinite o in cache.', freqLabel: 'Frequenza delle frasi di pensiero', freqHelp: 'Per le demo e meglio: raro o disattivato.', rare: 'Raramente', normal: 'A volte', often: 'Spesso' },
+  };
+  function setThinkingLocale(lang) {
+    const t = THINKING_UI_TEXT[lang] || THINKING_UI_TEXT['ru-RU'];
+    const label = byId('thinkingPhrasesLabel'); if (label) label.textContent = t.label;
+    const enabledLabel = byId('thinkingPhrasesEnabledLabel'); if (enabledLabel) enabledLabel.textContent = t.enabled;
+    const help = byId('thinkingPhrasesHelp'); if (help) help.textContent = t.help;
+    const freqLabel = byId('thinkingFrequencyLabel'); if (freqLabel) freqLabel.textContent = t.freqLabel;
+    const freqHelp = byId('thinkingFrequencyHelp'); if (freqHelp) freqHelp.textContent = t.freqHelp;
+    const freqSelect = byId('thinking_frequency');
+    if (freqSelect) {
+      const opts = freqSelect.options;
+      if (opts[0]) opts[0].textContent = t.rare;
+      if (opts[1]) opts[1].textContent = t.normal;
+      if (opts[2]) opts[2].textContent = t.often;
+    }
+  }
   const oldApi = window.api || api;
   window.api = api = function patchedApi(path, options = {}) {
     try {
@@ -63,9 +86,16 @@ const PARENT_THINKING_UI_SCRIPT = `
     setThinkingFields(window.lastParentState?.settings || {});
     return result;
   };
+  const oldApplyConsoleLocale = window.applyConsoleLocale || applyConsoleLocale;
+  window.applyConsoleLocale = applyConsoleLocale = function patchedApplyConsoleLocale(lang) {
+    const result = oldApplyConsoleLocale.apply(this, arguments);
+    setThinkingLocale(lang);
+    return result;
+  };
   byId('thinking_phrases_enabled')?.addEventListener('change', () => window.updateUnsavedIndicator?.());
   byId('thinking_frequency')?.addEventListener('change', () => window.updateUnsavedIndicator?.());
   setThinkingFields(window.lastParentState?.settings || {});
+  setThinkingLocale(localStorage.getItem('lumi_parent_console_lang') || 'ru-RU');
 })();
 </script>`;
 

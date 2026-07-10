@@ -325,6 +325,20 @@ app.post('/api/parent/profile', async (req, res) => {
     }
 });
 
+app.get('/api/parent/profile-translations', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+    try {
+        const lang = String(req.query.lang || 'ru-RU');
+        const profile = await memory.getProfile(session.device_id);
+        const translations = await memory.translateProfileForLang(session.device_id, profile || {}, lang);
+        res.json(translations);
+    } catch (err) {
+        logger.error(`[Parent] profile translation error: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/parent/password', async (req, res) => {
     const session = requireParent(req, res);
     if (!session) return;

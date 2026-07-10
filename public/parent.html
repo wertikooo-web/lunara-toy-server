@@ -344,22 +344,27 @@
         <div>
           <label>Любимый цвет</label>
           <input id="favorite_color">
+          <p class="small" id="favorite_color_translated"></p>
         </div>
         <div>
           <label>Любимое животное</label>
           <input id="favorite_animal">
+          <p class="small" id="favorite_animal_translated"></p>
         </div>
         <div>
           <label>Любимая игрушка</label>
           <input id="favorite_toy">
+          <p class="small" id="favorite_toy_translated"></p>
         </div>
         <div>
           <label>Любимая еда</label>
           <input id="favorite_food">
+          <p class="small" id="favorite_food_translated"></p>
         </div>
       </div>
       <label>Текущий интерес</label>
       <input id="current_interest">
+      <p class="small" id="current_interest_translated"></p>
       <div class="row-actions">
         <button id="childDeleteButton" class="danger" type="button" onclick="clearChildProfile()">Удалить данные ребёнка</button>
         <button id="childSaveButton" type="button" onclick="saveProfile()">Сохранить данные ребёнка</button>
@@ -3189,6 +3194,29 @@ function applyConsoleLocale(lang) {
   setText('#logoutPanel button', t.logout);
   relocalizeStatusMessages();
   updateUnsavedIndicator();
+  refreshProfileTranslations(lang);
+}
+
+async function refreshProfileTranslations(lang) {
+  if (!window.lastProfile) return;
+  const fields = ['favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
+  const hasAny = fields.some(field => String(window.lastProfile[field] || '').trim());
+  if (!hasAny) {
+    fields.forEach(field => setText(`#${field}_translated`, ''));
+    return;
+  }
+  try {
+    const translated = await api('/api/parent/profile-translations?lang=' + encodeURIComponent(lang));
+    fields.forEach(field => {
+      const raw = String(window.lastProfile[field] || '').trim();
+      const value = String(translated[field] || '').trim();
+      const hint = document.getElementById(`${field}_translated`);
+      if (!hint) return;
+      hint.textContent = (value && value !== raw) ? `≈ ${value}` : '';
+    });
+  } catch (err) {
+    console.warn('[Parent] profile translation refresh failed', err);
+  }
 }
 
 async function login() {
@@ -3753,6 +3781,7 @@ async function loadState() {
   const data = await api('/api/parent/state');
   const s = data.settings || {};
   const p = data.profile || {};
+  window.lastProfile = p;
   [
     'toy_name', 'toy_gender', 'language', 'model_mode',
     'child_gender', 'age_mode', 'answer_length', 'humor_level', 'activity_level', 'question_frequency',
