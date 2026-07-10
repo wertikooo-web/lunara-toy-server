@@ -171,6 +171,13 @@ function patchServerSource(source) {
 
     patched = replaceOnce(
         patched,
+        "    const list = THINKING_BY_INTENT[intent] || THINKING_BY_INTENT.default;\n    const phrase = pickWeightedPhrase(list);\n    // 'thinking_story_1_ru' -> 'story_1' — язык/пол больше не зашиты в имени файла,\n    // их отдаёт вызывающая сторона (см. serverPipelinePatch.js), тут остаётся\n    // только устойчивый ключ варианта фразы внутри интента.\n    const variant = phrase.file.replace(/^thinking_/, '').replace(/_ru$/, '');",
+        "    const isRussianThinking = !lang || lang.startsWith('ru');\n    const list = isRussianThinking ? (THINKING_BY_INTENT[intent] || THINKING_BY_INTENT.default) : (THINKING_GENERIC[lang] || THINKING_GENERIC['en-US']);\n    const phrase = pickWeightedPhrase(list);\n    // Русские файлы — 'thinking_story_1_ru' -> 'story_1' (intent-специфично). Остальные\n    // языки — плоский generic-набор (см. THINKING_GENERIC), file уже без декораций.\n    const variant = isRussianThinking ? phrase.file.replace(/^thinking_/, '').replace(/_ru$/, '') : phrase.file;",
+        'thinking language-aware phrase list'
+    );
+
+    patched = replaceOnce(
+        patched,
         "tts.synthesizeAsset('thinking', phrase.text, 'ru-RU', 'female', { variant })",
         "tts.synthesizeAsset('thinking', phrase.text, lang, gender, { variant })",
         'thinking asset lang/gender'

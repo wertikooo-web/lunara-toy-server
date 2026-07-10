@@ -456,7 +456,7 @@ app.post('/api/parent/voice-preview', async (req, res) => {
         const requestedVoiceId = req.body?.voice_id || req.body?.voice;
         const previewVoice = requestedVoiceId ? parentConfig.getVoiceById(requestedVoiceId) : null;
         const voiceConfig = previewVoice
-            ? { id: previewVoice.id, provider: previewVoice.provider, gender: settings.toyGender || settings.toy_gender }
+            ? { id: bareVoiceId(previewVoice), provider: previewVoice.provider, gender: settings.toyGender || settings.toy_gender }
             : buildVoiceConfig(settings);
         const ts = Date.now();
         const outputPath = path.join(DIR_AUDIO, `preview_${ts}.pcm`);
@@ -804,13 +804,21 @@ function clearDemoSession(deviceId) {
     logger.info(`[Parent] cleared browser demo session for device_id=${id}`);
 }
 
-// Явный голос из настроек родителя (settings.voice — id из parentConfig.VOICE_REGISTRY).
-// Пусто/неизвестный id -> null -> tts.js сам выбирает голос по toyGender, как раньше.
+// Явный голос из настроек родителя (settings.voice — id из parentConfig.VOICE_REGISTRY,
+// например 'openai:nova'). Пусто/неизвестный id -> null -> tts.js сам выбирает голос по
+// toyGender, как раньше.
+function bareVoiceId(voice) {
+    // VOICE_REGISTRY хранит id с префиксом провайдера ('openai:nova') для однозначной
+    // идентификации в панели/БД, но сам tts.js (yandexTTS/openaiTTS) ждёт голое имя
+    // голоса конкретного провайдера — префикс тут не нужен и ничего не значит.
+    return voice.id.includes(':') ? voice.id.split(':').slice(1).join(':') : voice.id;
+}
+
 function buildVoiceConfig(settings) {
     if (!settings?.voice) return null;
     const voice = parentConfig.getVoiceById(settings.voice);
     if (!voice) return null;
-    return { id: voice.id, provider: voice.provider, gender: settings.toyGender || settings.toy_gender };
+    return { id: bareVoiceId(voice), provider: voice.provider, gender: settings.toyGender || settings.toy_gender };
 }
 
 async function synthesizeReply(reply, ts, lang, baseUrl, voiceSpeed = 'normal', voiceConfig = null) {
@@ -1594,6 +1602,9 @@ const GREETING_TEXTS = {
     'ru-RU': 'Привет! Я - Луми, твой друг! Нажми кнопку и давай поговорим!',
     'ro-RO': 'Salut! Eu sunt Lumi, prietenul tău! Apasă butonul și hai să vorbim!',
     'en-US': "Hi! I am Lumi, your friend! Press the button and let's talk!",
+    'es-ES': '¡Hola! Soy Lumi, tu amigo! ¡Presiona el botón y vamos a hablar!',
+    'fr-FR': 'Salut ! Je suis Lumi, ton ami ! Appuie sur le bouton et parlons ensemble !',
+    'it-IT': 'Ciao! Sono Lumi, il tuo amico! Premi il pulsante e parliamo!',
 };
 
 // Тёплая просьба повторить — играется когда нажатие слишком короткое
@@ -1602,11 +1613,17 @@ const RETRY_TEXTS = {
     'ru-RU': 'Ой! Скажи ещё раз, пожалуйста! Я не расслышал!',
     'ro-RO': 'Ups! Poți să spui din nou, te rog! Nu am auzit bine!',
     'en-US': 'Oops! Can you say that again, please! I did not hear you!',
+    'es-ES': '¡Uy! ¿Puedes decirlo otra vez, por favor? ¡No te escuché bien!',
+    'fr-FR': "Oups ! Tu peux répéter, s'il te plaît ? Je n'ai pas bien entendu !",
+    'it-IT': 'Ops! Puoi ripetere, per favore? Non ho sentito bene!',
 };
 
+// Если для языка нет текста (не должно случаться для поддерживаемых языков, но на
+// случай неожиданного кода) — фолбэк на en-US, а не на ru-RU: английский нейтральнее
+// как аварийный вариант, чем язык, которого ребёнок может вообще не знать.
 function resolveSystemPhraseLang(lang) {
     if (lang && GREETING_TEXTS[lang]) return lang;
-    return 'ru-RU';
+    return 'en-US';
 }
 
 // Собирает команду воспроизведения retry-аудио, генерируя его лениво под
@@ -1737,6 +1754,43 @@ const THINKING_BY_INTENT = {
         { text: 'Ага ...', file: 'thinking_default_4_ru', weight: 4 },
         { text: 'Так...', file: 'thinking_default_5_ru', weight: 3 },
         { text: 'Я уже думаю...', file: 'thinking_default_6_ru', weight: 3 },
+    ],
+};
+
+// Компактный, НЕ привязанный к intent набор thinking-фраз для всех языков, кроме
+// русского (у RO/EN/ES/FR/IT никогда не было переведённых по-интентно фраз — делать
+// полный перевод всех 12 интентов × 6 фраз на 5 языков непропорционально этой filler-фиче).
+// Используется thinkingAudioCommand, когда lang !== 'ru-RU'.
+const THINKING_GENERIC = {
+    'ro-RO': [
+        { text: 'O secundă...', file: 'generic_1', weight: 4 },
+        { text: 'Mă gândesc...', file: 'generic_2', weight: 3 },
+        { text: 'Acum răspund...', file: 'generic_3', weight: 3 },
+        { text: 'Așa...', file: 'generic_4', weight: 2 },
+    ],
+    'en-US': [
+        { text: 'One second...', file: 'generic_1', weight: 4 },
+        { text: 'Let me think...', file: 'generic_2', weight: 3 },
+        { text: 'Coming up...', file: 'generic_3', weight: 3 },
+        { text: 'So...', file: 'generic_4', weight: 2 },
+    ],
+    'es-ES': [
+        { text: 'Un segundo...', file: 'generic_1', weight: 4 },
+        { text: 'Déjame pensar...', file: 'generic_2', weight: 3 },
+        { text: 'Ahora te digo...', file: 'generic_3', weight: 3 },
+        { text: 'A ver...', file: 'generic_4', weight: 2 },
+    ],
+    'fr-FR': [
+        { text: 'Une seconde...', file: 'generic_1', weight: 4 },
+        { text: 'Je réfléchis...', file: 'generic_2', weight: 3 },
+        { text: 'Je te réponds...', file: 'generic_3', weight: 3 },
+        { text: 'Alors...', file: 'generic_4', weight: 2 },
+    ],
+    'it-IT': [
+        { text: 'Un secondo...', file: 'generic_1', weight: 4 },
+        { text: 'Fammi pensare...', file: 'generic_2', weight: 3 },
+        { text: 'Ora ti dico...', file: 'generic_3', weight: 3 },
+        { text: 'Allora...', file: 'generic_4', weight: 2 },
     ],
 };
 

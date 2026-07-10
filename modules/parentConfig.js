@@ -50,6 +50,27 @@ const ADDRESS_PRESETS = {
         friend: 'buddy',
         champion: 'champion',
     },
+    es: {
+        name: 'el nombre del niño',
+        sunshine: 'mi sol',
+        little_one: 'pequeñín',
+        friend: 'amiguito',
+        champion: 'campeón',
+    },
+    fr: {
+        name: "le prénom de l'enfant",
+        sunshine: 'mon soleil',
+        little_one: 'petit bout',
+        friend: 'mon copain',
+        champion: 'champion',
+    },
+    it: {
+        name: 'il nome del bambino',
+        sunshine: 'sole mio',
+        little_one: 'piccolino',
+        friend: 'amichetto',
+        champion: 'campione',
+    },
 };
 
 const DEFAULT_SETTINGS = {
@@ -146,7 +167,7 @@ function normalizeSettingsPatch(raw = {}) {
     const patch = {};
     if ('language' in raw) {
         const value = safeText(raw.language, 12);
-        patch.language = ['ru-RU', 'ro-RO', 'en-US'].includes(value) ? value : DEFAULT_SETTINGS.language;
+        patch.language = ['ru-RU', 'ro-RO', 'en-US', 'es-ES', 'fr-FR', 'it-IT'].includes(value) ? value : DEFAULT_SETTINGS.language;
     }
     if ('model_mode' in raw) {
         const value = safeText(raw.model_mode, 16);
@@ -204,8 +225,10 @@ function normalizeSettingsPatch(raw = {}) {
     if ('voice' in raw) {
         const value = safeText(raw.voice, 40);
         // Пусто = автоматический выбор голоса по toy_gender (см. tts.js). Иначе — только
-        // реально существующий id из VOICE_REGISTRY, иначе игнорируем как невалидный.
-        patch.voice = value && VOICE_REGISTRY.some((v) => v.id === value) ? value : '';
+        // реально существующий id (полный или legacy-голый — getVoiceById матчит оба),
+        // и всегда сохраняем канонический (с префиксом провайдера) вид на будущее.
+        const resolved = value ? getVoiceById(value) : null;
+        patch.voice = resolved ? resolved.id : '';
     }
     if ('voice_speed' in raw) {
         const value = safeText(raw.voice_speed, 16);
@@ -467,7 +490,7 @@ function normalizeSettingsRow(row = {}) {
     settings.toyGender = settings.toy_gender;
     settings.volume_level = normalizeVolumeLevel(settings.volume_level);
     settings.volumeLevel = settings.volume_level;
-    if (!['ru-RU', 'ro-RO', 'en-US'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
+    if (!['ru-RU', 'ro-RO', 'en-US', 'es-ES', 'fr-FR', 'it-IT'].includes(settings.language)) settings.language = DEFAULT_SETTINGS.language;
     settings.memory_enabled = settings.memory_enabled !== false;
     return settings;
 }
@@ -1243,10 +1266,187 @@ const PROMPT_TEXT = {
             speech_development: 'speech development',
         },
     },
+    es: {
+        personality: PERSONALITY_PRESETS,
+        toyType: {
+            bear: 'oso',
+            bunny: 'conejito',
+            cat: 'gato',
+            dragon: 'dragoncito',
+        },
+        answerLength: {
+            very_short: 'muy corto: 1-2 frases cortas, con pausas, sin monólogos largos',
+            short: 'corto: 2-4 frases cortas, la idea debe terminar por completo',
+            normal: 'normal: hasta 5 frases cortas, siempre pensado para voz y sin sonar a clase',
+        },
+        storyLength: {
+            '3': 'cuento muy corto: unas 3 frases cortas, con un final claro',
+            '5': 'cuento corto: unas 5 frases cortas, con un final claro',
+            '8': 'cuento un poco más largo: unas 8 frases cortas y simples, con un final claro',
+        },
+        humor: {
+            low: 'poco humor: cálido y sencillo, casi sin bromas',
+            normal: 'humor normal: alguna frase juguetona de vez en cuando',
+            high: 'más humor: añade travesuras suaves y seguras para niños, sin desviarse de la respuesta',
+        },
+        activity: {
+            calm: 'actividad tranquila: más suave, más lenta, apta para la hora de dormir o un niño cansado',
+            normal: 'actividad normal: equilibrada, amigable, no demasiado enérgica',
+            active: 'activo: más enérgico y lúdico, pero siempre conciso',
+        },
+        question: {
+            rare: 'preguntas de seguimiento raras: normalmente responde sin volver a preguntar',
+            sometimes: 'a veces haz una pequeña pregunta de seguimiento cuando ayude de forma natural',
+            often: 'invita a menudo al niño con una pequeña pregunta o elección, pero no después de cada frase',
+        },
+        ageMode: {
+            auto: 'auto: adapta según la edad guardada del niño si se conoce; si no, usa un lenguaje simple apto para preescolar',
+            '3-4': 'edad 3-4: palabras muy simples, 1-2 ideas, tono suave, sin lógica complicada, adivinanzas muy fáciles',
+            '5-6': 'edad 5-6: palabras simples y juguetonas, explicaciones cortas, adivinanzas y opciones fáciles',
+            '7-8': 'edad 7-8: vocabulario un poco más rico, causa y efecto claros, reto moderado en los juegos',
+            '9+': 'edad 9+: explicaciones y juegos de palabras más elaborados, siempre conciso y seguro para niños',
+        },
+        addressMode: {
+            name: 'prefiere dirigirte al niño por su nombre, pero no en cada respuesta',
+            varied: 'varía de forma natural: a veces usa el nombre del niño, a veces sin dirigirte directamente, sin abusar',
+        },
+        addressTone: {
+            warm: 'tono cálido: suave y cariñoso; se pueden usar a veces apelativos cálidos aprobados por los padres',
+            neutral: 'tono neutral: amigable pero no empalagoso; evita apodos y usa el nombre del niño solo cuando sea natural',
+        },
+        content: {
+            riddle: 'adivinanzas',
+            story: 'cuentos',
+            tongue_twister: 'trabalenguas',
+            mini_game: 'minijuegos',
+            learning: 'mini-actividades de aprendizaje',
+            roleplay: 'juegos de rol',
+            speech_development: 'desarrollo del habla',
+        },
+    },
+    fr: {
+        personality: PERSONALITY_PRESETS,
+        toyType: {
+            bear: 'ours',
+            bunny: 'lapin',
+            cat: 'chat',
+            dragon: 'petit dragon',
+        },
+        answerLength: {
+            very_short: 'très court : 1-2 phrases courtes, avec des pauses, sans longs monologues',
+            short: 'court : 2-4 phrases courtes, l\'idée doit être complètement terminée',
+            normal: 'normal : jusqu\'à 5 phrases courtes, toujours pensé pour la voix et sans faire la leçon',
+        },
+        storyLength: {
+            '3': 'histoire très courte : environ 3 phrases courtes, avec une fin claire',
+            '5': 'histoire courte : environ 5 phrases courtes, avec une fin claire',
+            '8': 'histoire un peu plus longue : environ 8 phrases courtes et simples, avec une fin claire',
+        },
+        humor: {
+            low: 'peu d\'humour : chaleureux et simple, presque pas de blagues',
+            normal: 'humour normal : une phrase espiègle de temps en temps',
+            high: 'plus d\'humour : ajoute une espièglerie douce et sûre pour les enfants, sans dévier de la réponse',
+        },
+        activity: {
+            calm: 'activité calme : plus douce, plus lente, adaptée au coucher ou à un enfant fatigué',
+            normal: 'activité normale : équilibrée, amicale, pas trop énergique',
+            active: 'actif : plus énergique et ludique, mais toujours concis',
+        },
+        question: {
+            rare: 'questions de suivi rares : répond généralement sans reposer de question',
+            sometimes: 'pose parfois une petite question de suivi quand cela aide naturellement',
+            often: 'invite souvent l\'enfant avec une petite question ou un choix, mais pas après chaque phrase',
+        },
+        ageMode: {
+            auto: 'auto : s\'adapte à l\'âge enregistré de l\'enfant si connu ; sinon utilise un langage simple adapté à la maternelle',
+            '3-4': 'âge 3-4 : mots très simples, 1-2 idées, ton doux, pas de logique compliquée, devinettes très faciles',
+            '5-6': 'âge 5-6 : mots simples et ludiques, explications courtes, devinettes et choix faciles',
+            '7-8': 'âge 7-8 : vocabulaire un peu plus riche, cause et effet clairs, défi modéré dans les jeux',
+            '9+': 'âge 9+ : explications et jeux de mots plus élaborés, toujours concis et sûr pour les enfants',
+        },
+        addressMode: {
+            name: 's\'adresse de préférence à l\'enfant par son prénom, mais pas à chaque réponse',
+            varied: 'varie naturellement : utilise parfois le prénom de l\'enfant, parfois aucune adresse directe, sans en abuser',
+        },
+        addressTone: {
+            warm: 'ton chaleureux : doux et affectueux ; des surnoms chaleureux approuvés par les parents peuvent être utilisés parfois',
+            neutral: 'ton neutre : amical mais pas mièvre ; évite les surnoms et utilise le prénom de l\'enfant seulement quand c\'est naturel',
+        },
+        content: {
+            riddle: 'devinettes',
+            story: 'histoires',
+            tongue_twister: 'virelangues',
+            mini_game: 'mini-jeux',
+            learning: 'mini-activités d\'apprentissage',
+            roleplay: 'jeux de rôle',
+            speech_development: 'développement du langage',
+        },
+    },
+    it: {
+        personality: PERSONALITY_PRESETS,
+        toyType: {
+            bear: 'orso',
+            bunny: 'coniglietto',
+            cat: 'gatto',
+            dragon: 'draghetto',
+        },
+        answerLength: {
+            very_short: 'molto corto: 1-2 frasi brevi, con pause, senza lunghi monologhi',
+            short: 'corto: 2-4 frasi brevi, l\'idea deve concludersi completamente',
+            normal: 'normale: fino a 5 frasi brevi, sempre pensato per la voce e senza sembrare una lezione',
+        },
+        storyLength: {
+            '3': 'storia molto corta: circa 3 frasi brevi, con un finale chiaro',
+            '5': 'storia corta: circa 5 frasi brevi, con un finale chiaro',
+            '8': 'storia un po\' più lunga: circa 8 frasi brevi e semplici, con un finale chiaro',
+        },
+        humor: {
+            low: 'poco umorismo: caldo e semplice, quasi senza battute',
+            normal: 'umorismo normale: qualche frase scherzosa ogni tanto',
+            high: 'più umorismo: aggiungi giocosità delicata e sicura per bambini, senza deviare dalla risposta',
+        },
+        activity: {
+            calm: 'attività calma: più dolce, più lenta, adatta alla nanna o a un bambino stanco',
+            normal: 'attività normale: equilibrata, amichevole, non troppo energica',
+            active: 'attivo: più energico e giocoso, ma sempre conciso',
+        },
+        question: {
+            rare: 'domande di follow-up rare: di solito risponde senza fare altre domande',
+            sometimes: 'a volte fai una piccola domanda di follow-up quando aiuta in modo naturale',
+            often: 'invita spesso il bambino con una piccola domanda o scelta, ma non dopo ogni frase',
+        },
+        ageMode: {
+            auto: 'auto: adatta all\'età salvata del bambino se nota; altrimenti usa un linguaggio semplice adatto alla scuola materna',
+            '3-4': 'età 3-4: parole molto semplici, 1-2 idee, tono dolce, senza logica complicata, indovinelli molto facili',
+            '5-6': 'età 5-6: parole semplici e giocose, spiegazioni brevi, indovinelli e scelte facili',
+            '7-8': 'età 7-8: vocabolario un po\' più ricco, causa ed effetto chiari, sfida moderata nei giochi',
+            '9+': 'età 9+: spiegazioni e giochi di parole più elaborati, sempre conciso e sicuro per bambini',
+        },
+        addressMode: {
+            name: 'preferisci rivolgerti al bambino per nome, ma non a ogni risposta',
+            varied: 'varia naturalmente: a volte usa il nome del bambino, a volte nessun appellativo diretto, senza esagerare',
+        },
+        addressTone: {
+            warm: 'tono caldo: dolce e affettuoso; a volte si possono usare appellativi caldi approvati dai genitori',
+            neutral: 'tono neutro: amichevole ma non stucchevole; evita i vezzeggiativi e usa il nome del bambino solo quando è naturale',
+        },
+        content: {
+            riddle: 'indovinelli',
+            story: 'storie',
+            tongue_twister: 'scioglilingua',
+            mini_game: 'mini-giochi',
+            learning: 'mini-attività di apprendimento',
+            roleplay: 'giochi di ruolo',
+            speech_development: 'sviluppo del linguaggio',
+        },
+    },
 };
 
 function promptLangKey(lang = 'ru-RU') {
     if (String(lang).startsWith('ro')) return 'ro';
+    if (String(lang).startsWith('es')) return 'es';
+    if (String(lang).startsWith('fr')) return 'fr';
+    if (String(lang).startsWith('it')) return 'it';
     if (String(lang).startsWith('en')) return 'en';
     return 'ru';
 }
@@ -1274,6 +1474,9 @@ function addressVariantsLabel(lang = 'ru-RU') {
     const key = promptLangKey(lang);
     if (key === 'ro') return 'variante permise de adresare';
     if (key === 'en') return 'allowed address variants';
+    if (key === 'es') return 'formas de dirigirse permitidas';
+    if (key === 'fr') return 'formes d\'adresse autorisées';
+    if (key === 'it') return 'modi consentiti per rivolgersi';
     return 'разрешённые варианты обращения';
 }
 
@@ -1298,7 +1501,11 @@ function toyTypeForPrompt(value, lang = 'ru-RU') {
     return canonical ? settingText('toyType', canonical, lang, text) : text;
 }
 
-function getGenderSystemInstruction(state = {}) {
+// Раньше эта инструкция была захардкожена на русском и вставлялась независимо от
+// settings.language — то есть даже EN/RO игрушке доставался русский текст про род.
+// Теперь адаптируется под язык: для EN согласование рода не нужно вовсе (пустая строка,
+// отфильтруется в formatSettingsForPrompt), для RO/ES/FR/IT — свой краткий аналог.
+function getGenderSystemInstruction(state = {}, lang = 'ru-RU') {
     const childGen = CHILD_GENDERS.includes(state?.childGender)
         ? state.childGender
         : CHILD_GENDERS.includes(state?.child_gender)
@@ -1309,13 +1516,39 @@ function getGenderSystemInstruction(state = {}) {
         : TOY_GENDERS.includes(state?.toy_gender)
             ? state.toy_gender
             : DEFAULT_SETTINGS.toy_gender;
+    const isChildMale = childGen === 'M';
+    const isToyFemale = toyGen === 'female';
+    const key = promptLangKey(lang);
 
-    const childLabel = childGen === 'M' ? 'мужском' : 'женском';
-    const childExample = childGen === 'M' ? 'ты пришёл, ты догадался, ты понял, молодец' : 'ты пришла, ты догадалась, ты поняла, умница';
-    const toyLabel = toyGen === 'female' ? 'женском' : 'мужском';
-    const toyExample = toyGen === 'female' ? 'я подумала, я вспомнила, я рада' : 'я подумал, я вспомнил, я рад';
-
-    return `\n\nТы общаешься с ребёнком. Пожалуйста, обращайся к нему в ${childLabel} роде (например: ${childExample}), а о себе говори в ${toyLabel} роде (например: ${toyExample}). Поддерживай это согласование на протяжении всего разговора.\n`;
+    if (key === 'ru') {
+        const childLabel = isChildMale ? 'мужском' : 'женском';
+        const childExample = isChildMale ? 'ты пришёл, ты догадался, ты понял, молодец' : 'ты пришла, ты догадалась, ты поняла, умница';
+        const toyLabel = isToyFemale ? 'женском' : 'мужском';
+        const toyExample = isToyFemale ? 'я подумала, я вспомнила, я рада' : 'я подумал, я вспомнил, я рад';
+        return `\n\nТы общаешься с ребёнком. Пожалуйста, обращайся к нему в ${childLabel} роде (например: ${childExample}), а о себе говори в ${toyLabel} роде (например: ${toyExample}). Поддерживай это согласование на протяжении всего разговора.\n`;
+    }
+    if (key === 'en') return '';
+    if (key === 'ro') {
+        const childExample = isChildMale ? 'ai fost curajos, ai înțeles, bravo ție' : 'ai fost curajoasă, ai înțeles, bravo ție';
+        const toyExample = isToyFemale ? 'eram fericită, am fost surprinsă' : 'eram fericit, am fost surprins';
+        return `\n\nVorbești cu un copil. Folosește forme de gen potrivite când te adresezi lui (de exemplu: ${childExample}), iar despre tine vorbește tot la forma de gen potrivită (de exemplu: ${toyExample}). Menține această concordanță pe tot parcursul conversației.\n`;
+    }
+    if (key === 'es') {
+        const childExample = isChildMale ? 'qué listo eres, lo has entendido' : 'qué lista eres, lo has entendido';
+        const toyExample = isToyFemale ? 'estaba contenta, me sorprendí' : 'estaba contento, me sorprendí';
+        return `\n\nHablas con un niño. Usa las formas de género adecuadas al dirigirte a él (por ejemplo: ${childExample}), y sobre ti misma usa también la forma de género adecuada (por ejemplo: ${toyExample}). Mantén esta concordancia durante toda la conversación.\n`;
+    }
+    if (key === 'fr') {
+        const childExample = isChildMale ? 'comme tu es malin, tu as compris' : 'comme tu es maligne, tu as compris';
+        const toyExample = isToyFemale ? "j'étais contente, j'ai été surprise" : "j'étais content, j'ai été surpris";
+        return `\n\nTu parles à un enfant. Utilise les accords de genre appropriés en t'adressant à lui (par exemple : ${childExample}), et pour toi-même utilise aussi la forme appropriée (par exemple : ${toyExample}). Garde cet accord tout au long de la conversation.\n`;
+    }
+    if (key === 'it') {
+        const childExample = isChildMale ? 'come sei bravo, hai capito' : 'come sei brava, hai capito';
+        const toyExample = isToyFemale ? 'ero felice, mi sono sorpresa' : 'ero felice, mi sono sorpreso';
+        return `\n\nParli con un bambino. Usa le forme di genere adatte quando ti rivolgi a lui (per esempio: ${childExample}), e anche per te stessa usa la forma adatta (per esempio: ${toyExample}). Mantieni questa concordanza per tutta la conversazione.\n`;
+    }
+    return '';
 }
 
 function formatSettingsForPrompt(settings = {}) {
@@ -1344,7 +1577,7 @@ function formatSettingsForPrompt(settings = {}) {
         `- Child gender: ${s.child_gender || DEFAULT_SETTINGS.child_gender}`,
         `- Toy gender: ${s.toy_gender || DEFAULT_SETTINGS.toy_gender}`,
         `- Main language setting: ${promptLang}`,
-        getGenderSystemInstruction(s).trim(),
+        getGenderSystemInstruction(s, promptLang).trim(),
         '- All selected settings below are written for the toy language. Keep toy name, child name, nicknames, and other proper names exactly as written. If descriptive parent-entered text is in another language, silently translate or adapt its meaning into the toy language before speaking. Never quote raw internal keys or another-language setting values to the child.',
         `- Personality preset: ${personality}`,
         `- Age mode: ${settingText('ageMode', s.age_mode, promptLang, PROMPT_TEXT.en.ageMode.auto)}`,
@@ -1370,15 +1603,27 @@ function formatSettingsForPrompt(settings = {}) {
 // Реестр доступных голосов для панели родителя. Провайдер и язык — это ДАННЫЕ,
 // а не хардкод внутри логики tts.js: если завтра Яндекс выучит румынский, здесь
 // меняется одна строка, а не код маршрутизации.
+//
+// id хранится с префиксом провайдера ('yandex:alena', 'openai:nova') для однозначной
+// идентификации — у OpenAI и потенциально других провайдеров имена голосов не гарантированно
+// уникальны глобально. Один и тот же openai-голос (например 'openai:onyx') может встречаться
+// в нескольких записях под разными lang/name — у OpenAI TTS всего ~6 голосов на все языки,
+// это не дубль, а один и тот же голос в разных языковых контекстах панели.
 const VOICE_REGISTRY = [
-    { id: 'alena', name: 'Алёна (RU)', provider: 'yandex', lang: 'ru', gender: 'female' },
-    { id: 'ermil', name: 'Эрмил (RU)', provider: 'yandex', lang: 'ru', gender: 'male' },
-    { id: 'nova', name: 'Nova (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
-    { id: 'onyx', name: 'Onyx (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
-    { id: 'shimmer', name: 'Shimmer (EN)', provider: 'openai', lang: 'en', gender: 'female' },
-    { id: 'echo', name: 'Echo (EN)', provider: 'openai', lang: 'en', gender: 'male' },
-    { id: 'alloy', name: 'Alloy (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
-    { id: 'fable', name: 'Fable (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
+    { id: 'yandex:alena', name: 'Алёна (RU)', provider: 'yandex', lang: 'ru', gender: 'female' },
+    { id: 'yandex:ermil', name: 'Эрмил (RU)', provider: 'yandex', lang: 'ru', gender: 'male' },
+    { id: 'openai:nova', name: 'Nova (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
+    { id: 'openai:onyx', name: 'Onyx (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
+    { id: 'openai:shimmer', name: 'Shimmer (EN)', provider: 'openai', lang: 'en', gender: 'female' },
+    { id: 'openai:echo', name: 'Echo (EN)', provider: 'openai', lang: 'en', gender: 'male' },
+    { id: 'openai:alloy', name: 'Alloy (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'female' },
+    { id: 'openai:fable', name: 'Fable (RO/EN)', provider: 'openai', lang: 'ro/en', gender: 'male' },
+    { id: 'openai:onyx', name: 'Tomás (OpenAI, Мужской)', provider: 'openai', lang: 'es', gender: 'male' },
+    { id: 'openai:nova', name: 'Lucía (OpenAI, Женский)', provider: 'openai', lang: 'es', gender: 'female' },
+    { id: 'openai:echo', name: 'Rémy (OpenAI, Мужской)', provider: 'openai', lang: 'fr', gender: 'male' },
+    { id: 'openai:shimmer', name: 'Vivienne (OpenAI, Женский)', provider: 'openai', lang: 'fr', gender: 'female' },
+    { id: 'openai:fable', name: 'Marco (OpenAI, Мужской)', provider: 'openai', lang: 'it', gender: 'male' },
+    { id: 'openai:alloy', name: 'Elena (OpenAI, Женский)', provider: 'openai', lang: 'it', gender: 'female' },
 ];
 
 // Какие провайдеры умеют озвучивать какой язык — тоже данные, не хардкод в логике.
@@ -1386,12 +1631,18 @@ const LANGUAGE_PROVIDERS = {
     ru: ['yandex', 'openai'],
     ro: ['openai'],
     en: ['openai'],
+    es: ['openai'],
+    fr: ['openai'],
+    it: ['openai'],
 };
 
 function normalizeVoiceLangKey(lang) {
     const value = String(lang || '').toLowerCase();
     if (value.startsWith('ru')) return 'ru';
     if (value.startsWith('ro')) return 'ro';
+    if (value.startsWith('es')) return 'es';
+    if (value.startsWith('fr')) return 'fr';
+    if (value.startsWith('it')) return 'it';
     if (value.startsWith('en')) return 'en';
     return 'ru';
 }
@@ -1406,8 +1657,12 @@ function isProviderCompatibleWithLang(provider, lang) {
     return (LANGUAGE_PROVIDERS[key] || []).includes(provider);
 }
 
+// Матчит и полный id ('openai:nova'), и старый голый вид ('nova') — устройства,
+// сохранённые до перехода на префиксы, продолжают резолвиться без миграции данных.
 function getVoiceById(voiceId) {
-    return VOICE_REGISTRY.find((voice) => voice.id === voiceId) || null;
+    const value = String(voiceId || '');
+    if (!value) return null;
+    return VOICE_REGISTRY.find((voice) => voice.id === value || voice.id.split(':').pop() === value) || null;
 }
 
 module.exports = {

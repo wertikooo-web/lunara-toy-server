@@ -264,6 +264,9 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         'ru-RU': 'ОБЯЗАТЕЛЬНО отвечай ТОЛЬКО на русском языке. Никакого другого языка.',
         'ro-RO': 'OBLIGATORIU răspunde NUMAI în limba română. Nicio altă limbă.',
         'en-US': 'MANDATORY reply ONLY in English. No other language whatsoever.',
+        'es-ES': 'OBLIGATORIO responde SOLO en español. Ningún otro idioma.',
+        'fr-FR': 'OBLIGATOIRE réponds UNIQUEMENT en français. Aucune autre langue.',
+        'it-IT': 'OBBLIGATORIO rispondi SOLO in italiano. Nessun\'altra lingua.',
     };
     // 'auto' = ESP32 mode: detect language from child's message and reply in same language
     const langInstruction = (lang && lang !== 'auto')

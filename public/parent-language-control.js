@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const FIXED_LANGUAGES = ['ru-RU', 'ro-RO', 'en-US'];
+  const FIXED_LANGUAGES = ['ru-RU', 'ro-RO', 'en-US', 'es-ES', 'fr-FR', 'it-IT'];
 
   function autoOptionText(consoleLang) {
     if (consoleLang === 'ro-RO') return 'AUTO — răspunde în limba copilului';
@@ -96,6 +96,9 @@
           <option value="ru-RU">Русский</option>
           <option value="ro-RO">Română</option>
           <option value="en-US">English</option>
+          <option value="es-ES">Español</option>
+          <option value="fr-FR">Français</option>
+          <option value="it-IT">Italiano</option>
         </select>
         <p id="autoLanguageFallbackHelp" class="small"></p>
       `;
