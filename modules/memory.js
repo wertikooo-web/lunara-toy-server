@@ -115,7 +115,7 @@ const PARENT_LOCKABLE_FIELDS = ['age', 'favorite_color', 'favorite_animal', 'fav
 // Поля профиля, которые переводим для отображения в панели на языке консоли (не путать
 // с formatProfileForPrompt — там перевод "по инструкции" внутри промпта, тут реальный
 // перевод текста через OpenAI, с кешем в child_profiles.translations по каждому языку.
-const PROFILE_TRANSLATE_FIELDS = ['favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
+const PROFILE_TRANSLATE_FIELDS = ['child_name', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
 
 const PROFILE_TRANSLATE_LANGUAGE_NAMES = {
     'ru-RU': 'Russian',
@@ -641,6 +641,7 @@ async function translateProfileForLang(deviceId, profile, targetLang) {
                         'Return only valid JSON with the exact same keys as the input.',
                         'If a value is already in the target language, return it unchanged.',
                         'Keep proper names (characters, brands) as-is, just adapted to natural spelling if needed.',
+                        'For the "child_name" key specifically: it is a person\'s given name, not a word to translate for meaning — transliterate it into the natural spelling/pronunciation a reader of the target language would use (e.g. Cyrillic "Лёша" -> "Liosha"/"Alyosha" in Latin-script languages), do not invent a different name.',
                         'No markdown, no extra keys, no commentary.',
                     ].join(' '),
                 },
