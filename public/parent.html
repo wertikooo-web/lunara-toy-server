@@ -738,7 +738,14 @@ KNOWN_TOPIC_PRESETS.push('animals|space|fairy tales|friendship', 'animals|space|
 
 const ADDRESS_PRESETS = ['sunshine', 'little_one', 'friend', 'champion'];
 const CONTENT_DEFAULTS = ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay', 'speech_development'];
-const VOICE_CLONE_STANDARD_TEXT = 'Привет, мой хороший! Я так рада тебя слышать. Знаешь, пока тебя не было, я встретила в лесу маленького фиолетового медвежонка. Он передавал тебе огромный привет и сказал, что вечером обязательно расскажет нам самую интересную космическую сказку. Почисти зубки, ложись в кроватку, а я скоро приду!';
+const VOICE_CLONE_STANDARD_TEXTS = {
+  'ru-RU': 'Привет, мой хороший! Я так рада тебя слышать. Знаешь, пока тебя не было, я встретила в лесу маленького фиолетового медвежонка. Он передавал тебе огромный привет и сказал, что вечером обязательно расскажет нам самую интересную космическую сказку. Почисти зубки, ложись в кроватку, а я скоро приду!',
+  'ro-RO': 'Buna, dragul meu! Ma bucur tare mult sa te aud. Stii, cat ai lipsit, am intalnit in padure un ursulet mov. Ti-a trimis un salut mare si a spus ca diseara ne va spune cea mai interesanta poveste cosmica. Spala-te pe dintisori, culca-te in pat, iar eu vin curand!',
+  'en-US': 'Hi, my dear! I am so happy to hear you. While you were away, I met a tiny purple bear in the forest. He sent you a huge hello and said that tonight he will tell us the most exciting space story. Brush your teeth, get into bed, and I will come soon!',
+  'es-ES': '¡Hola, mi cielo! Me alegra mucho escucharte. Mientras no estabas, encontre en el bosque un osito morado. Te mando un saludo enorme y dijo que esta noche nos contara el cuento espacial mas interesante. Lavate los dientes, metete en la cama, y yo llegare pronto.',
+  'fr-FR': 'Salut, mon tresor ! Je suis si contente de t entendre. Pendant ton absence, j ai rencontre dans la foret un petit ours violet. Il t envoie un grand bonjour et dit que ce soir il nous racontera la plus belle histoire de l espace. Brosse-toi les dents, glisse-toi au lit, et j arrive bientot.',
+  'it-IT': 'Ciao, tesoro mio! Sono cosi felice di sentirti. Mentre non c eri, ho incontrato nel bosco un piccolo orsetto viola. Ti manda un grande saluto e ha detto che stasera ci raccontera la storia spaziale piu bella. Lava i dentini, mettiti a letto, e io arrivo presto!',
+};
 const VOICE_CLONE_RECORD_SECONDS = 30;
 const VOICE_CLONE_MAX_CUSTOM_PREVIEWS = 3;
 
@@ -2773,6 +2780,15 @@ function getVoiceCloneTextMode() {
   return document.querySelector('input[name="voice_clone_text_mode"]:checked')?.value || 'standard';
 }
 
+function currentVoiceCloneStandardText() {
+  return VOICE_CLONE_STANDARD_TEXTS[consoleLanguage] || VOICE_CLONE_STANDARD_TEXTS['ru-RU'];
+}
+
+function isVoiceCloneStandardText(value) {
+  const text = String(value || '').trim();
+  return Object.values(VOICE_CLONE_STANDARD_TEXTS).some(sample => sample.trim() === text);
+}
+
 function setVoiceCloneStatus(message, isError = false) {
   const status = document.getElementById('voiceCloneStatus');
   if (!status) return;
@@ -2791,8 +2807,8 @@ function setVoiceCloneTextMode() {
   const mode = getVoiceCloneTextMode();
   textarea.readOnly = mode === 'standard';
   if (mode === 'standard') {
-    textarea.value = VOICE_CLONE_STANDARD_TEXT;
-  } else if (textarea.value === VOICE_CLONE_STANDARD_TEXT) {
+    textarea.value = currentVoiceCloneStandardText();
+  } else if (isVoiceCloneStandardText(textarea.value)) {
     textarea.value = '';
   }
   updateVoiceCloneTextCounter();
@@ -3335,8 +3351,18 @@ function setToyTypeOptions(lang) {
 
 function normalizeToyTypeForDisplay(value) {
   const text = String(value || '').trim();
-  if (!(text in LEGACY_TOY_TYPE_INDEX)) return text;
-  const idx = LEGACY_TOY_TYPE_INDEX[text];
+  let idx = LEGACY_TOY_TYPE_INDEX[text];
+  if (idx == null) {
+    const normalized = text.toLowerCase();
+    for (const presets of Object.values(TOY_TYPE_PRESETS)) {
+      const foundIndex = presets.findIndex(item => item.toLowerCase() === normalized);
+      if (foundIndex >= 0) {
+        idx = foundIndex;
+        break;
+      }
+    }
+  }
+  if (idx == null) return text;
   if (idx < 0) return '';
   const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];
   return presets[idx] || '';
@@ -3354,7 +3380,7 @@ function setToyTypeValue(value) {
     if (custom) custom.value = '';
   } else {
     select.value = CUSTOM_TOY_VALUE;
-    if (custom) custom.value = text;
+    if (custom) custom.value = consoleLanguage === 'ru-RU' ? text : transliterateCyrillicName(text);
   }
   toggleCustomToyType();
 }
