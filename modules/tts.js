@@ -244,10 +244,13 @@ function normalizeAssetGenderKey(gender) {
     return gender === 'male' ? 'male' : 'female';
 }
 
-function getAssetPath(type, lang, gender, variant) {
+function getAssetPath(type, lang, gender, variant, voiceLabel) {
     const langKey = normalizeAssetLangKey(lang);
     const genderKey = normalizeAssetGenderKey(gender);
-    const parts = [String(type || 'asset'), variant, langKey, genderKey].filter(Boolean);
+    // voiceLabel (bare explicit voice id, если задан) — без него смена конкретного голоса
+    // на тот же пол (toy_gender — отдельное поле, не меняется автоматически при выборе
+    // голоса) не давала бы новый файл: старый кэш по (type,lang,gender) отдавался как есть.
+    const parts = [String(type || 'asset'), variant, langKey, genderKey, voiceLabel].filter(Boolean);
     return path.join(DIR_AUDIO, `${parts.join('_')}.pcm`);
 }
 
@@ -265,7 +268,8 @@ function durationFromExistingPcm(pcmPath) {
 // На ошибке генерации логирует и возвращает null — сервер не падает, просто пропускает
 // эту конкретную реплику (retry/greeting/thinking — не критичные для работы пути).
 async function synthesizeAsset(type, text, lang, gender, options = {}) {
-    const pcmPath = getAssetPath(type, lang, gender, options.variant);
+    const voiceLabel = options.voiceConfig?.id ? String(options.voiceConfig.id).replace(/[^a-zA-Z0-9_-]/g, '_') : null;
+    const pcmPath = getAssetPath(type, lang, gender, options.variant, voiceLabel);
     const wavPath = pcmPath.replace(/\.pcm$/, '.wav');
 
     if (fs.existsSync(pcmPath) && fs.existsSync(wavPath)) {
@@ -307,7 +311,10 @@ function clearCache(filter = {}) {
         if (!/\.(pcm|wav)$/.test(fileName)) continue;
         if (filter.type && !fileName.startsWith(`${filter.type}_`)) continue;
         if (langKey && !fileName.includes(`_${langKey}_`)) continue;
-        if (genderKey && !fileName.endsWith(`_${genderKey}.pcm`) && !fileName.endsWith(`_${genderKey}.wav`)) continue;
+        if (genderKey
+            && !fileName.includes(`_${genderKey}_`)
+            && !fileName.endsWith(`_${genderKey}.pcm`)
+            && !fileName.endsWith(`_${genderKey}.wav`)) continue;
 
         try {
             fs.unlinkSync(path.join(DIR_AUDIO, fileName));
