@@ -70,10 +70,16 @@ const PARENT_THINKING_UI_SCRIPT = `
 </script>`;
 
 function replaceOnce(source, from, to, label) {
-    if (!source.includes(from)) {
+    if (source.includes(from)) {
+        return source.replace(from, to);
+    }
+    const crlfFrom = from.replace(/\n/g, '\r\n');
+    if (source.includes(crlfFrom)) {
+        return source.replace(crlfFrom, to.replace(/\n/g, '\r\n'));
+    }
+    {
         throw new Error(`[ServerPipelinePatch] missing patch point: ${label}`);
     }
-    return source.replace(from, to);
 }
 
 function replaceAllChecked(source, pattern, to, label) {
@@ -117,8 +123,8 @@ function patchParentConfigSource(source) {
 
     patched = replaceOnce(
         patched,
-        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n    await pool.query(\"UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'\");",
-        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_phrases_enabled BOOLEAN NOT NULL DEFAULT true\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_frequency TEXT NOT NULL DEFAULT 'normal'\");\n    await pool.query(\"UPDATE device_settings SET language = 'ru-RU' WHERE language = 'auto'\");",
+        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n",
+        "    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS quiet_hours_end TEXT NOT NULL DEFAULT '07:00'\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_phrases_enabled BOOLEAN NOT NULL DEFAULT true\");\n    await pool.query(\"ALTER TABLE device_settings ADD COLUMN IF NOT EXISTS thinking_frequency TEXT NOT NULL DEFAULT 'normal'\");\n",
         'alter thinking columns'
     );
 
