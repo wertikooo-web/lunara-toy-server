@@ -307,7 +307,7 @@ async function init() {
             humor_level TEXT NOT NULL DEFAULT 'normal',
             activity_level TEXT NOT NULL DEFAULT 'normal',
             question_frequency TEXT NOT NULL DEFAULT 'sometimes',
-            voice TEXT NOT NULL DEFAULT 'zara',
+            voice TEXT NOT NULL DEFAULT '',
             voice_speed TEXT NOT NULL DEFAULT 'normal',
             volume_level INTEGER NOT NULL DEFAULT 7,
             story_length TEXT NOT NULL DEFAULT '5',

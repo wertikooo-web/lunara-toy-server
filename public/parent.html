@@ -54,9 +54,6 @@
     #analyticsSection { border-bottom: 4px solid #ef4444; }
     .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
     .top-switchers { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-    .console-lang { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-    .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
-    .console-lang button.active { background: #8b5cf6; border-color: #c4a7ff; }
     .top-language-select { width: auto; padding: 8px 11px; background: #8b5cf6; border-color: #c4a7ff; font-weight: 700; }
     label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
     input, select, textarea {
@@ -189,8 +186,6 @@
   <div class="topbar">
     <h1>Родительский контроль Lumi</h1>
     <div class="top-switchers">
-      <!-- Текст самой панели (UI_TEXT) переведён только на ru/ro/en — для ES/FR/IT этот
-           select переключает язык и голос ИГРУШКИ, текст панели остаётся как был. -->
       <select id="topLanguageSelect" class="top-language-select" aria-label="Язык игрушки" onchange="setLanguageFromTop(this.value)">
         <option value="ru-RU">RU — Русский</option>
         <option value="ro-RO">RO — Română</option>
@@ -199,9 +194,6 @@
         <option value="fr-FR">FR — Français</option>
         <option value="it-IT">IT — Italiano</option>
       </select>
-      <!-- Кнопки голосов для ТЕКУЩЕГО языка игрушки — заполняются динамически
-           (renderTopVoiceButtons), синхронизированы с #voice_id в панели "Игрушка". -->
-      <div class="console-lang" id="topVoiceButtons" aria-label="Голос игрушки"></div>
     </div>
   </div>
 
@@ -316,9 +308,7 @@
         </div>
         <div>
           <label id="voiceIdLabel">Голос</label>
-          <select id="voice_id" onchange="renderTopVoiceButtons()">
-            <option value="">Автоматически (по полу)</option>
-          </select>
+          <select id="voice_id"></select>
         </div>
       </div>
     </section>
@@ -759,7 +749,7 @@ const UI_TEXT = {
     customToyType: 'Свой тип персонажа',
     customToyPlaceholder: 'Например: Чебурашка, единорог, робот',
     customToyOption: 'Свой тип',
-    toyGender: 'Пол Lumi',
+    toyGender: 'Пол',
     toyGenderFemale: 'Женский',
     toyGenderMale: 'Мужской',
     voiceIdLabel: 'Голос',
@@ -1044,7 +1034,7 @@ const UI_TEXT = {
     customToyType: 'Tip propriu de personaj',
     customToyPlaceholder: 'De exemplu: robot, unicorn, personaj propriu',
     customToyOption: 'Tip propriu',
-    toyGender: 'Gen Lumi',
+    toyGender: 'Gen',
     toyGenderFemale: 'Feminin',
     toyGenderMale: 'Masculin',
     voiceIdLabel: 'Voce',
@@ -1329,7 +1319,7 @@ const UI_TEXT = {
     customToyType: 'Custom character type',
     customToyPlaceholder: 'For example: robot, unicorn, your own character',
     customToyOption: 'Custom type',
-    toyGender: 'Lumi gender',
+    toyGender: 'Gender',
     toyGenderFemale: 'Female',
     toyGenderMale: 'Male',
     voiceIdLabel: 'Voice',
@@ -1614,7 +1604,7 @@ const UI_TEXT = {
     customToyType: 'Tipo de personaje personalizado',
     customToyPlaceholder: 'Por ejemplo: robot, unicornio, tu propio personaje',
     customToyOption: 'Tipo personalizado',
-    toyGender: 'Género de Lumi',
+    toyGender: 'Género',
     toyGenderFemale: 'Femenino',
     toyGenderMale: 'Masculino',
     voiceIdLabel: 'Voz',
@@ -1899,7 +1889,7 @@ const UI_TEXT = {
     customToyType: 'Type de personnage personnalisé',
     customToyPlaceholder: 'Par exemple : robot, licorne, ton propre personnage',
     customToyOption: 'Type personnalisé',
-    toyGender: 'Genre de Lumi',
+    toyGender: 'Genre',
     toyGenderFemale: 'Féminin',
     toyGenderMale: 'Masculin',
     voiceIdLabel: 'Voix',
@@ -2184,7 +2174,7 @@ const UI_TEXT = {
     customToyType: 'Tipo di personaggio personalizzato',
     customToyPlaceholder: 'Per esempio: robot, unicorno, il tuo personaggio',
     customToyOption: 'Tipo personalizzato',
-    toyGender: 'Genere di Lumi',
+    toyGender: 'Genere',
     toyGenderFemale: 'Femminile',
     toyGenderMale: 'Maschile',
     voiceIdLabel: 'Voce',
@@ -2665,65 +2655,28 @@ function buildPreviewPhrase() {
   return formatText(entry.phrase, { child, toy });
 }
 
-// "Автоматически (по полу)" — подпись голоса ИГРУШКИ, должна следовать за языком
-// игрушки (#language), а не за языком консоли админ-панели (UI_TEXT/consoleLanguage —
-// это отдельное поле). Держим отдельно от UI_TEXT именно поэтому.
-const VOICE_AUTO_LABELS = {
-  'ru-RU': 'Автоматически (по полу)',
-  'ro-RO': 'Automat (dupa gen)',
-  'en-US': 'Automatic (by gender)',
-  'es-ES': 'Automático (según el género)',
-  'fr-FR': 'Automatique (selon le genre)',
-  'it-IT': 'Automatico (in base al genere)',
-};
-
 // Подтягивает список голосов провайдера под текущий язык (GET /api/parent/voices) и
 // перерисовывает <select id="voice_id">, сохраняя текущий выбор, если он всё ещё валиден.
+// Автовыбора по полу больше нет — выбор голоса всегда явный. Если сохранённое значение
+// не найдено среди реальных голосов (пусто, легаси-дефолт БД, удалённый id), выбираем
+// первый голос из списка, а не оставляем select на несуществующей пустой опции.
 async function refreshVoiceOptions() {
   const select = document.getElementById('voice_id');
   if (!select) return;
   const lang = getToyLanguage();
   const currentValue = select.value;
-  const autoLabel = VOICE_AUTO_LABELS[lang] || VOICE_AUTO_LABELS['en-US'];
   try {
     const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang));
     const voices = data.voices || [];
-    select.innerHTML = '<option value="">' + escapeHtml(autoLabel) + '</option>'
-      + voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
-    if (voices.some(v => v.id === currentValue)) select.value = currentValue;
-    topVoiceButtonsData = { voices, autoLabel };
-    renderTopVoiceButtons();
+    select.innerHTML = voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
+    if (voices.some(v => v.id === currentValue)) {
+      select.value = currentValue;
+    } else if (voices.length) {
+      select.value = voices[0].id;
+    }
   } catch (err) {
     console.warn('[Parent] failed to load voices', err);
   }
-}
-
-// Кнопки голосов в шапке (#topVoiceButtons) — параллельный, "быстрый" вариант того же
-// #voice_id select из панели "Игрушка". Данные кэшируются тут же, чтобы пересобрать
-// кнопки (например, при ручном выборе в select) без повторного похода в API.
-let topVoiceButtonsData = { voices: [], autoLabel: 'Auto' };
-
-function renderTopVoiceButtons() {
-  const container = document.getElementById('topVoiceButtons');
-  if (!container) return;
-  const select = document.getElementById('voice_id');
-  const currentValue = select ? select.value : '';
-  const shortLabel = (name) => String(name || '').split('(')[0].trim() || name;
-  const buttons = [{ id: '', label: topVoiceButtonsData.autoLabel }]
-    .concat(topVoiceButtonsData.voices.map(v => ({ id: v.id, label: shortLabel(v.name) })));
-  container.innerHTML = buttons.map(b =>
-    `<button type="button" class="${b.id === currentValue ? 'active' : ''}" onclick="selectTopVoice('${b.id}')">${escapeHtml(b.label)}</button>`
-  ).join('');
-}
-
-// Клик по голосовой кнопке в шапке — обновляет #voice_id (и наоборот: ручной выбор в
-// select вызывает renderTopVoiceButtons() через onchange, чтобы активная кнопка сходилась).
-function selectTopVoice(voiceId) {
-  const select = document.getElementById('voice_id');
-  if (!select) return;
-  select.value = voiceId;
-  renderTopVoiceButtons();
-  updateUnsavedIndicator();
 }
 
 async function previewLumiVoice() {
@@ -3093,9 +3046,6 @@ function applyConsoleLocale(lang) {
   const toyGenderOptions = document.querySelectorAll('#toy_gender option');
   [t.toyGenderFemale, t.toyGenderMale].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
   setText('#voiceIdLabel', t.voiceIdLabel);
-  // "Автоматически (по полу)" — подпись голоса ИГРУШКИ (см. VOICE_AUTO_LABELS/
-  // refreshVoiceOptions), не консоли админки. Не перезаписываем её тут языком консоли —
-  // иначе переключение языка панели затирает правильную toy-language подпись обратно.
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
@@ -3195,7 +3145,7 @@ function applyConsoleLocale(lang) {
   const analyticsOptions = document.querySelectorAll('#analyticsPeriod option');
   [t.analyticsPeriodToday, t.analyticsPeriodYesterday, t.analyticsPeriod7d, t.analyticsPeriod30d, t.analyticsPeriodAll, t.analyticsPeriodCustom]
     .forEach((label, i) => { if (analyticsOptions[i]) analyticsOptions[i].textContent = label; });
-  setText('#metricUsedToday', document.getElementById('metricUsedToday')?.textContent || '0 мин');
+  setText('#metricUsedToday', document.getElementById('metricUsedToday')?.textContent || `0 ${t.minUnit}`);
   const metricCards = document.querySelectorAll('#analyticsPanel .metric');
   if (metricCards[0]?.firstChild) metricCards[0].firstChild.textContent = t.analyticsUsed;
   if (metricCards[1]?.firstChild) metricCards[1].firstChild.textContent = t.analyticsRemaining;
