@@ -57,6 +57,7 @@
     .console-lang { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
     .console-lang button.active { background: #8b5cf6; border-color: #c4a7ff; }
+    .top-language-select { width: auto; padding: 8px 11px; background: #8b5cf6; border-color: #c4a7ff; font-weight: 700; }
     label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
     input, select, textarea {
       width: 100%; box-sizing: border-box; border: 1px solid #57408f; border-radius: 8px;
@@ -186,16 +187,16 @@
   <div class="topbar">
     <h1>Родительский контроль Lumi</h1>
     <div class="top-switchers">
-      <div class="console-lang" aria-label="Язык консоли">
-        <button id="langRu" type="button" onclick="setLanguageFromTop('ru-RU')">RU</button>
-        <button id="langRo" type="button" onclick="setLanguageFromTop('ro-RO')">RO</button>
-        <button id="langEn" type="button" onclick="setLanguageFromTop('en-US')">ENG</button>
-        <!-- Текст самой панели (UI_TEXT) переведён только на ru/ro/en — для ES/FR/IT
-             эти кнопки переключают язык и голос ИГРУШКИ, текст панели остаётся как был. -->
-        <button id="langEs" type="button" onclick="setLanguageFromTop('es-ES')">ES</button>
-        <button id="langFr" type="button" onclick="setLanguageFromTop('fr-FR')">FR</button>
-        <button id="langIt" type="button" onclick="setLanguageFromTop('it-IT')">IT</button>
-      </div>
+      <!-- Текст самой панели (UI_TEXT) переведён только на ru/ro/en — для ES/FR/IT этот
+           select переключает язык и голос ИГРУШКИ, текст панели остаётся как был. -->
+      <select id="topLanguageSelect" class="top-language-select" aria-label="Язык игрушки" onchange="setLanguageFromTop(this.value)">
+        <option value="ru-RU">RU — Русский</option>
+        <option value="ro-RO">RO — Română</option>
+        <option value="en-US">ENG — English</option>
+        <option value="es-ES">ES — Español</option>
+        <option value="fr-FR">FR — Français</option>
+        <option value="it-IT">IT — Italiano</option>
+      </select>
       <!-- Кнопки голосов для ТЕКУЩЕГО языка игрушки — заполняются динамически
            (renderTopVoiceButtons), синхронизированы с #voice_id в панели "Игрушка". -->
       <div class="console-lang" id="topVoiceButtons" aria-label="Голос игрушки"></div>
@@ -1674,18 +1675,24 @@ function getToyLanguage() {
   return document.getElementById('language')?.value || 'ru-RU';
 }
 
-function normalizeLanguageKey(lang) {
-  if (String(lang).startsWith('ro')) return 'ro-RO';
-  if (String(lang).startsWith('en')) return 'en-US';
-  return 'ru-RU';
-}
+// Раньше фраза превью бралась из UI_TEXT (текст самой панели), а UI_TEXT есть только
+// для ru/ro/en — для ES/FR/IT это молча откатывалось на РУССКИЙ текст фразы, поэтому
+// выбранный испанский/французский/итальянский голос озвучивал русские слова. Держим
+// отдельно от UI_TEXT, по языку ИГРУШКИ (все 6), как GREETING_TEXTS в server.js.
+const PREVIEW_PHRASES = {
+  'ru-RU': { fallback: 'дружок', phrase: 'Привет, {child}! Я {toy}. Хочешь сегодня придумать маленькое приключение?' },
+  'ro-RO': { fallback: 'prietene', phrase: 'Buna, {child}! Eu sunt {toy}. Vrei sa inventam azi o mica aventura?' },
+  'en-US': { fallback: 'friend', phrase: 'Hi, {child}! I am {toy}. Would you like to make up a little adventure today?' },
+  'es-ES': { fallback: 'amiguito', phrase: '¡Hola, {child}! Soy {toy}. ¿Quieres que inventemos hoy una pequeña aventura?' },
+  'fr-FR': { fallback: 'mon copain', phrase: 'Salut, {child} ! Je suis {toy}. Tu veux qu\'on invente une petite aventure aujourd\'hui ?' },
+  'it-IT': { fallback: 'amichetto', phrase: 'Ciao, {child}! Sono {toy}. Vuoi inventare oggi una piccola avventura?' },
+};
 
 function buildPreviewPhrase() {
-  const langKey = normalizeLanguageKey(getToyLanguage());
-  const t = UI_TEXT[langKey] || UI_TEXT['ru-RU'];
-  const child = (document.getElementById('child_name')?.value || '').trim() || t.previewChildFallback;
+  const entry = PREVIEW_PHRASES[getToyLanguage()] || PREVIEW_PHRASES['en-US'];
+  const child = (document.getElementById('child_name')?.value || '').trim() || entry.fallback;
   const toy = (document.getElementById('toy_name')?.value || '').trim() || 'Lumi';
-  return formatText(t.previewPhrase, { child, toy });
+  return formatText(entry.phrase, { child, toy });
 }
 
 // "Автоматически (по полу)" — подпись голоса ИГРУШКИ, должна следовать за языком
@@ -1804,18 +1811,15 @@ async function testLumiVolume() {
   }
 }
 
-// Подсветка активной кнопки всегда отражает язык ИГРУШКИ (#language), а не
+// Синхронизирует верхний select языка с языком ИГРУШКИ (#language), а не с
 // consoleLanguage — эти два понятия разошлись, когда ES/FR/IT стали доступны как язык
 // игрушки, но не как язык текста самой панели. lang-параметр — только запасной вариант
 // на случай, если #language ещё не существует в DOM.
 function setConsoleLanguageButtons(lang) {
+  const topSelect = document.getElementById('topLanguageSelect');
+  if (!topSelect) return;
   const toyLang = document.getElementById('language')?.value || lang || 'ru-RU';
-  document.getElementById('langRu').classList.toggle('active', toyLang === 'ru-RU');
-  document.getElementById('langRo').classList.toggle('active', toyLang === 'ro-RO');
-  document.getElementById('langEn').classList.toggle('active', toyLang === 'en-US');
-  document.getElementById('langEs')?.classList.toggle('active', toyLang === 'es-ES');
-  document.getElementById('langFr')?.classList.toggle('active', toyLang === 'fr-FR');
-  document.getElementById('langIt')?.classList.toggle('active', toyLang === 'it-IT');
+  if (topSelect.value !== toyLang) topSelect.value = toyLang;
 }
 
 function setText(selector, value) {
