@@ -190,6 +190,11 @@
         <button id="langRu" type="button" onclick="setLanguageFromTop('ru-RU')">RU</button>
         <button id="langRo" type="button" onclick="setLanguageFromTop('ro-RO')">RO</button>
         <button id="langEn" type="button" onclick="setLanguageFromTop('en-US')">ENG</button>
+        <!-- Текст самой панели (UI_TEXT) переведён только на ru/ro/en — для ES/FR/IT
+             эти кнопки переключают язык и голос ИГРУШКИ, текст панели остаётся как был. -->
+        <button id="langEs" type="button" onclick="setLanguageFromTop('es-ES')">ES</button>
+        <button id="langFr" type="button" onclick="setLanguageFromTop('fr-FR')">FR</button>
+        <button id="langIt" type="button" onclick="setLanguageFromTop('it-IT')">IT</button>
       </div>
       <!-- Кнопки голосов для ТЕКУЩЕГО языка игрушки — заполняются динамически
            (renderTopVoiceButtons), синхронизированы с #voice_id в панели "Игрушка". -->
@@ -1799,10 +1804,18 @@ async function testLumiVolume() {
   }
 }
 
+// Подсветка активной кнопки всегда отражает язык ИГРУШКИ (#language), а не
+// consoleLanguage — эти два понятия разошлись, когда ES/FR/IT стали доступны как язык
+// игрушки, но не как язык текста самой панели. lang-параметр — только запасной вариант
+// на случай, если #language ещё не существует в DOM.
 function setConsoleLanguageButtons(lang) {
-  document.getElementById('langRu').classList.toggle('active', lang === 'ru-RU');
-  document.getElementById('langRo').classList.toggle('active', lang === 'ro-RO');
-  document.getElementById('langEn').classList.toggle('active', lang === 'en-US');
+  const toyLang = document.getElementById('language')?.value || lang || 'ru-RU';
+  document.getElementById('langRu').classList.toggle('active', toyLang === 'ru-RU');
+  document.getElementById('langRo').classList.toggle('active', toyLang === 'ro-RO');
+  document.getElementById('langEn').classList.toggle('active', toyLang === 'en-US');
+  document.getElementById('langEs')?.classList.toggle('active', toyLang === 'es-ES');
+  document.getElementById('langFr')?.classList.toggle('active', toyLang === 'fr-FR');
+  document.getElementById('langIt')?.classList.toggle('active', toyLang === 'it-IT');
 }
 
 function setText(selector, value) {
@@ -2766,6 +2779,10 @@ async function loadState() {
     'voice_speed', 'volume_level', 'story_length', 'custom_personality', 'child_address_mode',
     'daily_limit_minutes', 'break_reminder_minutes', 'evening_calm_start', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
+  // Пересчитываем подсветку верхних языковых кнопок под РЕАЛЬНЫЙ язык игрушки, который
+  // только что подтянулся с сервера — до этого момента могла оставаться подсветка
+  // консольного языка по умолчанию (ru-RU), не совпадающая с фактическим языком.
+  setConsoleLanguageButtons();
   setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
   await refreshVoiceOptions();
   setValue('voice_id', s.voice || '');
@@ -2811,8 +2828,17 @@ async function setLanguageFromTop(language) {
     toyLanguage.value = language;
     applyLanguageTopicDefaults(language);
   }
-  applyConsoleLocale(language);
+  // UI_TEXT (текст самой панели) переведён только для ru/ro/en. Для ES/FR/IT не вызываем
+  // applyConsoleLocale — иначе он молча откатит весь текст панели на русский (там нет
+  // блока UI_TEXT['es-ES'] и т.п.) и запомнит это как "язык консоли" в localStorage.
+  // Просто пересчитываем подсветку кнопок под новый язык игрушки.
+  if (['ru-RU', 'ro-RO', 'en-US'].includes(language)) {
+    applyConsoleLocale(language);
+  } else {
+    setConsoleLanguageButtons();
+  }
   setToyTypeValue(toyTypeBefore);
+  await refreshVoiceOptions();
   renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
   renderStatusOverview(window.lastParentState || {});
   renderRuntime(window.lastRuntime || {});
@@ -2823,7 +2849,13 @@ async function setLanguageFromTop(language) {
 function setLanguageFromMain() {
   const language = document.getElementById('language').value;
   const toyTypeBefore = getToyTypeValue();
-  applyConsoleLocale(language);
+  // См. комментарий в setLanguageFromTop — то же самое: applyConsoleLocale только для
+  // языков с реальным переводом текста панели (ru/ro/en), иначе просто подсветка кнопок.
+  if (['ru-RU', 'ro-RO', 'en-US'].includes(language)) {
+    applyConsoleLocale(language);
+  } else {
+    setConsoleLanguageButtons();
+  }
   setToyTypeValue(toyTypeBefore);
   applyLanguageTopicDefaults(language);
   refreshVoiceOptions();

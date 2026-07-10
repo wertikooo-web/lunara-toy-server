@@ -113,8 +113,14 @@
       const chosen = languageSelect.value === 'auto'
         ? document.getElementById('auto_language_fallback')?.value || 'ru-RU'
         : languageSelect.value;
-      if (languageSelect.value !== 'auto' && typeof window.applyConsoleLocale === 'function') {
+      // Текст самой панели (UI_TEXT) переведён только для ru/ro/en — applyConsoleLocale
+      // для чего угодно другого (es/fr/it, 'auto') молча откатывает весь текст на
+      // русский и запоминает это как язык консоли. Для остальных случаев — только
+      // пересчёт подсветки верхних кнопок под фактический язык игрушки.
+      if (['ru-RU', 'ro-RO', 'en-US'].includes(languageSelect.value) && typeof window.applyConsoleLocale === 'function') {
         window.applyConsoleLocale(languageSelect.value);
+      } else if (typeof window.setConsoleLanguageButtons === 'function') {
+        window.setConsoleLanguageButtons();
       }
       if (typeof window.refreshVoiceOptions === 'function') window.refreshVoiceOptions();
       if (typeof window.applyLanguageTopicDefaults === 'function') window.applyLanguageTopicDefaults(chosen);
