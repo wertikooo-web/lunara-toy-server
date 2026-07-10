@@ -723,6 +723,7 @@ app.post('/chat', async (req, res) => {
 
     try {
         const settings = await parentConfig.getSettings(deviceId);
+        content.setVoiceConfig(buildVoiceConfig(settings));
         sessionRef.childGender = settings.childGender || settings.child_gender || 'M';
         sessionRef.toyGender = settings.toyGender || settings.toy_gender || 'female';
         const effectiveLang = settings.language || lang;
@@ -1418,6 +1419,7 @@ async function handlePipeline(
         sendStatus('responding');
         const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
         const settings = await parentConfig.getSettings(deviceId);
+        content.setVoiceConfig(buildVoiceConfig(settings));
         state.childGender = settings.childGender || settings.child_gender || 'M';
         state.toyGender = settings.toyGender || settings.toy_gender || 'female';
         const effectiveLang = settings.language && settings.language !== 'auto' ? settings.language : 'auto';

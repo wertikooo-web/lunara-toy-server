@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const voiceUx = require('./voiceUxPhrases');
+const content = require('./content');
 
 let audioDir = null;
 let ttsModule = null;
@@ -96,20 +97,20 @@ function ensureDirs() {
     fs.mkdirSync(repliesDir(), { recursive: true });
 }
 
-function riddlePcmPath(riddleId) {
-    return path.join(riddleDir(), `${riddleId}.pcm`);
+function riddlePcmPath(riddleId, voiceLabel) {
+    return path.join(riddleDir(), `${riddleId}_${voiceLabel}.pcm`);
 }
 
-function replyPcmPath(key) {
-    return path.join(repliesDir(), `${key}.pcm`);
+function replyPcmPath(key, voiceLabel) {
+    return path.join(repliesDir(), `${key}_${voiceLabel}.pcm`);
 }
 
-async function ensureAudio(text, pcmPath, lang = 'ru-RU') {
+async function ensureAudio(text, pcmPath, lang = 'ru-RU', voiceConfig = null) {
     if (fs.existsSync(pcmPath)) {
         return;
     }
 
-    await ttsModule.synthesize(text, pcmPath, lang);
+    await ttsModule.synthesize(text, pcmPath, lang, { voiceConfig });
 }
 
 async function init(options) {
@@ -343,27 +344,31 @@ function isCorrectAnswer(text, activeRiddle) {
 }
 
 async function buildRiddleAudioCommand(riddle, baseUrl) {
-    const pcmPath = riddlePcmPath(riddle.id);
+    const voiceConfig = content.getVoiceConfig();
+    const label = content.voiceCacheLabel(voiceConfig);
+    const pcmPath = riddlePcmPath(riddle.id, label);
 
     // Не говорим "загадка про жирафа", даже если ребёнок просил тему.
     // Просто даём загадку.
     const spokenText = riddle.question;
 
-    await ensureAudio(spokenText, pcmPath, 'ru-RU');
+    await ensureAudio(spokenText, pcmPath, 'ru-RU', voiceConfig);
 
     return {
-        url: audioUrl(baseUrl, `riddles/${riddle.id}.wav`),
+        url: audioUrl(baseUrl, `riddles/${riddle.id}_${label}.wav`),
         durationMs: durationFromPcm(pcmPath, 2500),
     };
 }
 
 async function buildReplyAudioCommand(key, text, baseUrl) {
-    const pcmPath = replyPcmPath(key);
+    const voiceConfig = content.getVoiceConfig();
+    const label = content.voiceCacheLabel(voiceConfig);
+    const pcmPath = replyPcmPath(key, label);
 
-    await ensureAudio(text, pcmPath, 'ru-RU');
+    await ensureAudio(text, pcmPath, 'ru-RU', voiceConfig);
 
     return {
-        url: audioUrl(baseUrl, `riddles/replies/${key}.wav`),
+        url: audioUrl(baseUrl, `riddles/replies/${key}_${label}.wav`),
         durationMs: durationFromPcm(pcmPath, 1800),
     };
 }

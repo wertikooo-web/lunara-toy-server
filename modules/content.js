@@ -18,6 +18,28 @@ try {
 const DATABASE_URL = process.env.DATABASE_URL;
 const PGSSL = process.env.PGSSL === 'true';
 const CONTENT_VOICE = process.env.CONTENT_VOICE || 'default';
+
+// Кэшированный контент (загадки/шутки/скороговорки/факты/"disabled" реплики) озвучивается
+// ОДИН раз и шарится между всеми устройствами — voiceConfig текущего запроса передаём сюда
+// амбиентно через AsyncLocalStorage, а не параметром через ~15 call sites в server.js и
+// патч-файлах (там много точных text-анкоров под replaceOnce — их бы пришлось
+// синхронизировать при любом изменении сигнатур).
+const { AsyncLocalStorage } = require('async_hooks');
+const voiceConfigStorage = new AsyncLocalStorage();
+
+function setVoiceConfig(voiceConfig) {
+    voiceConfigStorage.enterWith({ voiceConfig: voiceConfig || null });
+}
+
+function getVoiceConfig() {
+    return voiceConfigStorage.getStore()?.voiceConfig || null;
+}
+
+function voiceCacheLabel(voiceConfig) {
+    if (voiceConfig?.id) return String(voiceConfig.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (voiceConfig?.gender) return `gender_${voiceConfig.gender}`;
+    return CONTENT_VOICE;
+}
 const SAMPLE_RATE = 16000;
 const LOCALIZATION_MODEL = process.env.CONTENT_LOCALIZATION_MODEL || 'gpt-4o-mini';
 const SEMANTIC_INTENT_MODEL = process.env.SEMANTIC_INTENT_MODEL || 'gpt-4o-mini';
@@ -591,7 +613,7 @@ async function pickExactLangItem(type, lang) {
     return items[Math.floor(Math.random() * items.length)] || null;
 }
 
-async function upsertAudioCache(item, fileName, durationMs) {
+async function upsertAudioCache(item, fileName, durationMs, voiceLabel = CONTENT_VOICE) {
     if (!ready || !pool) return;
     await pool.query(
         `INSERT INTO content_audio_cache
@@ -605,7 +627,7 @@ async function upsertAudioCache(item, fileName, durationMs) {
             updated_at = now()`,
         [
             item.id,
-            CONTENT_VOICE,
+            voiceLabel,
             SAMPLE_RATE,
             `audio/content/${fileName.replace(/\.pcm$/, '.wav')}`,
             `/audio/content/${fileName.replace(/\.pcm$/, '.wav')}`,
@@ -930,25 +952,28 @@ async function getSemanticIntent(text, historyContext = '') {
 async function ensureAudio(item, baseUrl) {
     if (!audioDir) throw new Error('content audioDir is not initialized');
 
-    const fileName = `${safeFilePart(item.id)}_${safeFilePart(CONTENT_VOICE)}_${textHash(item.text)}.pcm`;
+    const voiceConfig = getVoiceConfig();
+    const label = voiceCacheLabel(voiceConfig);
+
+    const fileName = `${safeFilePart(item.id)}_${safeFilePart(label)}_${textHash(item.text)}.pcm`;
     const pcmPath = path.join(audioDir, fileName);
     const wavPath = pcmPath.replace(/\.pcm$/, '.wav');
 
     if (fs.existsSync(pcmPath) && fs.existsSync(wavPath)) {
         const durationMs = durationFromPcm(pcmPath);
-        await upsertAudioCache(item, fileName, durationMs);
+        await upsertAudioCache(item, fileName, durationMs, label);
         return { url: publicUrl(baseUrl, fileName), durationMs, cached: true };
     }
 
-    const pendingKey = `${item.id}:${CONTENT_VOICE}`;
+    const pendingKey = `${item.id}:${label}`;
     if (pendingAudio.has(pendingKey)) {
         return pendingAudio.get(pendingKey);
     }
 
     const task = (async () => {
-        logger.info(`[Content] Generating cached audio for ${item.id}`);
-        const durationMs = await tts.synthesize(item.text, pcmPath, item.lang || 'ru-RU');
-        await upsertAudioCache(item, fileName, durationMs);
+        logger.info(`[Content] Generating cached audio for ${item.id} voice=${label}`);
+        const durationMs = await tts.synthesize(item.text, pcmPath, item.lang || 'ru-RU', { voiceConfig });
+        await upsertAudioCache(item, fileName, durationMs, label);
         logger.info(`[Content] Cached audio ready for ${item.id}`);
         return { url: publicUrl(baseUrl, fileName), durationMs, cached: false };
     })().finally(() => {
@@ -1350,4 +1375,7 @@ module.exports = {
     normalizeAnswer,
     stats,
     getSemanticIntent,
+    setVoiceConfig,
+    getVoiceConfig,
+    voiceCacheLabel,
 };

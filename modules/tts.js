@@ -187,7 +187,7 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
     const voiceConfig = options.voiceConfig || null;
     const toyGender = voiceConfig?.gender || options.toyGender;
     const provider = resolveProvider(detectedLang, voiceConfig);
-    logger.info(`[TTS] lang=${detectedLang} provider=${provider} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}`);
+    logger.info(`[TTS] lang=${detectedLang} provider=${provider} (${explicitLang ? 'explicit' : 'auto'}), speed=${speed}, gender=${toyGender || 'female(default)'}, voiceId=${voiceConfig?.id || 'auto'}`);
 
     async function callYandex(useExplicitVoice) {
         if (!YANDEX_FOLDER_ID || !YANDEX_API_KEY) throw new Error('Yandex TTS keys not set');
