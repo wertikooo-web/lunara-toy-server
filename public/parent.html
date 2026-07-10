@@ -88,7 +88,9 @@
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
     #characterPanel > .row-actions { justify-content: space-between; }
+    #childPanel > .row-actions { justify-content: space-between; }
     #quickSaveSettingsButton { display: block; margin-left: auto; margin-right: 0; }
+    #childSaveButton,
     #characterSaveButton,
     #saveSettingsButton { margin-right: 0; }
     .range-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 10px; align-items: center; }
@@ -342,8 +344,8 @@
       <label>Текущий интерес</label>
       <input id="current_interest">
       <div class="row-actions">
-        <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
-        <button class="danger" onclick="clearChildProfile()">Очистить профиль</button>
+        <button id="childDeleteButton" class="danger" type="button" onclick="clearChildProfile()">Удалить данные ребёнка</button>
+        <button id="childSaveButton" type="button" onclick="saveProfile()">Сохранить данные ребёнка</button>
       </div>
       <div id="childProfileStatus" class="status"></div>
     </section>
@@ -1867,6 +1869,7 @@ function updateUnsavedIndicator() {
   document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('characterSaveButton')?.classList.toggle('unsaved-save', dirty);
+  document.getElementById('childSaveButton')?.classList.toggle('unsaved-save', dirty);
   const ready = document.getElementById('quickDoneIndicator');
   const readyConfirmed = !dirty && isReadyConfirmed();
   if (ready) {
@@ -2038,9 +2041,8 @@ function applyConsoleLocale(lang) {
   [t.ageModeAuto, t.ageMode34, t.ageMode56, t.ageMode78, t.ageMode9].forEach((label, i) => { if (ageOptions[i]) ageOptions[i].textContent = label; });
   const childGenderOptions = document.querySelectorAll('#child_gender option');
   [t.childGenderMale, t.childGenderFemale].forEach((label, i) => { if (childGenderOptions[i]) childGenderOptions[i].textContent = label; });
-  setText('#childPanel .row-actions button:nth-of-type(1)', t.editChild);
-  setText('#childPanel .row-actions button:nth-of-type(2)', t.saveChild);
-  setText('#childPanel .row-actions button:nth-of-type(3)', t.clearChild);
+  setText('#childDeleteButton', t.deleteChildData);
+  setText('#childSaveButton', t.saveChild);
 
   const characterLabels = [t.character, t.addressMode, t.addressTone, t.addressVariants, t.addressCustom, t.answerLength, t.humor, t.activity, t.questions, t.voiceSpeed, t.volumeLevel, t.customPersonality];
   setText('#characterPanel h2', t.characterVoice);
