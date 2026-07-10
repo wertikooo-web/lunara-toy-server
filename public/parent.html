@@ -171,7 +171,7 @@
     .memory-save-row button { margin: 0; }
     .footer { margin-top: 28px; color: #8d7bbf; font-size: 12px; text-align: center; }
     .data-delete-panel { border-color: #7f1d1d; background: #1c1018; }
-    .data-delete-panel h2 { color: #fecaca; }
+    .data-delete-panel h2 { color: #ef4444; }
     .memory-info { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 10px; margin: 10px 0 12px; color: #d8ccff; line-height: 1.45; }
     .footer a { color: #c9b8ff; text-decoration: none; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
@@ -946,6 +946,10 @@ const UI_TEXT = {
     deleteEverything: 'Удалить всё',
     dataDeletion: 'Удаление данных',
     dataDeletionHelp: 'Опасные действия собраны отдельно, чтобы не нажать их случайно.',
+    deleteProfileHint: 'Удаляет выбранный сохранённый профиль ребёнка из списка профилей. Текущие настройки игрушки и память не очищает.',
+    clearMemoryHint: 'Очищает живую память Lumi для этой игрушки: запомненные факты, интересы и контекст разговоров. Профиль ребёнка и настройки остаются.',
+    deleteChildHint: 'Удаляет данные ребёнка: имя, возраст, предпочтения и связанную живую память. Настройки игрушки остаются.',
+    deleteEverythingHint: 'Удаляет настройки, профиль ребёнка, память, сохранённые профили и дневную статистику этой игрушки. Используйте только для полного сброса.',
     deleteChildData: 'Удалить данные ребёнка',
     logout: 'Выйти',
     loggingOut: 'Выходим...',
@@ -1228,6 +1232,10 @@ const UI_TEXT = {
     deleteEverything: 'Sterge tot',
     dataDeletion: 'Stergerea datelor',
     dataDeletionHelp: 'Actiunile periculoase sunt grupate separat ca sa nu fie apasate din greseala.',
+    deleteProfileHint: 'Sterge profilul salvat selectat din lista de profiluri. Setarile jucariei si memoria nu sunt sterse.',
+    clearMemoryHint: 'Sterge memoria vie Lumi pentru aceasta jucarie: fapte memorate, interese si contextul conversatiilor. Profilul copilului si setarile raman.',
+    deleteChildHint: 'Sterge datele copilului: nume, varsta, preferinte si memoria vie asociata. Setarile jucariei raman.',
+    deleteEverythingHint: 'Sterge setarile, profilul copilului, memoria, profilurile salvate si statistica zilnica ale acestei jucarii. Folositi doar pentru resetare completa.',
     deleteChildData: 'Sterge datele copilului',
     logout: 'Iesi',
     loggingOut: 'Iesire...',
@@ -1510,6 +1518,10 @@ const UI_TEXT = {
     deleteEverything: 'Delete everything',
     dataDeletion: 'Data deletion',
     dataDeletionHelp: 'Dangerous actions are grouped separately to avoid accidental taps.',
+    deleteProfileHint: 'Deletes the selected saved child profile from the profile list. Toy settings and memory are not cleared.',
+    clearMemoryHint: 'Clears Lumi live memory for this toy: remembered facts, interests, and conversation context. Child profile and settings remain.',
+    deleteChildHint: 'Deletes child data: name, age, preferences, and related live memory. Toy settings remain.',
+    deleteEverythingHint: 'Deletes this toy settings, child profile, memory, saved profiles, and daily statistics. Use only for a full reset.',
     deleteChildData: 'Delete child data',
     logout: 'Logout',
     loggingOut: 'Logging out...',
@@ -1797,6 +1809,14 @@ function toggleAdvancedSettings() {
 function setPlaceholder(selector, value) {
   const el = document.querySelector(selector);
   if (el) el.placeholder = value;
+}
+
+function setTooltip(selector, value) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.title = value || '';
+  if (value) el.setAttribute('aria-label', value);
+  else el.removeAttribute('aria-label');
 }
 
 function setChildHeadingText(text) {
@@ -2176,6 +2196,10 @@ function applyConsoleLocale(lang) {
   setText('#clearMemoryButton', t.clearMemory);
   setText('#deleteChildButton', t.deleteChildData);
   setText('#deleteAllButton', t.deleteEverything);
+  setTooltip('#deleteProfileButton', t.deleteProfileHint);
+  setTooltip('#clearMemoryButton', t.clearMemoryHint);
+  setTooltip('#deleteChildButton', t.deleteChildHint);
+  setTooltip('#deleteAllButton', t.deleteEverythingHint);
   setText('#logoutPanel button', t.logout);
   relocalizeStatusMessages();
   updateUnsavedIndicator();
