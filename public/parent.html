@@ -1853,6 +1853,7 @@ function updateUnsavedIndicator() {
   const dirty = hasUnsavedChanges();
   document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
+  document.getElementById('characterSaveButton')?.classList.toggle('unsaved-save', dirty);
   const ready = document.getElementById('quickDoneIndicator');
   const readyConfirmed = !dirty && isReadyConfirmed();
   if (ready) {
@@ -2039,6 +2040,7 @@ function applyConsoleLocale(lang) {
     if (input) el.prepend(input);
   });
   setText('#previewVoiceButton', t.listenLumi);
+  setText('#characterSaveButton', t.saveSettings);
   setText('#volumeLevelLabel', t.volumeLevel);
   setText('#volumeTestButton', t.volumeListen);
   const addressOptions = document.querySelectorAll('#child_address_mode option');
