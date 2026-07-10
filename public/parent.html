@@ -759,6 +759,8 @@ let voiceCloneVoiceId = '';
 let voiceCloneCustomPreviewCount = 0;
 let voiceCloneAudioUrl = '';
 let voiceCloneRecorder = null;
+let lastAddressCustomSource = '';
+let lastAddressCustomRendered = '';
 
 const UI_TEXT = {
   'ru-RU': {
@@ -3372,12 +3374,46 @@ function splitCustomAddressNames(value) {
     .slice(0, 4);
 }
 
+function transliterateCyrillicName(value) {
+  const map = {
+    А: 'A', а: 'a', Б: 'B', б: 'b', В: 'V', в: 'v', Г: 'G', г: 'g', Д: 'D', д: 'd',
+    Е: 'E', е: 'e', Ё: 'Yo', ё: 'yo', Ж: 'Zh', ж: 'zh', З: 'Z', з: 'z', И: 'I', и: 'i',
+    Й: 'Y', й: 'y', К: 'K', к: 'k', Л: 'L', л: 'l', М: 'M', м: 'm', Н: 'N', н: 'n',
+    О: 'O', о: 'o', П: 'P', п: 'p', Р: 'R', р: 'r', С: 'S', с: 's', Т: 'T', т: 't',
+    У: 'U', у: 'u', Ф: 'F', ф: 'f', Х: 'Kh', х: 'kh', Ц: 'Ts', ц: 'ts', Ч: 'Ch', ч: 'ch',
+    Ш: 'Sh', ш: 'sh', Щ: 'Shch', щ: 'shch', Ы: 'Y', ы: 'y', Э: 'E', э: 'e',
+    Ю: 'Yu', ю: 'yu', Я: 'Ya', я: 'ya', Ъ: '', ъ: '', Ь: '', ь: '',
+  };
+  return String(value || '').replace(/[А-Яа-яЁёЪъЬь]/g, char => map[char] ?? char);
+}
+
+function localizeCustomAddressText(value, lang) {
+  if (lang === 'ru-RU') return String(value || '');
+  return splitCustomAddressNames(value)
+    .map(item => /[А-Яа-яЁё]/.test(item) ? transliterateCyrillicName(item) : item)
+    .join(', ');
+}
+
+function refreshCustomAddressLanguage(lang) {
+  const input = document.getElementById('child_address_custom');
+  if (!input) return;
+  const current = input.value.trim();
+  const source = (lastAddressCustomRendered && current === lastAddressCustomRendered)
+    ? lastAddressCustomSource
+    : current;
+  lastAddressCustomSource = source;
+  lastAddressCustomRendered = localizeCustomAddressText(source, lang);
+  input.value = lastAddressCustomRendered;
+}
+
 function setChildAddressNames(values = []) {
   const list = Array.isArray(values) ? values : String(values || '').split(',');
   const presetValues = list.filter(value => ADDRESS_PRESETS.includes(value));
   const customValues = list.filter(value => value && value !== 'name' && !ADDRESS_PRESETS.includes(value));
   setCheckedValues('childAddressChecks', presetValues.length ? presetValues : ['sunshine', 'friend']);
-  setValue('child_address_custom', customValues.join(', '));
+  lastAddressCustomSource = customValues.join(', ');
+  lastAddressCustomRendered = localizeCustomAddressText(lastAddressCustomSource, consoleLanguage);
+  setValue('child_address_custom', lastAddressCustomRendered);
 }
 
 function getChildAddressNames() {
@@ -3506,6 +3542,7 @@ function applyConsoleLocale(lang) {
     if (input) el.prepend(input);
   });
   setPlaceholder('#child_address_custom', t.addressCustomPlaceholder);
+  refreshCustomAddressLanguage(lang);
   setPlaceholder('#custom_personality', t.customPersonalityPlaceholder);
 
   setText('#runtimePanel h2', t.runtime);
