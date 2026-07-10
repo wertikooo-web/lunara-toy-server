@@ -772,7 +772,11 @@ const CUSTOM_TOY_VALUE = '__custom__';
 const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 let consoleLanguage = localStorage.getItem('lumi_parent_console_lang') || 'ru-RU';
-let lastSavedFormSnapshot = '';
+// child_gender/age_mode нарочно в обоих списках — их реально сохраняют ОБА пути
+// (saveSettings() и saveProfile()), остальные поля профиля — только saveProfile().
+const CHILD_PROFILE_SCOPE_FIELDS = ['child_gender', 'age_mode', 'child_name', 'age', 'favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
+let lastSavedChildSnapshot = '';
+let lastSavedSettingsSnapshot = '';
 let voiceCloneSampleBlob = null;
 let voiceCloneVoiceId = '';
 let voiceCloneCustomPreviewCount = 0;
@@ -3275,12 +3279,13 @@ function relocalizeStatusMessages() {
   });
 }
 
-function parentFormSnapshot() {
+function parentFormSnapshot(filterFn) {
   const box = document.getElementById('consoleBox');
   if (!box || box.classList.contains('hidden')) return '';
   return [...box.querySelectorAll('input, select, textarea')]
     .filter(el => !['profileName', 'current_parent_pin', 'new_parent_pin', 'repeat_parent_pin', 'voiceCloneText'].includes(el.id))
     .filter(el => el.name !== 'voice_clone_text_mode')
+    .filter(filterFn || (() => true))
     .map(el => {
       if (el.type === 'checkbox' || el.type === 'radio') return `${el.id || el.name}:${el.value}:${el.checked}`;
       return `${el.id || el.name}:${el.value}`;
@@ -3288,8 +3293,17 @@ function parentFormSnapshot() {
     .join('|');
 }
 
+function childProfileSnapshot() {
+  return parentFormSnapshot(el => CHILD_PROFILE_SCOPE_FIELDS.includes(el.id));
+}
+
+function settingsFormSnapshot() {
+  return parentFormSnapshot(el => !CHILD_PROFILE_SCOPE_FIELDS.includes(el.id) || el.id === 'child_gender' || el.id === 'age_mode');
+}
+
 function markFormClean() {
-  lastSavedFormSnapshot = parentFormSnapshot();
+  lastSavedChildSnapshot = childProfileSnapshot();
+  lastSavedSettingsSnapshot = settingsFormSnapshot();
   updateUnsavedIndicator();
 }
 
@@ -3307,17 +3321,27 @@ function markReadyConfirmed() {
   updateUnsavedIndicator();
 }
 
+function hasChildProfileChanges() {
+  return Boolean(lastSavedChildSnapshot) && childProfileSnapshot() !== lastSavedChildSnapshot;
+}
+
+function hasSettingsChanges() {
+  return Boolean(lastSavedSettingsSnapshot) && settingsFormSnapshot() !== lastSavedSettingsSnapshot;
+}
+
 function hasUnsavedChanges() {
-  return Boolean(lastSavedFormSnapshot) && parentFormSnapshot() !== lastSavedFormSnapshot;
+  return hasChildProfileChanges() || hasSettingsChanges();
 }
 
 function updateUnsavedIndicator() {
-  const dirty = hasUnsavedChanges();
-  document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', dirty);
-  document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
-  document.getElementById('characterSaveButton')?.classList.toggle('unsaved-save', dirty);
-  document.getElementById('childSaveButton')?.classList.toggle('unsaved-save', dirty);
-  document.getElementById('toySaveButton')?.classList.toggle('unsaved-save', dirty);
+  const settingsDirty = hasSettingsChanges();
+  const childDirty = hasChildProfileChanges();
+  const dirty = settingsDirty || childDirty;
+  document.getElementById('saveSettingsButton')?.classList.toggle('unsaved-save', settingsDirty);
+  document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', settingsDirty);
+  document.getElementById('characterSaveButton')?.classList.toggle('unsaved-save', settingsDirty);
+  document.getElementById('toySaveButton')?.classList.toggle('unsaved-save', settingsDirty);
+  document.getElementById('childSaveButton')?.classList.toggle('unsaved-save', childDirty);
   const ready = document.getElementById('quickDoneIndicator');
   const readyConfirmed = !dirty && isReadyConfirmed();
   if (ready) {
@@ -3669,30 +3693,23 @@ async function refreshProfileTranslations(lang) {
   const fields = ['favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
   const hasAny = fields.some(field => String(window.lastProfile[field] || '').trim());
   if (!hasAny) {
-    fields.forEach(field => {
-      setText(`#${field}_translated`, '');
-      setValue(field, '');
-    });
+    fields.forEach(field => setText(`#${field}_translated`, ''));
     return;
   }
-  if (lang === 'ru-RU') {
-    fields.forEach(field => {
-      setText(`#${field}_translated`, '');
-      setValue(field, String(window.lastProfile[field] || '').trim());
-    });
-    return;
-  }
+  // Никогда не трогаем .value полей напрямую — saveProfile() читает их как есть, и
+  // подмена на перевод молча испортила бы реальные данные ребёнка при следующем
+  // сохранении. Перевод — только подсказка снизу; работает для ЛЮБОГО целевого
+  // языка (включая ru-RU) — раньше тут был досрочный return для ru-RU, из-за чего
+  // нерусские значения (например, румынские) никогда не переводились в русской панели.
   try {
     const translated = await api('/api/parent/profile-translations?lang=' + encodeURIComponent(lang));
     fields.forEach(field => {
       const raw = String(window.lastProfile[field] || '').trim();
       const value = String(translated[field] || '').trim();
-      setText(`#${field}_translated`, '');
-      setValue(field, value || raw);
+      setText(`#${field}_translated`, (value && value !== raw) ? `≈ ${value}` : '');
     });
   } catch (err) {
     console.warn('[Parent] profile translation refresh failed', err);
-    fields.forEach(field => setText(`#${field}_translated`, ''));
   }
 }
 
