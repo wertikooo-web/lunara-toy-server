@@ -199,6 +199,17 @@ function sendVolumeToDevice(deviceId, volumeLevel) {
     return sent;
 }
 
+function isVolumeAckMessage(msg) {
+    if (!msg || typeof msg !== 'object') return false;
+    if (msg.type === 'volume_ack' || msg.type === 'set_volume_ack') return true;
+    if (msg.type !== 'ack') return false;
+    return ['set_volume', 'volume'].includes(msg.command || msg.name || msg.ackType);
+}
+
+function volumeLevelFromAck(msg) {
+    return clampVolumeLevel(msg?.volumeLevel ?? msg?.volume_level ?? msg?.level ?? msg?.volume);
+}
+
 app.post('/api/parent/login', async (req, res) => {
     try {
         const deviceId = req.body?.device_id || 'lumi_001';
@@ -251,7 +262,9 @@ app.post('/api/parent/settings', async (req, res) => {
         const settings = await parentConfig.updateSettings(session.device_id, req.body || {});
         const volumeLevel = clampVolumeLevel(settings.volume_level);
         logger.info(`[Volume] saved level=${volumeLevel} source=parent_panel device_id=${session.device_id}`);
-        sendVolumeToDevice(session.device_id, volumeLevel);
+        if (!sendVolumeToDevice(session.device_id, volumeLevel)) {
+            logger.info(`[Volume] device offline, saved only level=${volumeLevel} device_id=${session.device_id}`);
+        }
         clearDemoSession(session.device_id);
         res.json({ ok: true, settings, session_reset: true });
     } catch (err) {
@@ -1046,6 +1059,10 @@ wss.on('connection', (ws, req) => {
         }
 
         logger.info(`[WS] received: ${msg.type}`);
+
+        if (isVolumeAckMessage(msg)) {
+            logger.info(`[Volume] ack level=${volumeLevelFromAck(msg)} device_id=${deviceId}`);
+        }
 
         switch (msg.type) {
 
