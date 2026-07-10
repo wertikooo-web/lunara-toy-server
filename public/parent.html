@@ -117,7 +117,7 @@
     .hero img { width: 148px; height: 148px; object-fit: cover; border-radius: 18px; border: 1px solid #6d4fc0; box-shadow: 0 0 28px rgba(139, 92, 246, .32); }
     .hero-copy { position: relative; min-height: 116px; padding-bottom: 36px; }
     .hero-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .hero-text { color: #c9b8ff; line-height: 1.45; }
+    .hero-text { color: #c9b8ff; line-height: 1.45; white-space: pre-line; }
     .analytics-panel { margin-top: 12px; }
     .toggle-button { display: inline-flex; align-items: center; gap: 9px; }
     .toggle-button::after { content: '▾'; font-size: 13px; line-height: 1; transition: transform .16s ease; }
@@ -222,7 +222,8 @@
     <img src="/lumi-parent-hero.png" alt="Lumi">
     <div class="hero-copy">
       <div class="hero-title">Lumi под вашим контролем</div>
-      <div class="hero-text">Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.</div>
+      <div class="hero-text">Настройте язык, характер, память, профили детей, разрешённый контент
+и время работы игрушки</div>
       <div id="quickDoneIndicator" class="ready-indicator pending">ГОТОВО</div>
     </div>
   </section>
@@ -789,7 +790,7 @@ const UI_TEXT = {
     voiceCloneError: 'MiniMax не смог выполнить запрос. Проверьте ключ, лимиты или попробуйте позже.',
     heroTitle: 'Lumi под вашим контролем',
     heroTitleTemplate: '{toy} под вашим контролем',
-    heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
+    heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент\nи время работы игрушки',
     login: 'Вход',
     enter: 'ВОЙТИ',
     profiles: 'Профили ребёнка',
