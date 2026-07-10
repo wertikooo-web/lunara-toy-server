@@ -92,9 +92,11 @@
     #childPanel > .row-actions { justify-content: space-between; }
     .volume-preview-row { justify-content: space-between; }
     #quickSaveSettingsButton { display: block; margin-left: auto; margin-right: 0; }
-    #characterSaveButton { margin-left: auto; }
+    #characterSaveButton,
+    #toySaveButton { margin-left: auto; }
     #childSaveButton,
     #characterSaveButton,
+    #toySaveButton,
     #saveSettingsButton { margin-right: 0; }
     .range-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 10px; align-items: center; }
     .range-row input { margin: 0; }
@@ -412,7 +414,7 @@
       <p class="small" id="current_interest_translated"></p>
       <div class="row-actions">
         <button id="childDeleteButton" class="danger" type="button" onclick="clearChildProfile()">Удалить данные ребёнка</button>
-        <button id="childSaveButton" type="button" onclick="saveProfile()">Сохранить настройки</button>
+        <button id="childSaveButton" type="button" onclick="saveProfile()">Сохранить профиль ребёнка</button>
       </div>
       <div id="childProfileStatus" class="status"></div>
     </section>
@@ -882,7 +884,7 @@ const UI_TEXT = {
     foodPlaceholder: 'Например: пицца, омлет',
     interestPlaceholder: 'Например: рисование, космос, конструктор',
     editChild: 'Редактировать',
-    saveChild: 'Сохранить настройки',
+    saveChild: 'Сохранить профиль ребёнка',
     clearChild: 'Очистить данные',
     characterVoice: 'Характер и стиль',
     character: 'Образ Lumi',
@@ -1183,7 +1185,7 @@ const UI_TEXT = {
     foodPlaceholder: 'De exemplu: pizza, omleta',
     interestPlaceholder: 'De exemplu: desen, spatiu, constructii',
     editChild: 'Editeaza',
-    saveChild: 'Salveaza setarile',
+    saveChild: 'Salvează profilul copilului',
     clearChild: 'Curata datele',
     characterVoice: 'Caracter si stil',
     character: 'Imaginea Lumi',
@@ -1484,7 +1486,7 @@ const UI_TEXT = {
     foodPlaceholder: 'For example: pizza, omelet',
     interestPlaceholder: 'For example: drawing, space, building blocks',
     editChild: 'Edit',
-    saveChild: 'Save settings',
+    saveChild: 'Save child profile',
     clearChild: 'Clear data',
     characterVoice: 'Personality and style',
     character: 'Lumi style',
@@ -1769,7 +1771,7 @@ const UI_TEXT = {
     foodPlaceholder: 'Por ejemplo: pizza, tortilla',
     interestPlaceholder: 'Por ejemplo: dibujar, el espacio, construir bloques',
     editChild: 'Editar',
-    saveChild: 'Guardar ajustes',
+    saveChild: 'Guardar perfil del niño',
     clearChild: 'Borrar datos',
     characterVoice: 'Personalidad y estilo',
     character: 'Estilo de Lumi',
@@ -2054,7 +2056,7 @@ const UI_TEXT = {
     foodPlaceholder: 'Par exemple : pizza, omelette',
     interestPlaceholder: 'Par exemple : dessin, espace, jeux de construction',
     editChild: 'Modifier',
-    saveChild: 'Enregistrer les réglages',
+    saveChild: 'Enregistrer le profil de l\'enfant',
     clearChild: 'Effacer les données',
     characterVoice: 'Personnalité et style',
     character: 'Style de Lumi',
@@ -2339,7 +2341,7 @@ const UI_TEXT = {
     foodPlaceholder: 'Per esempio: pizza, frittata',
     interestPlaceholder: 'Per esempio: disegnare, lo spazio, i mattoncini',
     editChild: 'Modifica',
-    saveChild: 'Salva impostazioni',
+    saveChild: 'Salva profilo del bambino',
     clearChild: 'Cancella dati',
     characterVoice: 'Personalità e stile',
     character: 'Stile di Lumi',
@@ -3315,6 +3317,7 @@ function updateUnsavedIndicator() {
   document.getElementById('quickSaveSettingsButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('characterSaveButton')?.classList.toggle('unsaved-save', dirty);
   document.getElementById('childSaveButton')?.classList.toggle('unsaved-save', dirty);
+  document.getElementById('toySaveButton')?.classList.toggle('unsaved-save', dirty);
   const ready = document.getElementById('quickDoneIndicator');
   const readyConfirmed = !dirty && isReadyConfirmed();
   if (ready) {
