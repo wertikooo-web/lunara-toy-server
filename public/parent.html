@@ -352,6 +352,10 @@
       </div>
       <div id="previewVoiceStatus" class="status"></div>
       <div id="volumeTestStatus" class="status"></div>
+      <div class="row-actions">
+        <button id="toySaveButton" type="button" onclick="saveSettings()">Сохранить настройки</button>
+      </div>
+      <div id="toySaveStatus" class="status"></div>
     </section>
 
     <section id="childPanel">
@@ -3579,6 +3583,7 @@ function applyConsoleLocale(lang) {
 
   setText('#runtimePanel h2', t.runtime);
   setText('#quickSaveSettingsButton', t.saveSettings);
+  setText('#toySaveButton', t.saveSettings);
   setText('#dailyLimitOffText', t.analyticsNoLimit);
   setText('#dailyLimitOnText', t.dailyLimitEnabled);
   setText('#dailyLimitLabel', t.dailyLimit);
@@ -4335,8 +4340,10 @@ function setLanguageFromMain() {
 async function saveSettings() {
   const status = document.getElementById('saveStatus');
   const quickStatus = document.getElementById('quickSaveStatus');
+  const toyStatus = document.getElementById('toySaveStatus');
   setStatus(status, 'savingSettings');
   setStatus(quickStatus, 'savingSettings');
+  setStatus(toyStatus, 'savingSettings');
   try {
     await api('/api/parent/settings', {
       method: 'POST',
@@ -4382,6 +4389,7 @@ async function saveSettings() {
     await loadState();
     setStatus(status, 'settingsSaved');
     setStatus(quickStatus, 'settingsSaved');
+    setStatus(toyStatus, 'settingsSaved');
     markReadyConfirmed();
   } catch (err) {
     status.textContent = err.message;
@@ -4389,6 +4397,10 @@ async function saveSettings() {
     if (quickStatus) {
       quickStatus.textContent = err.message;
       quickStatus.className = 'status error';
+    }
+    if (toyStatus) {
+      toyStatus.textContent = err.message;
+      toyStatus.className = 'status error';
     }
   }
 }

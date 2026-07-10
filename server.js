@@ -352,7 +352,7 @@ app.post('/api/parent/settings', async (req, res) => {
     if (!session) return;
     try {
         // ВРЕМЕННЫЙ диагностический лог — удалить после локализации бага с голосом.
-        logger.info(`[Settings-Debug] incoming device_id=${session.device_id} voice=${JSON.stringify(req.body?.voice)} toy_gender=${JSON.stringify(req.body?.toy_gender)}`);
+        logger.info(`[Settings-Debug] incoming device_id=${session.device_id} keys=${JSON.stringify(Object.keys(req.body || {}))} voice=${JSON.stringify(req.body?.voice)} toy_gender=${JSON.stringify(req.body?.toy_gender)}`);
         const settings = await parentConfig.updateSettings(session.device_id, req.body || {});
         logger.info(`[Settings-Debug] persisted device_id=${session.device_id} voice=${JSON.stringify(settings.voice)} toy_gender=${JSON.stringify(settings.toy_gender)}`);
         const volumeLevel = clampVolumeLevel(settings.volume_level);
