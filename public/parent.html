@@ -3592,7 +3592,17 @@ async function refreshProfileTranslations(lang) {
   const fields = ['favorite_color', 'favorite_animal', 'favorite_toy', 'favorite_food', 'current_interest'];
   const hasAny = fields.some(field => String(window.lastProfile[field] || '').trim());
   if (!hasAny) {
-    fields.forEach(field => setText(`#${field}_translated`, ''));
+    fields.forEach(field => {
+      setText(`#${field}_translated`, '');
+      setValue(field, '');
+    });
+    return;
+  }
+  if (lang === 'ru-RU') {
+    fields.forEach(field => {
+      setText(`#${field}_translated`, '');
+      setValue(field, String(window.lastProfile[field] || '').trim());
+    });
     return;
   }
   try {
@@ -3600,12 +3610,12 @@ async function refreshProfileTranslations(lang) {
     fields.forEach(field => {
       const raw = String(window.lastProfile[field] || '').trim();
       const value = String(translated[field] || '').trim();
-      const hint = document.getElementById(`${field}_translated`);
-      if (!hint) return;
-      hint.textContent = (value && value !== raw) ? `≈ ${value}` : '';
+      setText(`#${field}_translated`, '');
+      setValue(field, value || raw);
     });
   } catch (err) {
     console.warn('[Parent] profile translation refresh failed', err);
+    fields.forEach(field => setText(`#${field}_translated`, ''));
   }
 }
 
