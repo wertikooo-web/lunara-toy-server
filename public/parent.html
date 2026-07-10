@@ -17,6 +17,15 @@
     h1, h2 { margin: 0 0 14px; }
     h1 { font-size: 28px; }
     h2 { font-size: 20px; margin-top: 26px; }
+    h1,
+    #quickSetupTitle,
+    #childPanel h2,
+    #toyPanel h2,
+    #characterPanel h2,
+    #runtimePanel h2,
+    #profilesPanel h2,
+    #contentPanel h2,
+    #technicalPanel h2 { color: #fbbf24; }
     section { border: 1px solid #3d2b70; background: #19142e; border-radius: 10px; padding: 16px; margin: 14px 0; }
     #consoleBox { display: flex; flex-direction: column; }
     #consoleBox.hidden { display: none; }
@@ -78,6 +87,10 @@
     .grid-full { grid-column: 1 / -1; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
+    #characterPanel > .row-actions { justify-content: space-between; }
+    #quickSaveSettingsButton { display: block; margin-left: auto; margin-right: 0; }
+    #characterSaveButton,
+    #saveSettingsButton { margin-right: 0; }
     .range-row { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 10px; align-items: center; }
     .range-row input { margin: 0; }
     .range-row span { color: #f7f3ff; font-weight: 700; text-align: center; }
