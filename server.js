@@ -1407,7 +1407,11 @@ async function handlePipeline(
 
         // 3. STT — Whisper
         logger.info('[Pipeline] STT start…');
-        const transcript = await stt.transcribe(uploadPath);
+        // Без language-хинта Whisper всегда падал на DEFAULT_STT_LANGUAGE ('ru-RU'),
+        // независимо от настроенного языка игрушки — отсюда requested=ru в логах даже
+        // для устройств на ro/es/fr/it, и как следствие смешение языков в ответе LLM.
+        const sttSettings = await parentConfig.getSettings(deviceId);
+        const transcript = await stt.transcribe(uploadPath, { language: sttSettings.language });
         logger.info(`[Pipeline] transcript: "${transcript}"`);
 
         if (!isCurrent()) {
