@@ -108,6 +108,10 @@ app.get('/api/content/stats', async (_req, res) => {
 
 // ── /chat endpoint — for browser demo client ─────────────────────────────────
 app.use(express.json());
+const voiceCloneRawUpload = express.raw({
+    type: ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'application/octet-stream'],
+    limit: '12mb',
+});
 
 const parentSessions = new Map();
 const revokedParentTokens = new Set();
@@ -208,6 +212,94 @@ function isVolumeAckMessage(msg) {
 
 function volumeLevelFromAck(msg) {
     return clampVolumeLevel(msg?.volumeLevel ?? msg?.volume_level ?? msg?.level ?? msg?.volume);
+}
+
+function minimaxGroupId() {
+    return process.env.MINIMAX_GROUP_ID || process.env.MINIMAX_GROUPID || process.env.MINIMAX_GROUP || '';
+}
+
+function minimaxApiUrl(pathname, envName) {
+    const override = process.env[envName];
+    if (override) return override;
+    const baseUrl = (process.env.MINIMAX_BASE_URL || 'https://api.minimax.chat').replace(/\/+$/, '');
+    const groupId = minimaxGroupId();
+    const joiner = pathname.includes('?') ? '&' : '?';
+    return `${baseUrl}${pathname}${groupId ? `${joiner}GroupId=${encodeURIComponent(groupId)}` : ''}`;
+}
+
+function requireMiniMaxConfig() {
+    if (!process.env.MINIMAX_API_KEY) {
+        const err = new Error('MINIMAX_API_KEY is not configured');
+        err.statusCode = 503;
+        throw err;
+    }
+    if (!minimaxGroupId() && !process.env.MINIMAX_FILE_UPLOAD_URL && !process.env.MINIMAX_VOICE_CLONE_URL && !process.env.MINIMAX_T2A_URL) {
+        const err = new Error('MINIMAX_GROUP_ID is not configured');
+        err.statusCode = 503;
+        throw err;
+    }
+}
+
+async function readMiniMaxJson(response, label) {
+    const text = await response.text();
+    let json = null;
+    try {
+        json = text ? JSON.parse(text) : {};
+    } catch (_err) {
+        const err = new Error(`${label} returned non-JSON response`);
+        err.statusCode = response.status || 502;
+        throw err;
+    }
+    const baseResp = json.base_resp || json.baseResp || {};
+    const statusCode = Number(baseResp.status_code ?? baseResp.statusCode ?? 0);
+    if (!response.ok || statusCode !== 0) {
+        const message = baseResp.status_msg || baseResp.statusMsg || json.error || json.message || `${label} failed`;
+        const err = new Error(message);
+        err.statusCode = response.ok ? 502 : response.status;
+        throw err;
+    }
+    return json;
+}
+
+function extractMiniMaxFileId(json) {
+    return json?.file?.file_id || json?.file?.id || json?.file_id || json?.id || json?.data?.file_id;
+}
+
+function extractMiniMaxVoiceId(json, fallback) {
+    return json?.voice_id || json?.data?.voice_id || json?.voice?.voice_id || fallback;
+}
+
+function decodeMaybeHexAudio(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    if (/^[0-9a-f]+$/i.test(text) && text.length % 2 === 0) return Buffer.from(text, 'hex');
+    return Buffer.from(text, 'base64');
+}
+
+async function extractMiniMaxAudioBuffer(response) {
+    const contentType = String(response.headers.get('content-type') || '');
+    if (!contentType.includes('application/json')) {
+        if (!response.ok) {
+            const err = new Error(`MiniMax T2A failed with HTTP ${response.status}`);
+            err.statusCode = response.status;
+            throw err;
+        }
+        return Buffer.from(await response.arrayBuffer());
+    }
+
+    const json = await readMiniMaxJson(response, 'MiniMax T2A');
+    const audioValue = json?.data?.audio || json?.audio || json?.data?.audio_file || json?.audio_file;
+    const audioBuffer = decodeMaybeHexAudio(audioValue);
+    if (audioBuffer?.length) return audioBuffer;
+
+    const audioUrl = json?.data?.audio_url || json?.audio_url || json?.data?.url;
+    if (audioUrl) {
+        const audioResponse = await fetch(audioUrl);
+        if (!audioResponse.ok) throw new Error(`MiniMax audio download failed with HTTP ${audioResponse.status}`);
+        return Buffer.from(await audioResponse.arrayBuffer());
+    }
+
+    throw new Error('MiniMax T2A response does not contain audio');
 }
 
 app.post('/api/parent/login', async (req, res) => {
@@ -485,6 +577,117 @@ app.post('/api/parent/voice-preview', async (req, res) => {
     } catch (err) {
         logger.error(`[Parent] voice preview error: ${err.message}`);
         res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/parent/voice-clone-demo', voiceCloneRawUpload, async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+
+    try {
+        requireMiniMaxConfig();
+        const audio = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+        const contentType = String(req.headers['content-type'] || 'audio/wav').split(';')[0].toLowerCase();
+        const allowedTypes = new Set(['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'application/octet-stream']);
+
+        if (!audio.length || audio.length < 1024) {
+            return res.status(400).json({ error: 'voice sample audio is required' });
+        }
+        if (!allowedTypes.has(contentType)) {
+            return res.status(415).json({ error: 'voice sample must be WAV or MP3' });
+        }
+
+        const uploadType = contentType === 'application/octet-stream' ? 'audio/wav' : contentType;
+        const extension = uploadType === 'audio/mpeg' ? 'mp3' : 'wav';
+        const form = new FormData();
+        form.append('purpose', 'voice_clone');
+        form.append('file', new Blob([audio], { type: uploadType }), `lunara_voice_sample_${Date.now()}.${extension}`);
+
+        const uploadResponse = await fetch(minimaxApiUrl('/v1/files/upload', 'MINIMAX_FILE_UPLOAD_URL'), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.MINIMAX_API_KEY}` },
+            body: form,
+        });
+        const uploadJson = await readMiniMaxJson(uploadResponse, 'MiniMax file upload');
+        const fileId = extractMiniMaxFileId(uploadJson);
+        if (!fileId) {
+            const err = new Error('MiniMax file upload did not return file_id');
+            err.statusCode = 502;
+            throw err;
+        }
+
+        const requestedVoiceId = `lunara_demo_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+        const cloneOptions = {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ file_id: fileId, voice_id: requestedVoiceId }),
+        };
+        let cloneResponse = await fetch(minimaxApiUrl('/v1/voice_clone', 'MINIMAX_VOICE_CLONE_URL'), cloneOptions);
+        if (cloneResponse.status === 404 && !process.env.MINIMAX_VOICE_CLONE_URL) {
+            cloneResponse = await fetch(minimaxApiUrl('/v1/voice_cloning', 'MINIMAX_VOICE_CLONE_URL'), cloneOptions);
+        }
+        const cloneJson = await readMiniMaxJson(cloneResponse, 'MiniMax voice clone');
+        const voiceId = extractMiniMaxVoiceId(cloneJson, requestedVoiceId);
+
+        logger.info(`[MiniMaxVoiceClone] cloned voice_id=${voiceId} device_id=${session.device_id}`);
+        res.json({ ok: true, voice_id: voiceId });
+    } catch (err) {
+        logger.error(`[MiniMaxVoiceClone] clone error: ${err.message}`);
+        res.status(err.statusCode || 500).json({ error: err.message || 'MiniMax voice clone failed' });
+    }
+});
+
+app.post('/api/parent/voice-clone-preview', async (req, res) => {
+    const session = requireParent(req, res);
+    if (!session) return;
+
+    try {
+        requireMiniMaxConfig();
+        const text = String(req.body?.text || '').trim();
+        const voiceId = String(req.body?.voice_id || '').trim();
+
+        if (!voiceId) return res.status(400).json({ error: 'voice_id is required' });
+        if (!text) return res.status(400).json({ error: 'text is required' });
+        if (text.length > 500) return res.status(400).json({ error: 'text must be 500 characters or less' });
+
+        const payload = {
+            model: process.env.MINIMAX_T2A_MODEL || 'speech-02-hd',
+            text,
+            stream: false,
+            voice_setting: {
+                voice_id: voiceId,
+                speed: 1,
+                vol: 1,
+                pitch: 0,
+            },
+            audio_setting: {
+                sample_rate: 32000,
+                bitrate: 128000,
+                format: 'mp3',
+                channel: 1,
+            },
+        };
+
+        const t2aResponse = await fetch(minimaxApiUrl('/v1/t2a_v2', 'MINIMAX_T2A_URL'), {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        const audio = await extractMiniMaxAudioBuffer(t2aResponse);
+
+        logger.info(`[MiniMaxVoiceClone] preview voice_id=${voiceId} chars=${text.length} device_id=${session.device_id}`);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'no-store');
+        res.send(audio);
+    } catch (err) {
+        logger.error(`[MiniMaxVoiceClone] preview error: ${err.message}`);
+        res.status(err.statusCode || 500).json({ error: err.message || 'MiniMax preview failed' });
     }
 });
 

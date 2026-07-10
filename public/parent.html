@@ -42,6 +42,7 @@
     #consoleBox > #analyticsSection { order: 30; }
     #consoleBox > #dataDeletionPanel { order: 95; }
     #consoleBox > #technicalPanel { order: 90; }
+    #consoleBox > #voiceClonePanel { order: 91; }
     #consoleBox > #logoutPanel { order: 99; }
     #logoutPanel { border: 0; background: transparent; padding: 0; display: flex; justify-content: flex-end; }
     #logoutPanel button { margin-right: 0; }
@@ -175,6 +176,26 @@
     .data-delete-panel { border-color: #7f1d1d; background: #1c1018; }
     .data-delete-panel h2 { color: #ef4444; }
     .memory-info { background: #100c20; border: 1px solid #2f2258; border-radius: 8px; padding: 10px; margin: 10px 0 12px; color: #d8ccff; line-height: 1.45; }
+    .voice-clone-panel { border-color: #57408f; background: #151126; }
+    .voice-clone-panel h2 { color: #fbbf24; }
+    .voice-clone-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+    .voice-clone-actions button { margin: 0; }
+    .voice-countdown { min-width: 58px; color: #fbbf24; font-weight: 800; }
+    .voice-meter { display: inline-flex; align-items: end; gap: 4px; height: 26px; padding: 5px 7px; border: 1px solid #2f2258; border-radius: 8px; background: #100c20; }
+    .voice-meter span { width: 5px; height: 7px; border-radius: 999px; background: #8b5cf6; opacity: .45; }
+    .voice-meter.recording span { animation: voiceBars .72s ease-in-out infinite; opacity: 1; }
+    .voice-meter.recording span:nth-child(2) { animation-delay: .08s; }
+    .voice-meter.recording span:nth-child(3) { animation-delay: .16s; }
+    .voice-meter.recording span:nth-child(4) { animation-delay: .24s; }
+    .voice-meter.recording span:nth-child(5) { animation-delay: .32s; }
+    @keyframes voiceBars { 0%, 100% { height: 7px; } 50% { height: 24px; } }
+    .voice-choice { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 14px 0 6px; }
+    .voice-text-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .voice-text-row label { margin-bottom: 5px; }
+    .voice-text-row .small { white-space: nowrap; }
+    #voiceCloneAudio { width: 100%; margin-top: 12px; }
+    .toast { position: fixed; right: 18px; bottom: 18px; max-width: min(360px, calc(100vw - 36px)); background: #1c1018; border: 1px solid #ef4444; border-radius: 10px; color: #fff; padding: 12px 14px; box-shadow: 0 12px 34px rgba(0, 0, 0, .35); z-index: 50; }
+    .toast.ok { background: #0b1f16; border-color: #22c55e; }
     .footer a { color: #c9b8ff; text-decoration: none; }
     pre { white-space: pre-wrap; background: #0b0914; border-radius: 8px; padding: 12px; overflow: auto; }
     #childOptionalNote { color: #fff; font-weight: 400; }
@@ -572,6 +593,30 @@
       </div>
     </section>
 
+    <section id="voiceClonePanel" class="advanced-section voice-clone-panel">
+      <h2 id="voiceCloneTitle">Клонирование голоса</h2>
+      <p id="voiceCloneInstruction" class="small">Говорите громко и выразительно, в полной тишине. Читайте любую книгу или рассказывайте историю в течение 30 секунд.</p>
+      <div class="voice-clone-actions">
+        <button id="voiceCloneRecordButton" type="button" onclick="startVoiceCloneRecording()">Записать образец голоса</button>
+        <span id="voiceCloneCountdown" class="voice-countdown">00:30</span>
+        <div id="voiceCloneMeter" class="voice-meter" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <div id="voiceCloneStatus" class="status"></div>
+      <div class="checks voice-choice">
+        <label><input type="radio" name="voice_clone_text_mode" value="standard" checked onchange="setVoiceCloneTextMode()"> <span id="voiceCloneStandardLabel">Стандартный тест</span></label>
+        <label><input type="radio" name="voice_clone_text_mode" value="custom" onchange="setVoiceCloneTextMode()"> <span id="voiceCloneCustomLabel">Свой текст (до 3 раз)</span></label>
+      </div>
+      <div class="voice-text-row">
+        <label id="voiceCloneTextLabel" for="voiceCloneText">Проверочный текст</label>
+        <span id="voiceCloneTextCounter" class="small">0 / 500</span>
+      </div>
+      <textarea id="voiceCloneText" maxlength="500" oninput="updateVoiceCloneTextCounter()"></textarea>
+      <button id="voiceClonePreviewButton" type="button" onclick="generateVoiceClonePreview()">Сгенерировать и послушать</button>
+      <audio id="voiceCloneAudio" controls class="hidden"></audio>
+    </section>
+
     <section id="contentPanel" class="advanced-section">
       <h2>Контент</h2>
       <label>Что разрешено</label>
@@ -644,6 +689,7 @@
       <div id="dataDeletionStatus" class="status"></div>
     </section>
   </div>
+  <div id="parentToast" class="toast hidden"></div>
   <footer class="footer" id="parentFooter">© 2026 <a href="https://lunaratoy.com" target="_blank" rel="noopener">lunaratoy.com</a>. Все права защищены.</footer>
 </main>
 
@@ -685,6 +731,9 @@ KNOWN_TOPIC_PRESETS.push('animals|space|fairy tales|friendship', 'animals|space|
 
 const ADDRESS_PRESETS = ['sunshine', 'little_one', 'friend', 'champion'];
 const CONTENT_DEFAULTS = ['riddle', 'story', 'tongue_twister', 'mini_game', 'learning', 'roleplay', 'speech_development'];
+const VOICE_CLONE_STANDARD_TEXT = 'Привет, мой хороший! Я так рада тебя слышать. Знаешь, пока тебя не было, я встретила в лесу маленького фиолетового медвежонка. Он передавал тебе огромный привет и сказал, что вечером обязательно расскажет нам самую интересную космическую сказку. Почисти зубки, ложись в кроватку, а я скоро приду!';
+const VOICE_CLONE_RECORD_SECONDS = 30;
+const VOICE_CLONE_MAX_CUSTOM_PREVIEWS = 3;
 
 const TOY_TYPE_PRESETS = {
   'ru-RU': ['Мишка', 'Зайчик', 'Котик', 'Дракончик', 'Динозавр', 'Крокодил', 'Обезьянка', 'Кукла', 'Робот', 'Единорог', 'Чебурашка'],
@@ -704,6 +753,11 @@ const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'
 
 let consoleLanguage = localStorage.getItem('lumi_parent_console_lang') || 'ru-RU';
 let lastSavedFormSnapshot = '';
+let voiceCloneSampleBlob = null;
+let voiceCloneVoiceId = '';
+let voiceCloneCustomPreviewCount = 0;
+let voiceCloneAudioUrl = '';
+let voiceCloneRecorder = null;
 
 const UI_TEXT = {
   'ru-RU': {
@@ -717,6 +771,22 @@ const UI_TEXT = {
     advancedShow: 'Расширенные настройки',
     advancedHide: 'Скрыть расширенные настройки',
     technicalSettings: 'Технические настройки',
+    voiceCloneTitle: 'Клонирование голоса',
+    voiceCloneInstruction: 'Говорите громко и выразительно, в полной тишине. Читайте любую книгу или рассказывайте историю в течение 30 секунд.',
+    voiceCloneRecord: 'Записать образец голоса',
+    voiceCloneStandard: 'Стандартный тест',
+    voiceCloneCustom: 'Свой текст (до 3 раз)',
+    voiceCloneTextLabel: 'Проверочный текст',
+    voiceCloneGenerate: 'Сгенерировать и послушать',
+    voiceCloneReady: 'Образец голоса готов. Теперь можно сгенерировать тест.',
+    voiceCloneRecording: 'Идет запись...',
+    voiceCloneUploading: 'Отправляю образец в MiniMax...',
+    voiceCloneGenerating: 'Генерирую тестовое аудио...',
+    voiceCloneNeedSample: 'Сначала запишите 30-секундный образец голоса.',
+    voiceCloneTextRequired: 'Введите текст для проверки.',
+    voiceCloneTextTooLong: 'Текст должен быть не длиннее 500 знаков.',
+    voiceCloneCustomLimit: 'Свой текст можно послушать не более 3 раз за сессию панели.',
+    voiceCloneError: 'MiniMax не смог выполнить запрос. Проверьте ключ, лимиты или попробуйте позже.',
     heroTitle: 'Lumi под вашим контролем',
     heroTitleTemplate: '{toy} под вашим контролем',
     heroText: 'Настройте язык, характер, память, профили детей, разрешённый контент и время работы игрушки.',
@@ -1002,6 +1072,22 @@ const UI_TEXT = {
     advancedShow: 'Setari avansate',
     advancedHide: 'Ascunde setarile avansate',
     technicalSettings: 'Setari tehnice',
+    voiceCloneTitle: 'Clonare voce',
+    voiceCloneInstruction: 'Vorbiti clar si expresiv, in liniste completa. Cititi orice carte sau povestiti ceva timp de 30 de secunde.',
+    voiceCloneRecord: 'Inregistreaza mostra de voce',
+    voiceCloneStandard: 'Test standard',
+    voiceCloneCustom: 'Text propriu (max. 3 ori)',
+    voiceCloneTextLabel: 'Text de verificare',
+    voiceCloneGenerate: 'Genereaza si asculta',
+    voiceCloneReady: 'Mostra de voce este gata. Acum puteti genera testul.',
+    voiceCloneRecording: 'Se inregistreaza...',
+    voiceCloneUploading: 'Trimit mostra catre MiniMax...',
+    voiceCloneGenerating: 'Generez audio de test...',
+    voiceCloneNeedSample: 'Mai intai inregistrati o mostra de voce de 30 de secunde.',
+    voiceCloneTextRequired: 'Introduceti textul pentru verificare.',
+    voiceCloneTextTooLong: 'Textul trebuie sa aiba cel mult 500 de caractere.',
+    voiceCloneCustomLimit: 'Textul propriu poate fi ascultat de cel mult 3 ori in aceasta sesiune.',
+    voiceCloneError: 'MiniMax nu a putut executa cererea. Verificati cheia, limitele sau incercati mai tarziu.',
     heroTitle: 'Lumi sub controlul tau',
     heroTitleTemplate: '{toy} sub controlul tau',
     heroText: 'Seteaza limba, caracterul, memoria, profilurile copiilor, continutul permis si timpul de functionare.',
@@ -1287,6 +1373,22 @@ const UI_TEXT = {
     advancedShow: 'Advanced settings',
     advancedHide: 'Hide advanced settings',
     technicalSettings: 'Technical settings',
+    voiceCloneTitle: 'Voice cloning',
+    voiceCloneInstruction: 'Speak loudly and expressively in complete silence. Read any book or tell a story for 30 seconds.',
+    voiceCloneRecord: 'Record voice sample',
+    voiceCloneStandard: 'Standard test',
+    voiceCloneCustom: 'Custom text (up to 3 times)',
+    voiceCloneTextLabel: 'Test text',
+    voiceCloneGenerate: 'Generate and listen',
+    voiceCloneReady: 'Voice sample is ready. You can generate the test now.',
+    voiceCloneRecording: 'Recording...',
+    voiceCloneUploading: 'Sending the sample to MiniMax...',
+    voiceCloneGenerating: 'Generating test audio...',
+    voiceCloneNeedSample: 'Record a 30-second voice sample first.',
+    voiceCloneTextRequired: 'Enter text for the test.',
+    voiceCloneTextTooLong: 'Text must be 500 characters or less.',
+    voiceCloneCustomLimit: 'Custom text can be played no more than 3 times in this panel session.',
+    voiceCloneError: 'MiniMax could not complete the request. Check the key, limits, or try again later.',
     heroTitle: 'Lumi under your control',
     heroTitleTemplate: '{toy} under your control',
     heroText: 'Set language, personality, memory, child profiles, allowed content, and toy runtime.',
@@ -2634,7 +2736,285 @@ function api(path, options = {}) {
   });
 }
 
+async function parentFetch(path, options = {}) {
+  options.headers = options.headers || {};
+  if (token) options.headers.Authorization = 'Bearer ' + token;
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data.error || 'HTTP ' + res.status);
+    err.status = res.status;
+    throw err;
+  }
+  return res;
+}
+
+function showParentToast(message, ok = false) {
+  const toast = document.getElementById('parentToast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = ok ? 'toast ok' : 'toast';
+  clearTimeout(showParentToast.timer);
+  showParentToast.timer = setTimeout(() => toast.classList.add('hidden'), 5200);
+}
+
 let previewVoiceAudio = null;
+
+function getVoiceCloneTextMode() {
+  return document.querySelector('input[name="voice_clone_text_mode"]:checked')?.value || 'standard';
+}
+
+function setVoiceCloneStatus(message, isError = false) {
+  const status = document.getElementById('voiceCloneStatus');
+  if (!status) return;
+  status.textContent = message || '';
+  status.className = isError ? 'status error' : 'status';
+}
+
+function setVoiceCloneBusy(isBusy) {
+  document.getElementById('voiceCloneRecordButton')?.toggleAttribute('disabled', isBusy);
+  document.getElementById('voiceClonePreviewButton')?.toggleAttribute('disabled', isBusy);
+}
+
+function setVoiceCloneTextMode() {
+  const textarea = document.getElementById('voiceCloneText');
+  if (!textarea) return;
+  const mode = getVoiceCloneTextMode();
+  textarea.readOnly = mode === 'standard';
+  if (mode === 'standard') {
+    textarea.value = VOICE_CLONE_STANDARD_TEXT;
+  } else if (textarea.value === VOICE_CLONE_STANDARD_TEXT) {
+    textarea.value = '';
+  }
+  updateVoiceCloneTextCounter();
+}
+
+function updateVoiceCloneTextCounter() {
+  const textarea = document.getElementById('voiceCloneText');
+  const counter = document.getElementById('voiceCloneTextCounter');
+  if (!textarea || !counter) return;
+  if (textarea.value.length > 500) textarea.value = textarea.value.slice(0, 500);
+  const suffix = getVoiceCloneTextMode() === 'custom'
+    ? ` (${voiceCloneCustomPreviewCount}/${VOICE_CLONE_MAX_CUSTOM_PREVIEWS})`
+    : '';
+  counter.textContent = `${textarea.value.length} / 500${suffix}`;
+}
+
+function updateVoiceCloneCountdown(secondsLeft) {
+  const el = document.getElementById('voiceCloneCountdown');
+  if (!el) return;
+  const seconds = Math.max(0, Math.round(secondsLeft));
+  el.textContent = `00:${String(seconds).padStart(2, '0')}`;
+}
+
+function flattenAudioChunks(chunks) {
+  const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Float32Array(length);
+  let offset = 0;
+  chunks.forEach(chunk => {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return result;
+}
+
+function downsampleBuffer(buffer, inputRate, outputRate) {
+  if (outputRate === inputRate) return buffer;
+  if (outputRate > inputRate) throw new Error('Output sample rate must be lower than input sample rate');
+  const ratio = inputRate / outputRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLength);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    let accum = 0;
+    let count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i += 1) {
+      accum += buffer[i];
+      count += 1;
+    }
+    result[offsetResult] = count ? accum / count : 0;
+    offsetResult += 1;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+function writeString(view, offset, value) {
+  for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+}
+
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i += 1, offset += 2) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+async function uploadVoiceCloneSample(blob) {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  setVoiceCloneStatus(t.voiceCloneUploading);
+  const res = await parentFetch('/api/parent/voice-clone-demo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'audio/wav' },
+    body: blob,
+  });
+  const data = await res.json();
+  voiceCloneVoiceId = data.voice_id || '';
+  if (!voiceCloneVoiceId) throw new Error('voice_id is missing');
+  setVoiceCloneStatus(t.voiceCloneReady);
+  showParentToast(t.voiceCloneReady, true);
+}
+
+function cleanupVoiceCloneRecorder() {
+  if (!voiceCloneRecorder) return;
+  clearInterval(voiceCloneRecorder.interval);
+  clearTimeout(voiceCloneRecorder.timeout);
+  try { voiceCloneRecorder.processor?.disconnect(); } catch (_err) {}
+  try { voiceCloneRecorder.source?.disconnect(); } catch (_err) {}
+  try { voiceCloneRecorder.stream?.getTracks()?.forEach(track => track.stop()); } catch (_err) {}
+  try { voiceCloneRecorder.context?.close(); } catch (_err) {}
+  voiceCloneRecorder = null;
+  document.getElementById('voiceCloneMeter')?.classList.remove('recording');
+  updateVoiceCloneCountdown(VOICE_CLONE_RECORD_SECONDS);
+}
+
+async function finishVoiceCloneRecording() {
+  const recorder = voiceCloneRecorder;
+  cleanupVoiceCloneRecorder();
+  if (!recorder?.chunks?.length) throw new Error('No audio captured');
+  const targetRate = Math.min(16000, recorder.sampleRate);
+  const flattened = flattenAudioChunks(recorder.chunks);
+  const downsampled = downsampleBuffer(flattened, recorder.sampleRate, targetRate);
+  voiceCloneSampleBlob = encodeWav(downsampled, targetRate);
+  await uploadVoiceCloneSample(voiceCloneSampleBlob);
+}
+
+async function startVoiceCloneRecording() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showParentToast(t.voiceCloneError);
+    return;
+  }
+  if (voiceCloneRecorder) cleanupVoiceCloneRecorder();
+  setVoiceCloneBusy(true);
+  setVoiceCloneStatus(t.voiceCloneRecording);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const context = new AudioCtx();
+    const source = context.createMediaStreamSource(stream);
+    const processor = context.createScriptProcessor(4096, 1, 1);
+    const chunks = [];
+    processor.onaudioprocess = event => chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+    source.connect(processor);
+    processor.connect(context.destination);
+    voiceCloneRecorder = {
+      context,
+      source,
+      processor,
+      stream,
+      chunks,
+      sampleRate: context.sampleRate,
+      startedAt: Date.now(),
+      interval: null,
+      timeout: null,
+    };
+    document.getElementById('voiceCloneMeter')?.classList.add('recording');
+    updateVoiceCloneCountdown(VOICE_CLONE_RECORD_SECONDS);
+    const currentRecorder = voiceCloneRecorder;
+    voiceCloneRecorder.interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - currentRecorder.startedAt) / 1000);
+      updateVoiceCloneCountdown(VOICE_CLONE_RECORD_SECONDS - elapsed);
+    }, 250);
+    voiceCloneRecorder.timeout = setTimeout(() => {
+      finishVoiceCloneRecording().catch(err => {
+        console.warn('[Parent] voice clone recording failed', err);
+        setVoiceCloneStatus(t.voiceCloneError, true);
+        showParentToast(t.voiceCloneError);
+      }).finally(() => setVoiceCloneBusy(false));
+    }, VOICE_CLONE_RECORD_SECONDS * 1000);
+  } catch (err) {
+    console.warn('[Parent] voice clone mic failed', err);
+    cleanupVoiceCloneRecorder();
+    setVoiceCloneStatus(t.voiceCloneError, true);
+    showParentToast(t.voiceCloneError);
+    setVoiceCloneBusy(false);
+  }
+}
+
+async function generateVoiceClonePreview() {
+  const t = UI_TEXT[consoleLanguage] || UI_TEXT['ru-RU'];
+  const mode = getVoiceCloneTextMode();
+  const text = String(document.getElementById('voiceCloneText')?.value || '').trim();
+  if (!voiceCloneVoiceId) {
+    setVoiceCloneStatus(t.voiceCloneNeedSample, true);
+    showParentToast(t.voiceCloneNeedSample);
+    return;
+  }
+  if (!text) {
+    setVoiceCloneStatus(t.voiceCloneTextRequired, true);
+    showParentToast(t.voiceCloneTextRequired);
+    return;
+  }
+  if (text.length > 500) {
+    setVoiceCloneStatus(t.voiceCloneTextTooLong, true);
+    showParentToast(t.voiceCloneTextTooLong);
+    return;
+  }
+  if (mode === 'custom' && voiceCloneCustomPreviewCount >= VOICE_CLONE_MAX_CUSTOM_PREVIEWS) {
+    setVoiceCloneStatus(t.voiceCloneCustomLimit, true);
+    showParentToast(t.voiceCloneCustomLimit);
+    return;
+  }
+  setVoiceCloneBusy(true);
+  setVoiceCloneStatus(t.voiceCloneGenerating);
+  try {
+    const res = await parentFetch('/api/parent/voice-clone-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice_id: voiceCloneVoiceId }),
+    });
+    const blob = await res.blob();
+    if (voiceCloneAudioUrl) URL.revokeObjectURL(voiceCloneAudioUrl);
+    voiceCloneAudioUrl = URL.createObjectURL(blob);
+    const audio = document.getElementById('voiceCloneAudio');
+    if (audio) {
+      audio.src = voiceCloneAudioUrl;
+      audio.classList.remove('hidden');
+      await audio.play().catch(() => {});
+    }
+    if (mode === 'custom') voiceCloneCustomPreviewCount += 1;
+    updateVoiceCloneTextCounter();
+    setVoiceCloneStatus('');
+  } catch (err) {
+    console.warn('[Parent] voice clone preview failed', err);
+    setVoiceCloneStatus(t.voiceCloneError, true);
+    showParentToast(t.voiceCloneError);
+  } finally {
+    setVoiceCloneBusy(false);
+  }
+}
 
 function getToyLanguage() {
   return document.getElementById('language')?.value || 'ru-RU';
@@ -2868,7 +3248,8 @@ function parentFormSnapshot() {
   const box = document.getElementById('consoleBox');
   if (!box || box.classList.contains('hidden')) return '';
   return [...box.querySelectorAll('input, select, textarea')]
-    .filter(el => !['profileName', 'current_parent_pin', 'new_parent_pin', 'repeat_parent_pin'].includes(el.id))
+    .filter(el => !['profileName', 'current_parent_pin', 'new_parent_pin', 'repeat_parent_pin', 'voiceCloneText'].includes(el.id))
+    .filter(el => el.name !== 'voice_clone_text_mode')
     .map(el => {
       if (el.type === 'checkbox' || el.type === 'radio') return `${el.id || el.name}:${el.value}:${el.checked}`;
       return `${el.id || el.name}:${el.value}`;
@@ -3057,6 +3438,14 @@ function applyConsoleLocale(lang) {
   setText('#modelModeLabel', t.modelMode);
   const modelOptions = document.querySelectorAll('#model_mode option');
   [t.modelAuto, t.modelEconomy, t.modelSmart].forEach((label, i) => { if (modelOptions[i]) modelOptions[i].textContent = label; });
+  setText('#voiceCloneTitle', t.voiceCloneTitle);
+  setText('#voiceCloneInstruction', t.voiceCloneInstruction);
+  setText('#voiceCloneRecordButton', t.voiceCloneRecord);
+  setText('#voiceCloneStandardLabel', t.voiceCloneStandard);
+  setText('#voiceCloneCustomLabel', t.voiceCloneCustom);
+  setText('#voiceCloneTextLabel', t.voiceCloneTextLabel);
+  setText('#voiceClonePreviewButton', t.voiceCloneGenerate);
+  setVoiceCloneTextMode();
 
   const childLabels = [t.childName, t.age, t.childGender, t.ageMode, t.color, t.animal, t.favoriteToy, t.food, t.currentInterest];
   setChildHeadingText(t.child);
