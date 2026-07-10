@@ -53,7 +53,8 @@
     #consoleBox.advanced-collapsed .advanced-field { display: none; }
     #analyticsSection { border-bottom: 4px solid #ef4444; }
     .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
-    .console-lang { display: inline-flex; gap: 6px; }
+    .top-switchers { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+    .console-lang { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .console-lang button { margin: 0; padding: 8px 11px; background: #241943; border: 1px solid #57408f; }
     .console-lang button.active { background: #8b5cf6; border-color: #c4a7ff; }
     label { display: block; font-size: 13px; color: #c9b8ff; margin: 12px 0 5px; }
@@ -184,10 +185,15 @@
 <main>
   <div class="topbar">
     <h1>Родительский контроль Lumi</h1>
-    <div class="console-lang" aria-label="Язык консоли">
-      <button id="langRu" type="button" onclick="setLanguageFromTop('ru-RU')">RU</button>
-      <button id="langRo" type="button" onclick="setLanguageFromTop('ro-RO')">RO</button>
-      <button id="langEn" type="button" onclick="setLanguageFromTop('en-US')">ENG</button>
+    <div class="top-switchers">
+      <div class="console-lang" aria-label="Язык консоли">
+        <button id="langRu" type="button" onclick="setLanguageFromTop('ru-RU')">RU</button>
+        <button id="langRo" type="button" onclick="setLanguageFromTop('ro-RO')">RO</button>
+        <button id="langEn" type="button" onclick="setLanguageFromTop('en-US')">ENG</button>
+      </div>
+      <!-- Кнопки голосов для ТЕКУЩЕГО языка игрушки — заполняются динамически
+           (renderTopVoiceButtons), синхронизированы с #voice_id в панели "Игрушка". -->
+      <div class="console-lang" id="topVoiceButtons" aria-label="Голос игрушки"></div>
     </div>
   </div>
 
@@ -302,7 +308,7 @@
         </div>
         <div>
           <label id="voiceIdLabel">Голос</label>
-          <select id="voice_id">
+          <select id="voice_id" onchange="renderTopVoiceButtons()">
             <option value="">Автоматически (по полу)</option>
           </select>
         </div>
@@ -1704,9 +1710,39 @@ async function refreshVoiceOptions() {
     select.innerHTML = '<option value="">' + escapeHtml(autoLabel) + '</option>'
       + voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
     if (voices.some(v => v.id === currentValue)) select.value = currentValue;
+    topVoiceButtonsData = { voices, autoLabel };
+    renderTopVoiceButtons();
   } catch (err) {
     console.warn('[Parent] failed to load voices', err);
   }
+}
+
+// Кнопки голосов в шапке (#topVoiceButtons) — параллельный, "быстрый" вариант того же
+// #voice_id select из панели "Игрушка". Данные кэшируются тут же, чтобы пересобрать
+// кнопки (например, при ручном выборе в select) без повторного похода в API.
+let topVoiceButtonsData = { voices: [], autoLabel: 'Auto' };
+
+function renderTopVoiceButtons() {
+  const container = document.getElementById('topVoiceButtons');
+  if (!container) return;
+  const select = document.getElementById('voice_id');
+  const currentValue = select ? select.value : '';
+  const shortLabel = (name) => String(name || '').split('(')[0].trim() || name;
+  const buttons = [{ id: '', label: topVoiceButtonsData.autoLabel }]
+    .concat(topVoiceButtonsData.voices.map(v => ({ id: v.id, label: shortLabel(v.name) })));
+  container.innerHTML = buttons.map(b =>
+    `<button type="button" class="${b.id === currentValue ? 'active' : ''}" onclick="selectTopVoice('${b.id}')">${escapeHtml(b.label)}</button>`
+  ).join('');
+}
+
+// Клик по голосовой кнопке в шапке — обновляет #voice_id (и наоборот: ручной выбор в
+// select вызывает renderTopVoiceButtons() через onchange, чтобы активная кнопка сходилась).
+function selectTopVoice(voiceId) {
+  const select = document.getElementById('voice_id');
+  if (!select) return;
+  select.value = voiceId;
+  renderTopVoiceButtons();
+  updateUnsavedIndicator();
 }
 
 async function previewLumiVoice() {
