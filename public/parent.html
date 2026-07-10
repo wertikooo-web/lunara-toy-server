@@ -84,7 +84,7 @@
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
     /* Поля, которые не должны участвовать в парной раскладке 2 колонок (иначе при
        скрытии соседних необязательных полей вроде customToyTypeWrap чётность съезжает
-       и следующее поле "повисает" одно в своей строке). */
+       и следующее поле "повисает" одно в своей строке — так и получилось с voice_id). */
     .grid-full { grid-column: 1 / -1; }
     .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
     .row-actions input, .row-actions select { flex: 1; min-width: 180px; }
@@ -298,6 +298,12 @@
             <option value="es-ES">Español</option>
             <option value="fr-FR">Français</option>
             <option value="it-IT">Italiano</option>
+          </select>
+        </div>
+        <div>
+          <label id="voiceIdLabel">Голос</label>
+          <select id="voice_id">
+            <option value="">Автоматически (по полу)</option>
           </select>
         </div>
       </div>
@@ -725,6 +731,7 @@ const UI_TEXT = {
     toyGender: 'Пол Lumi',
     toyGenderFemale: 'Женский',
     toyGenderMale: 'Мужской',
+    voiceIdLabel: 'Голос',
     language: 'Язык',
     langRu: 'Русский',
     langRo: 'Румынский',
@@ -1009,6 +1016,7 @@ const UI_TEXT = {
     toyGender: 'Gen Lumi',
     toyGenderFemale: 'Feminin',
     toyGenderMale: 'Masculin',
+    voiceIdLabel: 'Voce',
     language: 'Limba',
     langRu: 'Rusa',
     langRo: 'Romana',
@@ -1293,6 +1301,7 @@ const UI_TEXT = {
     toyGender: 'Lumi gender',
     toyGenderFemale: 'Female',
     toyGenderMale: 'Male',
+    voiceIdLabel: 'Voice',
     language: 'Language',
     langRu: 'Russian',
     langRo: 'Romanian',
@@ -1668,11 +1677,44 @@ function buildPreviewPhrase() {
   return formatText(t.previewPhrase, { child, toy });
 }
 
+// "Автоматически (по полу)" — подпись голоса ИГРУШКИ, должна следовать за языком
+// игрушки (#language), а не за языком консоли админ-панели (UI_TEXT/consoleLanguage —
+// это другое поле, переводить всю панель на ES/FR/IT — отдельная, намного большая
+// задача). Держим отдельно от UI_TEXT именно поэтому.
+const VOICE_AUTO_LABELS = {
+  'ru-RU': 'Автоматически (по полу)',
+  'ro-RO': 'Automat (dupa gen)',
+  'en-US': 'Automatic (by gender)',
+  'es-ES': 'Automático (según el género)',
+  'fr-FR': 'Automatique (selon le genre)',
+  'it-IT': 'Automatico (in base al genere)',
+};
+
+// Подтягивает список голосов провайдера под текущий язык (GET /api/parent/voices) и
+// перерисовывает <select id="voice_id">, сохраняя текущий выбор, если он всё ещё валиден.
+async function refreshVoiceOptions() {
+  const select = document.getElementById('voice_id');
+  if (!select) return;
+  const lang = getToyLanguage();
+  const currentValue = select.value;
+  const autoLabel = VOICE_AUTO_LABELS[lang] || VOICE_AUTO_LABELS['en-US'];
+  try {
+    const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang));
+    const voices = data.voices || [];
+    select.innerHTML = '<option value="">' + escapeHtml(autoLabel) + '</option>'
+      + voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
+    if (voices.some(v => v.id === currentValue)) select.value = currentValue;
+  } catch (err) {
+    console.warn('[Parent] failed to load voices', err);
+  }
+}
+
 async function previewLumiVoice() {
   const status = document.getElementById('previewVoiceStatus');
   const button = document.getElementById('previewVoiceButton');
   const lang = getToyLanguage();
   const text = buildPreviewPhrase();
+  const voiceId = document.getElementById('voice_id')?.value || undefined;
 
   if (!text.trim()) return;
   if (button) button.disabled = true;
@@ -1681,7 +1723,7 @@ async function previewLumiVoice() {
   try {
     const data = await api('/api/parent/voice-preview', {
       method: 'POST',
-      body: JSON.stringify({ text, lang }),
+      body: JSON.stringify({ text, lang, voice_id: voiceId }),
     });
     if (!data.audio_url) throw new Error('audio_url is missing');
     if (previewVoiceAudio) {
@@ -2028,6 +2070,10 @@ function applyConsoleLocale(lang) {
   setToyTypeOptions(lang);
   const toyGenderOptions = document.querySelectorAll('#toy_gender option');
   [t.toyGenderFemale, t.toyGenderMale].forEach((label, i) => { if (toyGenderOptions[i]) toyGenderOptions[i].textContent = label; });
+  setText('#voiceIdLabel', t.voiceIdLabel);
+  // "Автоматически (по полу)" — подпись голоса ИГРУШКИ (см. VOICE_AUTO_LABELS/
+  // refreshVoiceOptions), не консоли админки. Не перезаписываем её тут языком консоли —
+  // иначе переключение языка панели затирает правильную toy-language подпись обратно.
   const languageOptions = document.querySelectorAll('#language option');
   [t.langRu, t.langRo, t.langEn].forEach((label, i) => { if (languageOptions[i]) languageOptions[i].textContent = label; });
   setText('#technicalTitle', t.technicalSettings);
@@ -2685,6 +2731,8 @@ async function loadState() {
     'daily_limit_minutes', 'break_reminder_minutes', 'evening_calm_start', 'quiet_hours_start', 'quiet_hours_end'
   ].forEach(id => setValue(id, id === 'toy_type' ? normalizeToyTypeForDisplay(s[id]) : s[id]));
   setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
+  await refreshVoiceOptions();
+  setValue('voice_id', s.voice || '');
   setValue('child_gender', s.child_gender || s.childGender || 'M');
   setValue('volume_level', s.volume_level || s.volumeLevel || 7);
   updateVolumeLevelLabel();
@@ -2742,6 +2790,7 @@ function setLanguageFromMain() {
   applyConsoleLocale(language);
   setToyTypeValue(toyTypeBefore);
   applyLanguageTopicDefaults(language);
+  refreshVoiceOptions();
   renderSavedProfiles(window.lastSavedProfiles || [], window.lastParentState?.profile || null);
   renderStatusOverview(window.lastParentState || {});
   renderRuntime(window.lastRuntime || {});
@@ -2761,10 +2810,7 @@ async function saveSettings() {
         toy_name: document.getElementById('toy_name').value,
         toy_type: getToyTypeValue(),
         toy_gender: document.getElementById('toy_gender').value,
-        // Выбор конкретного голоса из панели убран — только пол (toy_gender) во всех
-        // языках. Явно шлём пусто, чтобы у устройств, где voice уже был сохранён
-        // раньше, тоже включилась обычная авто-логика по полу.
-        voice: '',
+        voice: document.getElementById('voice_id').value,
         language: document.getElementById('language').value,
         model_mode: document.getElementById('model_mode').value,
         child_gender: document.getElementById('child_gender').value,
