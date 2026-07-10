@@ -269,7 +269,7 @@
             <option value="en-US">English</option>
           </select>
         </div>
-        <div class="grid-full">
+        <div>
           <label id="voiceIdLabel">Голос</label>
           <select id="voice_id">
             <option value="">Автоматически (по полу)</option>
@@ -326,7 +326,6 @@
       <label>Текущий интерес</label>
       <input id="current_interest">
       <div class="row-actions">
-        <button class="secondary" onclick="editChildProfile()">Редактировать</button>
         <button onclick="saveProfile()">Сохранить профиль ребёнка</button>
         <button class="danger" onclick="clearChildProfile()">Очистить профиль</button>
       </div>
@@ -419,8 +418,10 @@
       </div>
       <div class="row-actions">
         <button id="previewVoiceButton" class="secondary" type="button" onclick="previewLumiVoice()">▶ Послушать Lumi</button>
+        <button id="characterSaveButton" type="button" onclick="saveSettings()">Сохранить настройки</button>
       </div>
       <div id="previewVoiceStatus" class="status"></div>
+      <div id="characterSaveStatus" class="status"></div>
     </section>
 
     <section id="runtimePanel">
@@ -628,13 +629,10 @@ const TOY_TYPE_PRESETS = {
   'en-US': ['Bear', 'Bunny', 'Cat', 'Little dragon', 'Dinosaur', 'Crocodile', 'Monkey', 'Doll', 'Robot', 'Unicorn'],
 };
 
-const LEGACY_TOY_TYPES = {
-  bear: 'Мишка',
-  bunny: 'Зайчик',
-  cat: 'Котик',
-  dragon: 'Дракончик',
-  custom: '',
-};
+// Индекс, а не готовый текст — иначе легаси-ключи (напр. дефолт БД toy_type='bear' для
+// каждого нового устройства) всегда показывали бы русский текст 'Мишка' даже в EN/RO
+// панели. Индекс сопоставляется с TOY_TYPE_PRESETS[consoleLanguage] на месте.
+const LEGACY_TOY_TYPE_INDEX = { bear: 0, bunny: 1, cat: 2, dragon: 3, custom: -1 };
 const CUSTOM_TOY_VALUE = '__custom__';
 const REST_SCHEDULE_DAYS = ['everyday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -1835,14 +1833,20 @@ function setToyTypeOptions(lang) {
 
 function normalizeToyTypeForDisplay(value) {
   const text = String(value || '').trim();
-  return LEGACY_TOY_TYPES[text] !== undefined ? LEGACY_TOY_TYPES[text] || '' : text;
+  if (!(text in LEGACY_TOY_TYPE_INDEX)) return text;
+  const idx = LEGACY_TOY_TYPE_INDEX[text];
+  if (idx < 0) return '';
+  const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];
+  return presets[idx] || '';
 }
 
 function setToyTypeValue(value) {
-  const text = normalizeToyTypeForDisplay(value) || 'Мишка';
   const select = document.getElementById('toy_type');
   const custom = document.getElementById('custom_toy_type');
   const presets = TOY_TYPE_PRESETS[consoleLanguage] || TOY_TYPE_PRESETS['ru-RU'];
+  // Дефолт при пустом value — первый пресет ТЕКУЩЕГО языка панели (bear/ursulet/'Мишка'),
+  // а не хардкод на русском, который раньше "протекал" в EN/RO панели.
+  const text = normalizeToyTypeForDisplay(value) || presets[0];
   if (presets.includes(text)) {
     select.value = text;
     if (custom) custom.value = '';
@@ -2742,12 +2746,6 @@ async function saveProfile() {
     status.className = 'status error';
     throw err;
   }
-}
-
-function editChildProfile() {
-  const status = document.getElementById('childProfileStatus');
-  setStatus(status, 'editChild');
-  document.getElementById('child_name').focus();
 }
 
 async function changeParentPin() {
