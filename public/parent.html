@@ -3081,12 +3081,12 @@ function buildPreviewPhrase() {
 // Автовыбора по полу больше нет — выбор голоса всегда явный. Если сохранённое значение
 // не найдено среди реальных голосов (пусто, легаси-дефолт БД, удалённый id), выбираем
 // первый голос из списка, а не оставляем select на несуществующей пустой опции.
-async function refreshVoiceOptions() {
+async function refreshVoiceOptions(preferredValue = null) {
   const select = document.getElementById('voice_id');
   if (!select) return;
   const lang = getToyLanguage();
   const gender = document.getElementById('toy_gender')?.value || 'female';
-  const currentValue = select.value;
+  const currentValue = preferredValue || select.value;
   try {
     const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang) + '&gender=' + encodeURIComponent(gender));
     const voices = data.voices || [];
@@ -4289,8 +4289,7 @@ async function loadState() {
   // консольного языка по умолчанию (ru-RU), не совпадающая с фактическим языком.
   setConsoleLanguageButtons();
   setValue('toy_gender', s.toy_gender || s.toyGender || 'female');
-  await refreshVoiceOptions();
-  setValue('voice_id', s.voice || '');
+  await refreshVoiceOptions(s.voice || '');
   setValue('child_gender', s.child_gender || s.childGender || 'M');
   setValue('volume_level', s.volume_level || s.volumeLevel || 7);
   updateVolumeLevelLabel();
