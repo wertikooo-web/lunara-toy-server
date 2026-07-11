@@ -304,9 +304,20 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         .replace(/\{toyName\}/g, toyName)
         .replace(/\{verbPriletel\}/g, verbPriletel);
 
+    // voiceOutputInstruction: meta-instruction to the model, not user-facing text — kept
+    // in English regardless of reply language, models follow English instructions fine
+    // even when told to reply in another language. Defense-in-depth alongside
+    // voiceSanitizer.js's unconditional stripping of (...)/[...]/*...* content.
+    const voiceOutputInstruction = [
+        'Your reply is spoken aloud by a text-to-speech voice — it must be speech only.',
+        'Never include stage directions, action descriptions, or emotion/gesture markup in any form (no parentheses, brackets, or asterisks around non-spoken content).',
+        'Never describe yourself with harsh or self-deprecating words (e.g. "I am stupid/dumb"). If you made a mistake or got confused, use warm, neutral phrasing instead, such as "Oops, I got mixed up!" or "I think I made a mistake."',
+        'If the child directly states a problem or confusion (for example "I don\'t understand you"), address that concern plainly first, before adding any narrative or fairy-tale flavor.',
+    ].join(' ');
+
     // dynamicSystemContext: всё, что меняется от запроса к запросу — язык, время суток,
     // длина сказки, память о ребёнке, контент-контекст, тема/эмоция от классификатора.
-    const dynamicSystemContext = [langInstruction, storyLengthInstruction, extraContext]
+    const dynamicSystemContext = [langInstruction, voiceOutputInstruction, storyLengthInstruction, extraContext]
         .filter(Boolean)
         .join('\n\n');
 

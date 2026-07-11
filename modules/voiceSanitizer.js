@@ -35,18 +35,14 @@ function isLikelyAction(text, options = {}) {
 function removeStageDirections(text) {
     let value = String(text || '');
 
-    value = value.replace(/\*([^*\n]{1,180})\*/g, (_match, inner) => (
-        isLikelyAction(inner) ? ' ' : ` ${inner} `
-    ));
-    value = value.replace(/_([^_\n]{1,180})_/g, (_match, inner) => (
-        isLikelyAction(inner) ? ' ' : ` ${inner} `
-    ));
-    value = value.replace(/\[([^\]\n]{1,180})\]/g, (_match, inner) => (
-        isLikelyAction(inner) ? ' ' : ` ${inner} `
-    ));
-    value = value.replace(/\(([^)\n]{1,180})\)/g, (_match, inner) => (
-        isLikelyAction(inner) ? ' ' : ` (${inner}) `
-    ));
+    // Спикер только для голоса — никаких легитимных случаев для *...*/[...]/(...) в
+    // финальной озвучке нет, поэтому внутри этих разделителей вырезаем БЕЗУСЛОВНО, не
+    // полагаясь на ACTION_WORDS-эвристику (та ловит только конкретные глаголы действия
+    // вроде "кива"/"смотр" и пропускала ремарки вида "(Тепло)"/"(Немного растерянно...)").
+    value = value.replace(/\*([^*\n]{1,180})\*/g, ' ');
+    value = value.replace(/_([^_\n]{1,180})_/g, ' ');
+    value = value.replace(/\[([^\]\n]{1,180})\]/g, ' ');
+    value = value.replace(/\(([^)\n]{1,180})\)/g, ' ');
 
     // Handles malformed model output like: "Удивлённо приподнимает уши* Ой, ...
     value = value.replace(/^["'“”„«»`\s]*([^.!?…\n]{1,160})\*+\s*/u, (_match, inner) => (

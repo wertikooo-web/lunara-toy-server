@@ -1395,6 +1395,9 @@ async function handlePipeline(
     deviceId
 ) {
     const ts = Date.now();
+    // Сквозной идентификатор запроса для трассировки по стадиям STT/LLM/TTS в логах —
+    // без этого асинхронные пайплайны разных подключений/ходов перемешиваются в Railway.
+    const reqId = `req_${ts.toString(36)}`;
 
     // Актуален ли ещё этот пайплайн? Если ребёнок начал новую запись (перебил),
     // поколение вырастет, и результат этого (устаревшего) пайплайна нужно отбросить.
@@ -1418,8 +1421,10 @@ async function handlePipeline(
         // независимо от настроенного языка игрушки — отсюда requested=ru в логах даже
         // для устройств на ro/es/fr/it, и как следствие смешение языков в ответе LLM.
         const sttSettings = await parentConfig.getSettings(deviceId);
+        const sttStartedAt = Date.now();
         const transcript = await stt.transcribe(uploadPath, { language: sttSettings.language });
         logger.info(`[Pipeline] transcript: "${transcript}"`);
+        logger.info(`[Pipeline][${reqId}] stage=stt_done duration_ms=${Date.now() - sttStartedAt}`);
 
         if (!isCurrent()) {
             logger.info('[Pipeline] superseded after STT — discarding (child interrupted)');
@@ -1744,6 +1749,7 @@ async function handlePipeline(
         });
 
         logger.info('[Pipeline] LLM start…');
+        const llmStartedAt = Date.now();
 
         let reply;
 
@@ -1773,6 +1779,7 @@ async function handlePipeline(
         }
 
         logger.info(`[Pipeline] reply: "${reply}"`);
+        logger.info(`[Pipeline][${reqId}] stage=llm_done duration_ms=${Date.now() - llmStartedAt}`);
 
         if (!isCurrent()) {
             delayedThinking.cancel();
@@ -1782,6 +1789,7 @@ async function handlePipeline(
 
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
+        const ttsStartedAt = Date.now();
 
         let durationMs;
 
@@ -1793,6 +1801,7 @@ async function handlePipeline(
         }
 
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
+        logger.info(`[Pipeline][${reqId}] stage=tts_done duration_ms=${Date.now() - ttsStartedAt}`);
 
         if (!isCurrent()) {
             delayedThinking.cancel();

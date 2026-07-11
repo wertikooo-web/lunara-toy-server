@@ -197,6 +197,7 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
         return openaiTTS(text, detectedLang, speed, toyGender, useExplicitVoice ? voiceConfig?.id : null);
     }
 
+    const ttsCallStartedAt = Date.now();
     let pcmBuffer;
     try {
         pcmBuffer = provider === 'yandex' ? await callYandex(true) : await callOpenai(true);
@@ -222,8 +223,9 @@ async function synthesize(text, outputPath, lang = null, options = {}) {
         }
     }
 
+    const ttsLatencyMs = Date.now() - ttsCallStartedAt;
     const durationMs = saveFiles(pcmBuffer, outputPath);
-    logger.info(`[TTS] done: ${pcmBuffer.length} bytes, ~${durationMs}ms`);
+    logger.info(`[TTS] done: bytes=${pcmBuffer.length} tts_latency_ms=${ttsLatencyMs} audio_duration_ms=${durationMs}`);
     return durationMs;
 }
 
