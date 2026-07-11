@@ -390,7 +390,7 @@ app.post('/api/parent/volume-test', async (req, res) => {
         const lang = 'ru-RU';
         const gender = settings.toyGender || settings.toy_gender;
         const text = 'Вот так я сейчас говорю. Хорошо слышно?';
-        const asset = await tts.synthesizeAsset('volume_test', text, lang, gender, { voiceConfig: buildVoiceConfig(settings) });
+        const asset = await tts.synthesizeAsset('volume_test', text, lang, gender, { voiceConfig: buildVoiceConfig(settings), voiceSpeed: settings.voice_speed });
         if (!asset) throw new Error('volume test audio is unavailable');
 
         const audioUrl = `${baseUrl}/audio/${path.basename(asset.wavPath)}`;
@@ -1264,7 +1264,7 @@ wss.on('connection', (ws, req) => {
         }
         const lang = resolveSystemPhraseLang(settings.language);
         const gender = settings.toyGender || settings.toy_gender;
-        const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender, { voiceConfig: buildVoiceConfig(settings) });
+        const asset = await tts.synthesizeAsset('greeting', GREETING_TEXTS[lang], lang, gender, { voiceConfig: buildVoiceConfig(settings), voiceSpeed: settings.voice_speed });
         send({
             type:         'ready',
             name:         settings.toy_name || 'Lumi',
@@ -1333,7 +1333,7 @@ wss.on('connection', (ws, req) => {
             if (state.audioBytes < 1600) {
                 logger.info('[WS] audio too short — Lumi gently asks to repeat');
                 const shortAudioSettings = await parentConfig.getSettings(deviceId);
-                const r = await retryAudioCommand(shortAudioSettings.language, shortAudioSettings.toyGender || shortAudioSettings.toy_gender, buildVoiceConfig(shortAudioSettings));
+                const r = await retryAudioCommand(shortAudioSettings.language, shortAudioSettings.toyGender || shortAudioSettings.toy_gender, buildVoiceConfig(shortAudioSettings), shortAudioSettings.voice_speed);
                 if (r) sendAudio(r.url, r.durationMs);
                 state.status      = 'IDLE';
                 state.audioChunks = [];
@@ -1891,10 +1891,10 @@ function resolveSystemPhraseLang(lang) {
 // Собирает команду воспроизведения retry-аудио, генерируя его лениво под
 // конкретные язык/пол игрушки, если ещё не закэшировано. На ошибке генерации
 // возвращает null — вызывающий код просто пропускает эту реплику, не падая.
-async function retryAudioCommand(lang, gender, voiceConfig = null) {
+async function retryAudioCommand(lang, gender, voiceConfig = null, voiceSpeed = 'normal') {
     const baseUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
     const effectiveLang = resolveSystemPhraseLang(lang);
-    const asset = await tts.synthesizeAsset('retry', RETRY_TEXTS[effectiveLang], effectiveLang, gender, { voiceConfig });
+    const asset = await tts.synthesizeAsset('retry', RETRY_TEXTS[effectiveLang], effectiveLang, gender, { voiceConfig, voiceSpeed });
     if (!asset) return null;
     return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs };
 }

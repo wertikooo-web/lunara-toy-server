@@ -246,13 +246,15 @@ function normalizeAssetGenderKey(gender) {
     return gender === 'male' ? 'male' : 'female';
 }
 
-function getAssetPath(type, lang, gender, variant, voiceLabel) {
+function getAssetPath(type, lang, gender, variant, voiceLabel, speedLabel) {
     const langKey = normalizeAssetLangKey(lang);
     const genderKey = normalizeAssetGenderKey(gender);
     // voiceLabel (bare explicit voice id, если задан) — без него смена конкретного голоса
     // на тот же пол (toy_gender — отдельное поле, не меняется автоматически при выборе
     // голоса) не давала бы новый файл: старый кэш по (type,lang,gender) отдавался как есть.
-    const parts = [String(type || 'asset'), variant, langKey, genderKey, voiceLabel].filter(Boolean);
+    // speedLabel — только для non-default скорости (slow/fast), чтобы не переименовывать
+    // все существующие файлы на самой частой ('normal') скорости.
+    const parts = [String(type || 'asset'), variant, langKey, genderKey, voiceLabel, speedLabel].filter(Boolean);
     return path.join(DIR_AUDIO, `${parts.join('_')}.pcm`);
 }
 
@@ -271,7 +273,8 @@ function durationFromExistingPcm(pcmPath) {
 // эту конкретную реплику (retry/greeting/thinking — не критичные для работы пути).
 async function synthesizeAsset(type, text, lang, gender, options = {}) {
     const voiceLabel = options.voiceConfig?.id ? String(options.voiceConfig.id).replace(/[^a-zA-Z0-9_-]/g, '_') : null;
-    const pcmPath = getAssetPath(type, lang, gender, options.variant, voiceLabel);
+    const speedLabel = (options.voiceSpeed && options.voiceSpeed !== 'normal') ? `sp${options.voiceSpeed}` : null;
+    const pcmPath = getAssetPath(type, lang, gender, options.variant, voiceLabel, speedLabel);
     const wavPath = pcmPath.replace(/\.pcm$/, '.wav');
 
     if (fs.existsSync(pcmPath) && fs.existsSync(wavPath)) {

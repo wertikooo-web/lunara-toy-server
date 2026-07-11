@@ -195,7 +195,7 @@ function patchServerSource(source) {
     patched = replaceOnce(
         patched,
         "async function thinkingAudioCommand(intent = 'default') {\n    if (Math.random() >= THINKING_CHANCE) return null;",
-        "async function thinkingAudioCommand(intent = 'default', chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female', voiceConfig = null) {\n    if (Math.random() >= chance) return null;",
+        "async function thinkingAudioCommand(intent = 'default', chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female', voiceConfig = null, voiceSpeed = 'normal') {\n    if (Math.random() >= chance) return null;",
         'thinking chance argument'
     );
 
@@ -209,28 +209,28 @@ function patchServerSource(source) {
     patched = replaceOnce(
         patched,
         "    const asset = await tts.synthesizeAsset('thinking', phrase.text, 'ru-RU', 'female', { variant });\n    if (!asset) return null;\n\n    return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs };",
-        "    const asset = await tts.synthesizeAsset('thinking', phrase.text, lang, gender, { variant, voiceConfig });\n    if (!asset) return null;\n\n    return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs, cached: asset.cached };",
+        "    const asset = await tts.synthesizeAsset('thinking', phrase.text, lang, gender, { variant, voiceConfig, voiceSpeed });\n    if (!asset) return null;\n\n    return { url: `${baseUrl}/audio/${path.basename(asset.wavPath)}`, durationMs: asset.durationMs, cached: asset.cached };",
         'thinking asset lang/gender/voiceConfig + cache_hit'
     );
 
     patched = replaceOnce(
         patched,
         "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS }) {",
-        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS, chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female', voiceConfig = null }) {",
+        "function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING_DELAY_MS, chance = THINKING_CHANCE, lang = 'ru-RU', gender = 'female', voiceConfig = null, voiceSpeed = 'normal' }) {",
         'startDelayedThinking chance argument'
     );
 
     patched = replaceOnce(
         patched,
         "        const thinking = thinkingAudioCommand(intent);",
-        "        const thinking = await thinkingAudioCommand(intent, chance, lang, gender, voiceConfig);",
+        "        const thinking = await thinkingAudioCommand(intent, chance, lang, gender, voiceConfig, voiceSpeed);",
         'thinking command chance use'
     );
 
     patched = replaceOnce(
         patched,
         "        const delayedThinking = startDelayedThinking({\n            intent,\n            isCurrent,\n            sendAudio,\n            delayMs: THINKING_DELAY_MS,\n        });",
-        "        const thinkingChance = thinkingChanceForSettings(settings);\n        const delayedThinking = thinkingChance > 0\n            ? startDelayedThinking({\n                intent,\n                isCurrent,\n                sendAudio,\n                delayMs: thinkingDelayForSettings(settings),\n                chance: thinkingChance,\n                lang: effectiveLang,\n                gender: settings.toyGender || settings.toy_gender,\n                voiceConfig: buildVoiceConfig(settings),\n            })\n            : noopDelayedThinking();\n        logger.info(`[Thinking] mode=${settings.thinking_phrases_enabled === false ? 'off' : settings.thinking_frequency || 'normal'} chance=${thinkingChance}`);",
+        "        const thinkingChance = thinkingChanceForSettings(settings);\n        const delayedThinking = thinkingChance > 0\n            ? startDelayedThinking({\n                intent,\n                isCurrent,\n                sendAudio,\n                delayMs: thinkingDelayForSettings(settings),\n                chance: thinkingChance,\n                lang: effectiveLang,\n                gender: settings.toyGender || settings.toy_gender,\n                voiceConfig: buildVoiceConfig(settings),\n                voiceSpeed: settings.voice_speed,\n            })\n            : noopDelayedThinking();\n        logger.info(`[Thinking] mode=${settings.thinking_phrases_enabled === false ? 'off' : settings.thinking_frequency || 'normal'} chance=${thinkingChance}`);",
         'thinking settings in pipeline'
     );
 
