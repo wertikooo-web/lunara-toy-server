@@ -173,7 +173,7 @@ async function transcribe(pcmPath, options = {}) {
     const pcmData = fs.readFileSync(pcmPath);
     if (pcmData.length > 0 && pcmData.length < MIN_STT_PCM_BYTES) {
         logger.info(`[STT] skipped too-short pcm bytes=${pcmData.length} min=${MIN_STT_PCM_BYTES}`);
-        return '';
+        return { text: '', language: null };
     }
 
     const wavData = Buffer.concat([buildWavHeader(pcmData.length), pcmData]);
@@ -183,7 +183,10 @@ async function transcribe(pcmPath, options = {}) {
 
     try {
         const result = await transcribeFile(wavPath, options);
-        return result.text;
+        // Whisper уже определяет реальный язык речи (result.language) — раньше это
+        // просто отбрасывалось на выходе, и вызывающая сторона не могла узнать,
+        // разошлось ли распознавание с настроенным языком устройства.
+        return { text: result.text, language: result.language };
     } finally {
         fs.rmSync(wavPath, { force: true });
     }

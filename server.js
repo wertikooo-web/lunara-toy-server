@@ -1422,9 +1422,20 @@ async function handlePipeline(
         // для устройств на ro/es/fr/it, и как следствие смешение языков в ответе LLM.
         const sttSettings = await parentConfig.getSettings(deviceId);
         const sttStartedAt = Date.now();
-        const transcript = await stt.transcribe(uploadPath, { language: sttSettings.language });
+        const { text: transcript, language: detectedSttLang } = await stt.transcribe(uploadPath, { language: sttSettings.language });
         logger.info(`[Pipeline] transcript: "${transcript}"`);
         logger.info(`[Pipeline][${reqId}] stage=stt_done duration_ms=${Date.now() - sttStartedAt}`);
+
+        // Whisper иногда распознаёт речь ребёнка на другом языке, чем настроен у
+        // игрушки (детектор внутри stt.js это уже логирует как requested/detected, но
+        // раньше это отбрасывалось на выходе). Если языки реально разошлись — не
+        // переключаем игрушку насильно, а мягко просим LLM напомнить ребёнку о текущем
+        // языке, не срывая остальной ответ.
+        const requestedSttLangKey = String(sttSettings.language || 'ru-RU').slice(0, 2).toLowerCase();
+        const detectedSttLangKey = String(detectedSttLang || '').slice(0, 2).toLowerCase();
+        const languageMismatch = (detectedSttLangKey && detectedSttLangKey !== requestedSttLangKey)
+            ? { requested: sttSettings.language, detected: detectedSttLang }
+            : null;
 
         if (!isCurrent()) {
             logger.info('[Pipeline] superseded after STT — discarding (child interrupted)');
@@ -1764,10 +1775,12 @@ async function handlePipeline(
                     isStory: true,
                     topic: semanticConfident ? semanticIntent.topic : undefined,
                     sentiment: semanticConfident ? semanticIntent.sentiment : undefined,
+                    languageMismatch,
                 })
                 : await llm.chat(ws, transcript, effectiveLang, {
                     memoryContext,
                     contentContext: [settingsContext, followupContext, requestedContentContext].filter(Boolean).join('\n\n'),
+                    languageMismatch,
                     model: modelName,
                     routingText: transcript,
                     topic: semanticConfident ? semanticIntent.topic : undefined,
@@ -1790,11 +1803,12 @@ async function handlePipeline(
         logger.info('[Pipeline] TTS start…');
         const outputPath = path.join(DIR_AUDIO, `response_${ts}.pcm`);
         const ttsStartedAt = Date.now();
+        const replyVoiceConfig = buildVoiceConfig(settings);
 
         let durationMs;
 
         try {
-            durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed, voiceConfig: buildVoiceConfig(settings) });
+            durationMs = await tts.synthesize(reply, outputPath, effectiveLang === 'auto' ? null : effectiveLang, { voiceSpeed: settings.voice_speed, voiceConfig: replyVoiceConfig });
         } catch (err) {
             delayedThinking.cancel();
             throw err;
@@ -1802,6 +1816,7 @@ async function handlePipeline(
 
         logger.info(`[Pipeline] TTS saved: ${outputPath}, ~${durationMs}ms`);
         logger.info(`[Pipeline][${reqId}] stage=tts_done duration_ms=${Date.now() - ttsStartedAt}`);
+        logger.info(`[ReplyTTS] lang=${effectiveLang} provider=${replyVoiceConfig?.provider || 'auto'} voice=${replyVoiceConfig?.id || 'auto'} speed=${settings.voice_speed}`);
 
         if (!isCurrent()) {
             delayedThinking.cancel();
@@ -2112,7 +2127,7 @@ function startDelayedThinking({ intent, isCurrent, sendAudio, delayMs = THINKING
         sentDurationMs = thinking.durationMs || 0;
 
         sendAudio(thinking.url, thinking.durationMs);
-        logger.info(`[Thinking] sent delayed filler intent=${intent} duration=${thinking.durationMs}ms`);
+        logger.info(`[Thinking] sent filler intent=${intent} lang=${lang} provider=${voiceConfig?.provider || 'auto'} voice=${voiceConfig?.id || 'auto'} cache_hit=${Boolean(thinking.cached)} duration_ms=${thinking.durationMs}`);
     })();
 
     return {

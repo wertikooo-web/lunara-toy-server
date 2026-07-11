@@ -315,9 +315,17 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         'If the child directly states a problem or confusion (for example "I don\'t understand you"), address that concern plainly first, before adding any narrative or fairy-tale flavor.',
     ].join(' ');
 
+    // languageMismatchInstruction: STT (Whisper) detected the child speaking a different
+    // language than the toy is configured for. We do NOT switch languages — langInstruction
+    // above already mandates staying in the configured language — this just tells the model
+    // to briefly, gently remind the child which language to use, without derailing the reply.
+    const languageMismatchInstruction = options.languageMismatch
+        ? `The child's speech seemed to be in a different language than this toy is currently configured for (detected roughly "${options.languageMismatch.detected}", configured "${options.languageMismatch.requested}"). Briefly and gently remind the child, in your reply language, what language to speak in — then continue normally.`
+        : '';
+
     // dynamicSystemContext: всё, что меняется от запроса к запросу — язык, время суток,
     // длина сказки, память о ребёнке, контент-контекст, тема/эмоция от классификатора.
-    const dynamicSystemContext = [langInstruction, voiceOutputInstruction, storyLengthInstruction, extraContext]
+    const dynamicSystemContext = [langInstruction, voiceOutputInstruction, languageMismatchInstruction, storyLengthInstruction, extraContext]
         .filter(Boolean)
         .join('\n\n');
 

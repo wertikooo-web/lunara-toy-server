@@ -199,7 +199,11 @@ async function main() {
         }
 
         const legacy = process.argv.includes('--legacy-all') ? await exportLegacyArchive(pool) : [];
-        console.log('[ExportContentPacks] done', JSON.stringify({ packs, legacy }, null, 2));
+        // stdout должен содержать ТОЛЬКО чистый однострочный JSON — человекочитаемый
+        // маркер и остальные логи идут в stderr, чтобы не портить машинный вывод, если
+        // кто-то когда-нибудь начнёт парсить stdout этого скрипта.
+        console.error('[ExportContentPacks] done');
+        console.log(JSON.stringify({ packs, legacy }));
     } finally {
         await pool.end();
     }
