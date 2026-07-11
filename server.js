@@ -707,7 +707,8 @@ app.get('/api/parent/voices', async (req, res) => {
     try {
         const settings = await parentConfig.getSettings(session.device_id);
         const lang = req.query?.lang || settings.language || 'ru-RU';
-        res.json({ ok: true, voices: parentConfig.getVoicesForLang(lang) });
+        const gender = req.query?.gender || settings.toy_gender || settings.toyGender || null;
+        res.json({ ok: true, voices: parentConfig.getVoicesForLang(lang, gender) });
     } catch (err) {
         logger.error(`[Parent] voices list error: ${err.message}`);
         res.status(500).json({ error: err.message });

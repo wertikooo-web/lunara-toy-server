@@ -228,7 +228,8 @@ function normalizeSettingsPatch(raw = {}) {
         // реально существующий id (полный или legacy-голый — getVoiceById матчит оба),
         // и всегда сохраняем канонический (с префиксом провайдера) вид на будущее.
         const resolved = value ? getVoiceById(value) : null;
-        patch.voice = resolved ? resolved.id : '';
+        const toyGender = patch.toy_gender || safeText(raw.toy_gender ?? raw.toyGender, 12).toLowerCase();
+        patch.voice = resolved && (!TOY_GENDERS.includes(toyGender) || resolved.gender === toyGender) ? resolved.id : '';
     }
     if ('voice_speed' in raw) {
         const value = safeText(raw.voice_speed, 16);
@@ -1647,9 +1648,13 @@ function normalizeVoiceLangKey(lang) {
     return 'ru';
 }
 
-function getVoicesForLang(lang) {
+function getVoicesForLang(lang, gender = null) {
     const key = normalizeVoiceLangKey(lang);
-    return VOICE_REGISTRY.filter((voice) => voice.lang.split('/').includes(key));
+    const genderKey = safeText(gender, 12).toLowerCase();
+    return VOICE_REGISTRY.filter((voice) => (
+        voice.lang.split('/').includes(key)
+        && (!TOY_GENDERS.includes(genderKey) || voice.gender === genderKey)
+    ));
 }
 
 function isProviderCompatibleWithLang(provider, lang) {

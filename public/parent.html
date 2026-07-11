@@ -318,7 +318,7 @@
         </div>
         <div>
           <label>Пол Lumi</label>
-          <select id="toy_gender">
+          <select id="toy_gender" onchange="refreshVoiceOptions()">
             <option value="female">Женский</option>
             <option value="male">Мужской</option>
           </select>
@@ -3085,9 +3085,10 @@ async function refreshVoiceOptions() {
   const select = document.getElementById('voice_id');
   if (!select) return;
   const lang = getToyLanguage();
+  const gender = document.getElementById('toy_gender')?.value || 'female';
   const currentValue = select.value;
   try {
-    const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang));
+    const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang) + '&gender=' + encodeURIComponent(gender));
     const voices = data.voices || [];
     select.innerHTML = voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
     if (voices.some(v => v.id === currentValue)) {
