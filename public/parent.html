@@ -3076,6 +3076,12 @@ function buildPreviewPhrase() {
   return formatText(entry.phrase, { child, toy });
 }
 
+function voiceOptionLabel(voice) {
+  const name = String(voice?.label || voice?.name || voice?.id || '').replace(/\s*\([^)]*\)\s*$/u, '').trim();
+  const provider = String(voice?.provider || '').toLowerCase() === 'yandex' ? 'Yandex' : 'OpenAI';
+  return `${name || voice?.id || 'Voice'} (${provider})`;
+}
+
 // Подтягивает список голосов провайдера под текущий язык (GET /api/parent/voices) и
 // перерисовывает <select id="voice_id">, сохраняя текущий выбор, если он всё ещё валиден.
 // Автовыбора по полу больше нет — выбор голоса всегда явный. Если сохранённое значение
@@ -3090,7 +3096,7 @@ async function refreshVoiceOptions(preferredValue = null) {
   try {
     const data = await api('/api/parent/voices?lang=' + encodeURIComponent(lang) + '&gender=' + encodeURIComponent(gender));
     const voices = data.voices || [];
-    select.innerHTML = voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.name)}</option>`).join('');
+    select.innerHTML = voices.map(v => `<option value="${escapeHtml(v.id)}">${escapeHtml(voiceOptionLabel(v))}</option>`).join('');
     if (voices.some(v => v.id === currentValue)) {
       select.value = currentValue;
     } else if (voices.length) {
