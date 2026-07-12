@@ -118,6 +118,25 @@ function routeAutoModel(input = {}) {
 function getModelProvider(modelName, input = {}) {
     const normalized = normalizeModelName(modelName);
     if (normalized === 'auto') return routeAutoModel(input);
+
+    // Safety-relevant content always escalates to the complex OpenAI tier, even
+    // when a parent has manually pinned the device to DeepSeek/Flash (test-mode
+    // override in the parent panel, model_mode='economy'/'deepseek'). A manual
+    // mode selection must never bypass the safety escalation that 'auto' mode
+    // already gets via routeAutoModel above.
+    if (normalized === 'deepseek' || normalized === 'deepseek-flash') {
+        const text = String(input.text || '').toLowerCase();
+        const forcedSafety = Boolean(input.isSafetyRelevant) || hasAny(text, SENSITIVE_PATTERNS);
+        if (forcedSafety) {
+            return {
+                key: 'gpt-complex',
+                provider: 'openai',
+                model: OPENAI_COMPLEX_MODEL,
+                reason: 'safety_override_manual_mode',
+            };
+        }
+    }
+
     if (normalized === 'gpt-complex') {
         return {
             key: 'gpt-complex',
