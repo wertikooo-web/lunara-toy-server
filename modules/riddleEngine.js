@@ -191,6 +191,17 @@ function shouldUseLlmRiddle(text) {
     );
 }
 
+function isHintRequest(text) {
+    const t = normalizeText(text);
+
+    return (
+        t.includes('подскажи') ||
+        t.includes('дай подсказку') ||
+        t.includes('намекни') ||
+        t.includes('подсказка')
+    );
+}
+
 function isRevealRequest(text) {
     const t = normalizeText(text);
 
@@ -201,7 +212,7 @@ function isRevealRequest(text) {
         t.includes('не знаю') ||
         t.includes('не понял') ||
         t.includes('не поняла') ||
-        t.includes('подскажи')
+        t.includes('сдаюсь')
     );
 }
 
@@ -405,7 +416,7 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl, options = {
         };
     }
 
-    if (!isRevealRequest(text) && !isLikelyRiddleAnswer(text)) {
+    if (!isRevealRequest(text) && !isHintRequest(text) && !isLikelyRiddleAnswer(text)) {
         log.info(`[Riddle] phrase is not a likely answer: "${text}"`);
 
         return {
@@ -413,6 +424,24 @@ async function handleActiveRiddleAnswer(text, activeRiddle, baseUrl, options = {
             clearRiddle: false,
             activeRiddle,
             audio: null,
+        };
+    }
+
+    if (isHintRequest(text)) {
+        const answer = String(activeRiddle.answer || '').trim();
+        const firstLetter = answer.charAt(0).toUpperCase();
+        const phrase = firstLetter
+            ? `Подсказка: слово начинается на букву «${firstLetter}», в нём ${answer.length} букв.`
+            : 'Подсказка: подумай, где это можно встретить дома или на улице.';
+        const audio = await buildReplyAudioCommand(`hint_${activeRiddle.id}`, phrase, baseUrl);
+
+        log.info(`[Riddle] hint given for ${activeRiddle.id}`);
+
+        return {
+            handled: true,
+            clearRiddle: false,
+            activeRiddle,
+            audio,
         };
     }
 
@@ -483,6 +512,7 @@ module.exports = {
     isRiddleRequest,
     shouldUseLlmRiddle,
     isRevealRequest,
+    isHintRequest,
     startRiddle,
     handleActiveRiddleAnswer,
 };

@@ -10,6 +10,21 @@ function nowMs() {
     return Date.now();
 }
 
+function createActiveTask() {
+    return {
+        type: null,
+        status: null,
+        originalRequest: '',
+        constraints: {},
+        expectedAnswer: null,
+        userHasAnswered: false,
+        answerWasRevealed: false,
+        lastGeneratedText: '',
+        createdAt: 0,
+        updatedAt: 0,
+    };
+}
+
 function createState() {
     return {
         pendingOffer: null,
@@ -19,6 +34,7 @@ function createState() {
         lastDecision: null,
         riddleHistory: [],
         currentRiddle: null,
+        activeTask: createActiveTask(),
     };
 }
 
@@ -31,7 +47,34 @@ function ensureState(state) {
     if (!Object.prototype.hasOwnProperty.call(state, 'lastDecision')) state.lastDecision = null;
     if (!Array.isArray(state.riddleHistory)) state.riddleHistory = [];
     if (!Object.prototype.hasOwnProperty.call(state, 'currentRiddle')) state.currentRiddle = null;
+    if (!state.activeTask || typeof state.activeTask !== 'object') state.activeTask = createActiveTask();
     return state;
+}
+
+function setActiveTask(state, type, patch = {}) {
+    const s = ensureState(state);
+    const now = nowMs();
+    s.activeTask = {
+        ...createActiveTask(),
+        ...patch,
+        type,
+        createdAt: now,
+        updatedAt: now,
+    };
+    return s.activeTask;
+}
+
+function updateActiveTask(state, patch = {}) {
+    const s = ensureState(state);
+    if (!s.activeTask?.type) return null;
+    s.activeTask = { ...s.activeTask, ...patch, updatedAt: nowMs() };
+    return s.activeTask;
+}
+
+function clearActiveTask(state) {
+    const s = ensureState(state);
+    s.activeTask = createActiveTask();
+    return s.activeTask;
 }
 
 function isExpiredOffer(offer, now = nowMs()) {
@@ -84,12 +127,18 @@ function offerToText(type) {
     return dialogState.rewriteForOffer(type) || '';
 }
 
+// Requires BOTH an explicit repeat verb AND an explicit riddle reference.
+// Bare ordinal words ("первую"/"прошлую"/"предыдущую") or pronouns ("её"/"эту")
+// are too ambiguous on their own — e.g. "первая буква в слове зебра" must NOT
+// trigger this (it has no repeat verb and no "загадк" root).
 function isRepeatRiddleRequest(text) {
     const t = dialogState.normalizeText(text);
-    if (!/(повтори|повторить|скажи еще раз|скажи ещё раз|еще раз|ещё раз|сначала|первую|прошлую|предыдущую)/.test(t)) {
-        return false;
-    }
-    return /загадк|ее|её|эту|первую|прошлую|предыдущую/.test(t);
+    if (!t) return false;
+
+    const hasRepeatVerb = /(повтори|повторить|скажи еще раз|еще раз|заново)/.test(t);
+    if (!hasRepeatVerb) return false;
+
+    return /загадк/.test(t);
 }
 
 function riddleRepeatRef(text) {
@@ -373,4 +422,9 @@ module.exports = {
     forgetPendingOffer,
     inferIntentFromText,
     getRiddleFromHistory,
+    createActiveTask,
+    setActiveTask,
+    updateActiveTask,
+    clearActiveTask,
+    isRepeatRiddleRequest,
 };
