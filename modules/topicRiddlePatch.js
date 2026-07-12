@@ -4,6 +4,7 @@ const riddleEngine = require('./riddleEngine');
 const content = require('./content');
 const llm = require('./llm');
 const dialogState = require('./dialogState');
+const replyValidators = require('./replyValidators');
 
 const dialogBySession = new WeakMap();
 
@@ -59,17 +60,15 @@ function inferTypeFromRequest(text) {
 function creativeRiddleContext() {
   return [
     'STRICT RIDDLE MODE:',
-    '- You are generating speech for a toy for a child aged 3-8.',
-    '- Output ONLY the riddle text that should be spoken aloud.',
-    '- Do NOT add explanations, titles, Markdown, stage directions, or actions.',
-    '- Do NOT say: "Вот загадка про ..." because that often reveals the answer.',
-    '- Do NOT reveal the answer immediately.',
-    '- Do NOT name the answer inside the riddle.',
-    '- Use natural, fluent language in the session\'s target language. No broken rhymes. No strange phrases. No fake facts.',
-    '- Keep it short: 2-3 simple clue sentences.',
+    '- You are generating content for a toy for a child aged 3-8.',
+    '- Output ONLY a single JSON object, nothing else — no markdown, no code fences, no explanations before or after.',
+    '- JSON shape: {"riddle": "...", "answer": "...", "hint": "..."}',
+    '- "riddle": the spoken clue text only (2-3 short simple sentences), starting with a short natural intro (e.g. "Слушай загадку." for Russian, "Ascultă o ghicitoare." for Romanian, "Listen to this riddle." for English) and ending with a short question asking the child to guess.',
+    '- "answer": the single correct answer word/short phrase, in the same language as the riddle.',
+    '- Do NOT include the answer word anywhere inside "riddle".',
+    '- "hint": one short additional clue that does not repeat the answer word — usable later if the child is stuck.',
+    '- Use natural, fluent language in the session\'s target language. No broken rhymes, no strange phrases, no fake facts.',
     '- Keep it kind, playful, and not scary.',
-    '- Start with a short natural introduction in the target language (e.g., "Слушай загадку." for Russian, "Ascultă o ghicitoare." for Romanian, or "Listen to this riddle." for English).',
-    '- End with a language-appropriate short question asking the child to guess (e.g., "Как думаешь, кто это?" in Russian, "Ce crezi că este?" in Romanian).',
     '- If STT misspelled a familiar word, silently correct it. Example (Russian): "кекимора" means "кикимора".',
   ].join('\n');
 }
@@ -79,17 +78,48 @@ function buildRiddlePrompt(requestText) {
     'Сгенерируй одну короткую детскую загадку на языке текущей сессии (на том же языке, на котором сейчас общается ребёнок).',
     `Исходный запрос ребенка: "${String(requestText || '').slice(0, 240)}"`,
     '',
+    'Верни ТОЛЬКО валидный JSON вида {"riddle": "...", "answer": "...", "hint": "..."}, без другого текста.',
     'Правила:',
-    '1. Ответ должен быть только текстом для озвучки.',
+    '1. Поле riddle — только текст для озвучки, без слова-ответа внутри.',
     '2. Не говори "Вот загадка про ...".',
-    '3. Не называй ответ в тексте загадки.',
-    '4. Не раскрывай ответ сразу.',
-    '5. Не пиши длинное стихотворение.',
-    '6. Не используй кривые рифмы и странные фразы.',
-    '7. Не придумывай нелепые детали, если они не помогают загадке.',
-    '8. Если тема распознана с ошибкой, исправь ее по смыслу.',
-    '9. Соблюдай естественную структуру детской загадки на выбранном языке сессии.',
+    '3. Не раскрывай ответ в самой загадке.',
+    '4. Не пиши длинное стихотворение.',
+    '5. Не используй кривые рифмы и странные фразы.',
+    '6. Не придумывай нелепые детали, если они не помогают загадке.',
+    '7. Если тема распознана с ошибкой, исправь ее по смыслу.',
+    '8. Соблюдай естественную структуру детской загадки на выбранном языке сессии.',
   ].join('\n');
+}
+
+function stricterRiddlePrompt(requestText) {
+  return `${buildRiddlePrompt(requestText)}\n\nВАЖНО: строго один JSON-объект, ничего кроме него. Предыдущая попытка была отклонена валидатором — не повторяй ту же ошибку (пустое поле, слишком длинный текст или ответ виден внутри загадки).`;
+}
+
+function parseRiddleJson(raw) {
+  const text = String(raw || '').trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch (_) {
+    return null;
+  }
+}
+
+// Used only if the LLM fails structured-output validation twice in a row (raw
+// text, malformed JSON, or answer leaked inside the riddle). Keeps the toy from
+// ever speaking an unvalidated/broken creative riddle.
+const FALLBACK_RIDDLE_BY_LANG = {
+  'ru-RU': { riddle: 'Слушай загадку. Круглое и жёлтое, светит на небе днём и греет землю. Как думаешь, что это?', answer: 'солнце', hint: 'оно светит днём на небе' },
+  'ro-RO': { riddle: 'Ascultă o ghicitoare. Este rotund și galben, strălucește pe cer ziua și încălzește pământul. Ce crezi că este?', answer: 'soarele', hint: 'straluceste ziua pe cer' },
+  'en-US': { riddle: 'Listen to this riddle. It is round and yellow, it shines in the sky during the day and warms the earth. What do you think it is?', answer: 'the sun', hint: 'it shines in the sky during the day' },
+  'es-ES': { riddle: 'Escucha una adivinanza. Es redondo y amarillo, brilla en el cielo de día y calienta la tierra. ¿Qué crees que es?', answer: 'el sol', hint: 'brilla en el cielo de dia' },
+  'fr-FR': { riddle: "Écoute une devinette. Il est rond et jaune, il brille dans le ciel le jour et réchauffe la terre. Qu'en penses-tu ?", answer: 'le soleil', hint: 'il brille dans le ciel le jour' },
+  'it-IT': { riddle: 'Ascolta un indovinello. È rotondo e giallo, splende in cielo di giorno e scalda la terra. Cosa pensi che sia?', answer: 'il sole', hint: 'splende in cielo di giorno' },
+};
+
+function fallbackRiddle(lang) {
+  return FALLBACK_RIDDLE_BY_LANG[lang] || FALLBACK_RIDDLE_BY_LANG['ru-RU'];
 }
 
 function followupContext() {
@@ -197,7 +227,31 @@ if (typeof originalChat === 'function') {
         routingText: nextRoutingText,
         contentContext: [options.contentContext, extraContext, creativeRiddleContext()].filter(Boolean).join('\n\n'),
       };
-      result = await originalChat.call(this, sessionRef, buildRiddlePrompt(nextRoutingText), lang, nextOptions);
+
+      const rawResult = await originalChat.call(this, sessionRef, buildRiddlePrompt(nextRoutingText), lang, nextOptions);
+      let payload = parseRiddleJson(resultReply(rawResult));
+      let validation = replyValidators.checkRiddlePayload(payload);
+
+      if (!validation.ok) {
+        console.log(`[ReplyValidation] riddle_json failed=${validation.reason}; retrying with complex model`);
+        const retryOptions = { ...nextOptions, model: 'gpt-complex', needsExactValidation: true };
+        const retryResult = await originalChat.call(this, sessionRef, stricterRiddlePrompt(nextRoutingText), lang, retryOptions);
+        payload = parseRiddleJson(resultReply(retryResult));
+        validation = replyValidators.checkRiddlePayload(payload);
+        console.log(`[LLMEscalation] selected=gpt-complex reason=riddle_validation_failed result_ok=${validation.ok}`);
+      }
+
+      if (!validation.ok) {
+        console.log(`[ReplyValidation] riddle_json failed twice; using safe fallback riddle lang=${lang}`);
+        payload = fallbackRiddle(lang);
+      }
+
+      if (dialog) {
+        dialog.lastRiddleAnswer = payload.answer || null;
+        dialog.lastRiddleHint = payload.hint || null;
+      }
+
+      result = directResult(payload.riddle, options);
     } else {
       const nextOptions = {
         ...options,
