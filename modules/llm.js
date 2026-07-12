@@ -10,6 +10,8 @@
 const logger = require('./logger');
 const llmRouter = require('./llmRouter');
 const { sanitizeVoiceReply } = require('./voiceSanitizer');
+const routingSignals = require('./routingSignals');
+const dialogState = require('./dialogState');
 
 const MAX_TOKENS = 120;
 const MAX_STORY_TOKENS = 200;
@@ -340,16 +342,39 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     ];
     const historyMessageCount = messages.length;
 
+    // Signal-based routing inputs (see modules/routingSignals.js + llmRouter.routeAutoModel).
+    // Some fields are computed live from the text; others (orchestratorConfidence,
+    // activeMode, needsExactValidation, retryCount) are passthroughs from options —
+    // callers that have that context (conversationOrchestrator, validators) can set
+    // them, otherwise they safely default to "no signal".
+    const routingText = options.routingText || userText;
+    const routeInput = {
+        text: routingText,
+        originalText: userText,
+        activeMode: options.activeMode || null,
+        isCorrection: routingSignals.isCorrection(routingText),
+        isComplaintAboutUnderstanding: routingSignals.isComplaintAboutUnderstanding(routingText),
+        hasMultipleConstraints: routingSignals.hasMultipleConstraints(routingText),
+        referencesPreviousReply: routingSignals.referencesPreviousReply(routingText),
+        isShortFollowup: dialogState.isAffirmative(routingText) || dialogState.isNegative(routingText) || dialogState.isUncertain(routingText),
+        isSensitive: Boolean(options.isSensitive),
+        isSafetyRelevant: Boolean(options.isSafetyRelevant),
+        needsExactValidation: Boolean(options.needsExactValidation),
+        orchestratorConfidence: typeof options.orchestratorConfidence === 'number' ? options.orchestratorConfidence : undefined,
+        historyLength: historyMessageCount,
+        retryCount: Number(options.retryCount || 0),
+        isStory: Boolean(options.isStory),
+        memoryContext: options.memoryContext,
+        contentContext: options.contentContext,
+    };
+
+    logger.info(`[LLMRoute] correction=${routeInput.isCorrection} complaint=${routeInput.isComplaintAboutUnderstanding} multi_constraint=${routeInput.hasMultipleConstraints} refs_prev=${routeInput.referencesPreviousReply}`);
+
     const result = await llmRouter.callModel({
         modelName: options.model || DEFAULT_MODEL,
         messages: llmMessages,
         maxTokens,
-        routeInput: {
-            text: options.routingText || userText,
-            memoryContext: options.memoryContext,
-            contentContext: options.contentContext,
-            isStory: Boolean(options.isStory),
-        },
+        routeInput,
     });
 
     const rawReply = result.reply || '';
@@ -362,7 +387,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     if (result.finish_reason === 'length') {
         logger.warn(`[LLM] reply hit max_tokens=${maxTokens}; output may be truncated`);
     }
-    logger.info(`[LLM] provider=${result.provider} model=${result.model_used} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
+    logger.info(`[LLM] provider=${result.provider} model=${result.model_used} routing_reason=${result.routing_reason || 'n/a'} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
     logger.debug(`[LLM] tokens used: ${result.tokens_used}`);
     // Приблизительный размер промпта в символах (не токенах) — дёшево и достаточно, чтобы
     // видеть в логах, как «вес» запроса растёт от memoryContext/contentContext/истории.
@@ -376,6 +401,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
             latency_ms: result.latency_ms,
             requested_model: result.requested_model,
             router_choice: result.router_choice,
+            routing_reason: result.routing_reason,
             fallback: result.fallback,
             fallback_reason: result.fallback_reason,
             continued: result.continued,

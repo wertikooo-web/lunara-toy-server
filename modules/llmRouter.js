@@ -4,8 +4,17 @@ const OpenAI = require('openai');
 const logger = require('./logger');
 
 const GPT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+// Stronger OpenAI tier for corrections / multi-constraint / safety / low-confidence
+// routing. Defaults to GPT_MODEL (no behavior change) until a stronger model is
+// confirmed available on this account — set OPENAI_COMPLEX_MODEL in Railway once
+// verified. Do not guess a model name here.
+const OPENAI_COMPLEX_MODEL = process.env.OPENAI_COMPLEX_MODEL || GPT_MODEL;
+// DeepSeek Pro is now the default conversational engine (was Flash). Flash stays
+// selectable via modelName='deepseek-flash' or a per-device test-mode override.
+const DEEPSEEK_MAIN_MODEL = process.env.DEEPSEEK_MAIN_MODEL || 'deepseek-v4-pro';
+const DEEPSEEK_FLASH_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+const LOW_CONFIDENCE_THRESHOLD = Number(process.env.ROUTER_LOW_CONFIDENCE_THRESHOLD || 0.5);
 
 let openaiClient = null;
 let deepseekClient = null;
@@ -30,7 +39,8 @@ function getDeepSeekClient() {
 function normalizeModelName(modelName) {
     const value = String(modelName || 'gpt').toLowerCase().trim();
     if (['gpt', 'openai', 'gpt-4o-mini'].includes(value)) return 'gpt';
-    if (['deepseek', 'deepseek-v4-flash', 'ds'].includes(value)) return 'deepseek';
+    if (['deepseek', 'deepseek-pro', 'deepseek-v4-pro', 'ds'].includes(value)) return 'deepseek';
+    if (['deepseek-flash', 'deepseek-v4-flash', 'ds-flash'].includes(value)) return 'deepseek-flash';
     if (['auto', 'router', 'auto-router'].includes(value)) return 'auto';
     return 'gpt';
 }
@@ -39,34 +49,69 @@ function hasAny(text, patterns) {
     return patterns.some((pattern) => pattern.test(text));
 }
 
+// Одиночные корни мама/папа/друг/школ/бабуш/дедуш убраны: они цепляли обычные
+// сказки/загадки/игры ("сказка про друга", "посчитай до семь") и без того
+// покрыты протоколом тревоги в SYSTEM_PROMPT самого llm.js независимо от модели.
+// "Семь" сужен до реальных форм слова "семья", чтобы не ломать счёт до 7.
+const SENSITIVE_PATTERNS = [
+    /страшн|боюсь|плак|груст|одинок|обид|ссор|ругае|ругал|ругань|удар|бь[ёю]|бил|больно|плохой|не любят|исчез/i,
+    /семь[яиею]/i,
+    /помнишь|запомни|забыл|что я люблю|мой любим|моя любим|я люблю|я не люблю/i,
+    /адрес|телефон|фамили|лекарств|огонь|нож|окн/i,
+    /remember|my favorite|i like|i do not like|i don't like/i,
+    /scared|afraid|sad|lonely|hurt|fight/i,
+    /tine minte|imi place|nu imi place|preferat|preferata/i,
+    /frica|trist|singur|doare/i,
+];
+
+const SIMPLE_PATTERNS = [
+    /загадк|скороговор|сказк|истори|игр|поигра|животн|сколько будет|посчитай/i,
+    /riddle|tongue twister|story|game|animal|how much is|count/i,
+    /ghicitoare|framantare|poveste|joc|animal|cat face/i,
+];
+
+// Signal-based routing (см. routeInput в llm.js): вместо одних только ключевых слов
+// в тексте, роутер теперь в первую очередь смотрит на структурные сигналы, которые
+// оркестратор/llm.js уже вычислили — исправление ребёнком игрушки, жалоба на
+// непонимание, несколько ограничений в одной реплике, ссылка на прошлый ответ,
+// явная safety-тема или низкая уверенность оркестратора. Keyword-эвристика (sensitive/
+// simple) остаётся как fallback-сигнал поверх этого, а не единственный источник.
 function routeAutoModel(input = {}) {
     const text = String(input.text || '').toLowerCase();
 
-    // Одиночные корни мама/папа/друг/школ/бабуш/дедуш убраны: они цепляли обычные
-    // сказки/загадки/игры ("сказка про друга", "посчитай до семь") и без того
-    // покрыты протоколом тревоги в SYSTEM_PROMPT самого llm.js независимо от модели.
-    // "Семь" сужен до реальных форм слова "семья", чтобы не ломать счёт до 7.
-    const sensitive = [
-        /страшн|боюсь|плак|груст|одинок|обид|ссор|ругае|ругал|ругань|удар|бь[ёю]|бил|больно|плохой|не любят|исчез/i,
-        /семь[яиею]/i,
-        /помнишь|запомни|забыл|что я люблю|мой любим|моя любим|я люблю|я не люблю/i,
-        /адрес|телефон|фамили|лекарств|огонь|нож|окн/i,
-        /remember|my favorite|i like|i do not like|i don't like/i,
-        /scared|afraid|sad|lonely|hurt|fight/i,
-        /tine minte|imi place|nu imi place|preferat|preferata/i,
-        /frica|trist|singur|doare/i,
-    ];
+    const lowConfidence = typeof input.orchestratorConfidence === 'number'
+        && input.orchestratorConfidence < LOW_CONFIDENCE_THRESHOLD;
 
-    const simple = [
-        /загадк|скороговор|сказк|истори|игр|поигра|животн|сколько будет|посчитай/i,
-        /riddle|tongue twister|story|game|animal|how much is|count/i,
-        /ghicitoare|framantare|poveste|joc|animal|cat face/i,
-    ];
+    const escalate = Boolean(
+        input.isCorrection
+        || input.isComplaintAboutUnderstanding
+        || input.hasMultipleConstraints
+        || input.isSafetyRelevant
+        || input.needsExactValidation
+        || input.referencesPreviousReply
+        || lowConfidence
+    );
 
-    if (hasAny(text, sensitive)) return getModelProvider('gpt');
-    if (hasAny(text, simple)) return getModelProvider('deepseek');
+    if (escalate) {
+        const reason = input.isCorrection ? 'correction'
+            : input.isComplaintAboutUnderstanding ? 'complaint_about_understanding'
+            : input.hasMultipleConstraints ? 'multiple_constraints'
+            : input.isSafetyRelevant ? 'safety_relevant'
+            : input.needsExactValidation ? 'needs_exact_validation'
+            : input.referencesPreviousReply ? 'references_previous_reply'
+            : 'low_orchestrator_confidence';
+        return { key: 'gpt', provider: 'openai', model: OPENAI_COMPLEX_MODEL, reason };
+    }
 
-    return getModelProvider('deepseek');
+    if (hasAny(text, SENSITIVE_PATTERNS)) {
+        return { key: 'gpt', provider: 'openai', model: OPENAI_COMPLEX_MODEL, reason: 'sensitive_keyword' };
+    }
+
+    if (hasAny(text, SIMPLE_PATTERNS)) {
+        return { key: 'deepseek', provider: 'deepseek', model: DEEPSEEK_MAIN_MODEL, reason: 'simple_keyword' };
+    }
+
+    return { key: 'deepseek', provider: 'deepseek', model: DEEPSEEK_MAIN_MODEL, reason: 'default_chat' };
 }
 
 function getModelProvider(modelName, input = {}) {
@@ -76,13 +121,23 @@ function getModelProvider(modelName, input = {}) {
         return {
             key: 'deepseek',
             provider: 'deepseek',
-            model: DEEPSEEK_MODEL,
+            model: DEEPSEEK_MAIN_MODEL,
+            reason: 'explicit_deepseek',
+        };
+    }
+    if (normalized === 'deepseek-flash') {
+        return {
+            key: 'deepseek-flash',
+            provider: 'deepseek',
+            model: DEEPSEEK_FLASH_MODEL,
+            reason: 'explicit_deepseek_flash',
         };
     }
     return {
         key: 'gpt',
         provider: 'openai',
         model: GPT_MODEL,
+        reason: 'explicit_gpt',
     };
 }
 
@@ -93,15 +148,15 @@ function getModelProvider(modelName, input = {}) {
 // Отсюда и мотивация держать staticSystemPrompt (llm.js) стабильным неизменным префиксом —
 // он не даёт эффекта сам по себе (SDK/API решают это по факту совпадения), но без разделения
 // static/dynamic контента префикс менялся бы каждый запрос и точно не кэшировался.
-async function callOpenAI(messages, maxTokens) {
+async function callOpenAI(messages, maxTokens, model = GPT_MODEL) {
     const response = await getOpenAIClient().chat.completions.create({
-        model: GPT_MODEL,
+        model,
         max_tokens: maxTokens,
         messages,
     });
     return {
         reply: response.choices[0]?.message?.content?.trim() || '',
-        model_used: GPT_MODEL,
+        model_used: model,
         provider: 'openai',
         finish_reason: response.choices[0]?.finish_reason,
         tokens_used: response.usage?.total_tokens,
@@ -115,19 +170,19 @@ async function callOpenAI(messages, maxTokens) {
 // ли документированное поведение на эту модель/провайдера. Не считать кэширование доказанным без
 // проверки реального провайдера (счетов/заголовков ответа) — просто держим messages в том же
 // стабильном static/dynamic порядке на случай, если кэширование по префиксу всё же работает.
-async function callDeepSeek(messages, maxTokens) {
+async function callDeepSeek(messages, maxTokens, model = DEEPSEEK_MAIN_MODEL) {
     if (!process.env.DEEPSEEK_API_KEY) {
         throw new Error('DEEPSEEK_API_KEY is not set');
     }
     const response = await getDeepSeekClient().chat.completions.create({
-        model: DEEPSEEK_MODEL,
+        model,
         max_tokens: Math.max(maxTokens, 260),
         messages,
         thinking: { type: 'disabled' },
     });
     return {
         reply: response.choices[0]?.message?.content?.trim() || '',
-        model_used: DEEPSEEK_MODEL,
+        model_used: model,
         provider: 'deepseek',
         finish_reason: response.choices[0]?.finish_reason,
         tokens_used: response.usage?.total_tokens,
@@ -179,7 +234,7 @@ async function completeDeepSeekIfNeeded(messages, result) {
             role: 'user',
             content: 'Finish only the previous assistant sentence in the same language. Return only the missing ending, one short phrase. Do not repeat the previous text.',
         },
-    ], 90);
+    ], 90, result.model_used);
 
     return {
         ...result,
@@ -197,8 +252,8 @@ async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = 
 
     try {
         let result = selected.provider === 'deepseek'
-            ? await callDeepSeek(messages, maxTokens)
-            : await callOpenAI(messages, maxTokens);
+            ? await callDeepSeek(messages, maxTokens, selected.model)
+            : await callOpenAI(messages, maxTokens, selected.model);
         if (selected.provider === 'deepseek') {
             result = await completeDeepSeekIfNeeded(messages, result);
         }
@@ -206,6 +261,7 @@ async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = 
             ...result,
             requested_model: requested,
             router_choice: selected.key,
+            routing_reason: selected.reason || null,
             latency_ms: Date.now() - started,
             fallback: false,
         };
@@ -216,11 +272,12 @@ async function callModel({ modelName = 'gpt', messages, maxTokens, routeInput = 
             throw err;
         }
         logger.warn(`[LLM Router] DeepSeek unavailable, falling back to GPT: ${err.message}`);
-        const fallback = await callOpenAI(messages, maxTokens);
+        const fallback = await callOpenAI(messages, maxTokens, OPENAI_COMPLEX_MODEL);
         return {
             ...fallback,
             requested_model: requested,
             router_choice: selected.key,
+            routing_reason: selected.reason || null,
             latency_ms: Date.now() - started,
             fallback: true,
             fallback_reason: err.message,
