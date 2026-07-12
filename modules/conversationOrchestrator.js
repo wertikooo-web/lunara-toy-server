@@ -175,7 +175,10 @@ function inferIntentFromText(text) {
     if (/сказк|истори|story|povest/.test(t)) return 'story';
     if (/поигр|игр|game|play|joc/.test(t)) return 'game';
     if (/скороговорк|tongue\s+twister|framantare|frământare/.test(t)) return 'tongue_twister';
-    if (/факт|интересн|объясни|почему|как|зачем/.test(t)) return 'fact';
+    // "как" alone must not match inside unrelated words like "какой"/"какая"
+    // ("Какой герой был первым?" must not become 'fact') — Cyrillic isn't
+    // covered by JS regex \b, so use explicit non-letter boundaries instead.
+    if (/факт|интересн|объясни|почему|зачем/.test(t) || /(?:^|[^а-яё])как(?:[^а-яё]|$)/u.test(t)) return 'fact';
     return 'chat';
 }
 

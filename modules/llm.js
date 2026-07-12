@@ -343,9 +343,27 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         ? `The child's speech seemed to be in a different language than this toy is currently configured for (detected roughly "${options.languageMismatch.detected}", configured "${options.languageMismatch.requested}"). Briefly and gently remind the child, in your reply language, what language to speak in — then continue normally.`
         : '';
 
+    // Signal-based routing inputs (see modules/routingSignals.js + llmRouter.routeAutoModel).
+    // Computed here (before dynamicSystemContext) because the complaint/inconsistency
+    // instruction below needs them too — not just routing.
+    const routingText = options.routingText || userText;
+    const isCorrection = routingSignals.isCorrection(routingText);
+    const isComplaintAboutUnderstanding = routingSignals.isComplaintAboutUnderstanding(routingText);
+    const isConversationInconsistency = routingSignals.isConversationInconsistency(routingText);
+
+    // conversationInconsistencyInstruction: the child is pointing out that the toy
+    // contradicted itself (wrong character, changed topic, misheard). Confirmed
+    // production bug: without this, generic replies sometimes still drifted into
+    // launching a new unrelated scenario. Mirrors the exact instruction shape from
+    // the routing-quality spec: acknowledge briefly, don't argue, don't start a new
+    // scenario, continue only the topic the child already chose.
+    const conversationInconsistencyInstruction = (isCorrection || isComplaintAboutUnderstanding || isConversationInconsistency)
+        ? 'The child is pointing out a contradiction or mistake in what you said (e.g. you mentioned one character/topic and then switched to another). Briefly and warmly acknowledge the mix-up in one short phrase. Do not argue or over-explain. Do not start a new game, story, or topic. Continue only with the specific topic/character the child originally asked about.'
+        : '';
+
     // dynamicSystemContext: всё, что меняется от запроса к запросу — язык, время суток,
     // длина сказки, память о ребёнке, контент-контекст, тема/эмоция от классификатора.
-    const dynamicSystemContext = [langInstruction, voiceOutputInstruction, languageMismatchInstruction, storyLengthInstruction, extraContext]
+    const dynamicSystemContext = [langInstruction, voiceOutputInstruction, languageMismatchInstruction, conversationInconsistencyInstruction, storyLengthInstruction, extraContext]
         .filter(Boolean)
         .join('\n\n');
 
@@ -361,17 +379,19 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     const historyMessageCount = messages.length;
 
     // Signal-based routing inputs (see modules/routingSignals.js + llmRouter.routeAutoModel).
-    // Some fields are computed live from the text; others (orchestratorConfidence,
-    // activeMode, needsExactValidation, retryCount) are passthroughs from options —
-    // callers that have that context (conversationOrchestrator, validators) can set
-    // them, otherwise they safely default to "no signal".
-    const routingText = options.routingText || userText;
+    // isCorrection/isComplaintAboutUnderstanding/isConversationInconsistency computed
+    // above (needed for the system instruction too). Remaining fields: some computed
+    // live from the text; others (orchestratorConfidence, activeMode,
+    // needsExactValidation, retryCount) are passthroughs from options — callers that
+    // have that context (conversationOrchestrator, validators) can set them, otherwise
+    // they safely default to "no signal".
     const routeInput = {
         text: routingText,
         originalText: userText,
         activeMode: options.activeMode || null,
-        isCorrection: routingSignals.isCorrection(routingText),
-        isComplaintAboutUnderstanding: routingSignals.isComplaintAboutUnderstanding(routingText),
+        isCorrection,
+        isComplaintAboutUnderstanding,
+        isConversationInconsistency,
         hasMultipleConstraints: routingSignals.hasMultipleConstraints(routingText),
         referencesPreviousReply: routingSignals.referencesPreviousReply(routingText),
         isShortFollowup: dialogState.isAffirmative(routingText) || dialogState.isNegative(routingText) || dialogState.isUncertain(routingText),
@@ -386,7 +406,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         contentContext: options.contentContext,
     };
 
-    logger.info(`[LLMRoute] correction=${routeInput.isCorrection} complaint=${routeInput.isComplaintAboutUnderstanding} multi_constraint=${routeInput.hasMultipleConstraints} refs_prev=${routeInput.referencesPreviousReply}`);
+    logger.info(`[LLMRoute] correction=${routeInput.isCorrection} complaint=${routeInput.isComplaintAboutUnderstanding} inconsistency=${routeInput.isConversationInconsistency} multi_constraint=${routeInput.hasMultipleConstraints} refs_prev=${routeInput.referencesPreviousReply}`);
 
     let result = await llmRouter.callModel({
         modelName: options.model || DEFAULT_MODEL,
@@ -401,12 +421,14 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
         logger.info('[LLM] sanitized non-spoken markup/actions from reply');
     }
 
-    // Post-generation validation + single escalation (see modules/replyValidators.js).
-    // Length is monitoring-only (logged, never trimmed — cutting TTS speech mid-word
-    // is worse than a slightly long reply). Unconfirmed personal facts trigger one
-    // re-call on the complex OpenAI tier with an explicit no-invention instruction,
-    // unless we were already on that tier.
-    const lengthCheck = replyValidators.checkReplyLength(reply, { isStory: Boolean(options.isStory) });
+    // Post-generation validation + escalation (see modules/replyValidators.js).
+    // Unconfirmed personal facts trigger one re-call on the complex tier with a
+    // no-invention instruction. Length violations (too many sentences/questions)
+    // now also block TTS: one repair re-call asking for a short rewrite, and if
+    // that still fails, a deterministic local trim (trimReplyToLimits) — the
+    // original invalid reply is never sent to TTS. At most one escalation call
+    // per validator (max 2 extra LLM calls total for a turn that fails both).
+    let lengthCheck = replyValidators.checkReplyLength(reply, { isStory: Boolean(options.isStory) });
     const factsCheck = replyValidators.checkUnconfirmedFacts(reply, { hasMemoryContext: Boolean(options.memoryContext) });
     logger.info(`[ReplyValidation] length_ok=${lengthCheck.ok} facts_ok=${factsCheck.ok} sentence_count=${lengthCheck.sentenceCount ?? 'n/a'} reason=${factsCheck.reason || lengthCheck.reason || 'none'}`);
 
@@ -436,8 +458,46 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
             result = escalated;
             reply = escalatedReply;
             escalationUsed = true;
+            lengthCheck = replyValidators.checkReplyLength(reply, { isStory: Boolean(options.isStory) });
         } catch (escErr) {
             logger.warn(`[LLMEscalation] failed: ${escErr.message}; keeping original reply`);
+        }
+    }
+
+    if (!lengthCheck.ok) {
+        logger.warn(`[LLMEscalation] selected=repair reason=validation_failed:${lengthCheck.reason}`);
+        try {
+            const shortenInstruction = {
+                role: 'system',
+                content: `STRICT: Your previous reply was rejected by validation (${lengthCheck.reason}). Rewrite it in the same language and meaning, but as at most 3 short sentences with at most one question. Return ONLY the rewritten reply, nothing else.`,
+            };
+            const repairMessages = [
+                { role: 'system', content: staticSystemPrompt },
+                { role: 'system', content: dynamicSystemContext },
+                ...messages,
+                { role: 'assistant', content: reply },
+                shortenInstruction,
+            ];
+            const repaired = await llmRouter.callModel({
+                modelName: 'gpt-complex',
+                messages: repairMessages,
+                maxTokens: Math.min(maxTokens, 200),
+                routeInput: { ...routeInput, needsExactValidation: true },
+            });
+            const repairedReply = sanitizeVoiceReply(repaired.reply || '');
+            const repairedCheck = replyValidators.checkReplyLength(repairedReply, { isStory: Boolean(options.isStory) });
+            logger.info(`[LLMEscalation] repair result_ok=${repairedCheck.ok}`);
+            if (repairedCheck.ok) {
+                result = repaired;
+                reply = repairedReply;
+            } else {
+                reply = replyValidators.trimReplyToLimits(reply, { isStory: Boolean(options.isStory) });
+                logger.warn('[LLMEscalation] repair still invalid; applied local hard-trim fallback');
+            }
+            escalationUsed = true;
+        } catch (repairErr) {
+            logger.warn(`[LLMEscalation] repair failed: ${repairErr.message}; applying local hard-trim fallback`);
+            reply = replyValidators.trimReplyToLimits(reply, { isStory: Boolean(options.isStory) });
         }
     }
 

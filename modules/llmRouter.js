@@ -86,6 +86,7 @@ function routeAutoModel(input = {}) {
     const escalate = Boolean(
         input.isCorrection
         || input.isComplaintAboutUnderstanding
+        || input.isConversationInconsistency
         || input.hasMultipleConstraints
         || input.isSafetyRelevant
         || input.needsExactValidation
@@ -96,6 +97,7 @@ function routeAutoModel(input = {}) {
     if (escalate) {
         const reason = input.isCorrection ? 'correction'
             : input.isComplaintAboutUnderstanding ? 'complaint_about_understanding'
+            : input.isConversationInconsistency ? 'conversation_inconsistency'
             : input.hasMultipleConstraints ? 'multiple_constraints'
             : input.isSafetyRelevant ? 'safety_relevant'
             : input.needsExactValidation ? 'needs_exact_validation'
@@ -119,20 +121,22 @@ function getModelProvider(modelName, input = {}) {
     const normalized = normalizeModelName(modelName);
     if (normalized === 'auto') return routeAutoModel(input);
 
-    // Safety-relevant content always escalates to the complex OpenAI tier, even
-    // when a parent has manually pinned the device to DeepSeek/Flash (test-mode
-    // override in the parent panel, model_mode='economy'/'deepseek'). A manual
-    // mode selection must never bypass the safety escalation that 'auto' mode
-    // already gets via routeAutoModel above.
+    // Safety-relevant and conversation-inconsistency content always escalates to
+    // the complex OpenAI tier, even when a parent has manually pinned the device
+    // to DeepSeek/Flash (test-mode override in the parent panel,
+    // model_mode='economy'/'deepseek'). A manual mode selection must never bypass
+    // these escalations — they're the same ones 'auto' mode gets via
+    // routeAutoModel above ("always use the OpenAI strong route" per spec).
     if (normalized === 'deepseek' || normalized === 'deepseek-flash') {
         const text = String(input.text || '').toLowerCase();
         const forcedSafety = Boolean(input.isSafetyRelevant) || hasAny(text, SENSITIVE_PATTERNS);
-        if (forcedSafety) {
+        const forcedInconsistency = Boolean(input.isCorrection || input.isComplaintAboutUnderstanding || input.isConversationInconsistency);
+        if (forcedSafety || forcedInconsistency) {
             return {
                 key: 'gpt-complex',
                 provider: 'openai',
                 model: OPENAI_COMPLEX_MODEL,
-                reason: 'safety_override_manual_mode',
+                reason: forcedSafety ? 'safety_override_manual_mode' : 'conversation_inconsistency_override_manual_mode',
             };
         }
     }

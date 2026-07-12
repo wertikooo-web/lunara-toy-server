@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const content = require('./content');
 const logger = require('./logger');
+const routingSignals = require('./routingSignals');
 
 const ROOT = path.resolve(__dirname, '..');
 const PACKS_DIR = path.join(ROOT, 'data', 'content-packs');
@@ -242,6 +243,17 @@ function loadStories() {
 function isStoryRequest(text) {
     const t = normalize(text);
     if (!t) return false;
+
+    // Negative guard: a complaint/correction/inconsistency mentioning storytelling
+    // in passing ("...начинаешь про кошку рассказывать") is not a request for a
+    // (possibly unrelated) prepared story — it must reach the LLM so it can
+    // actually address what the child said. Confirmed production bug: this
+    // exact phrasing previously matched "рассказ" (from "рассказывать") and
+    // triggered an auto-selected, unrelated story instead of an apology.
+    if (routingSignals.isCorrection(text) || routingSignals.isComplaintAboutUnderstanding(text) || routingSignals.isConversationInconsistency(text)) {
+        return false;
+    }
+
     return /(сказк|истори|рассказ|на ночь|story|povest)/iu.test(t);
 }
 

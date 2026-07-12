@@ -28,12 +28,34 @@ const MULTIPLE_CONSTRAINT_PATTERNS = [
 ];
 
 const REFERENCES_PREVIOUS_REPLY_PATTERNS = [
-    /ты сказал|ты говорил|ты только что сказал|как ты сказал/i,
+    /ты\s+сказал|ты\s+говорил|ты\s+только\s*что\s+сказа|как\s+ты\s+сказал/iu,
     /you said|as you said|like you said/i,
     /ai spus|cum ai spus/i,
     /has dicho|como dijiste/i,
     /tu as dit|comme tu as dit/i,
     /hai detto|come hai detto/i,
+];
+
+// "conversation_inconsistency": the child is pointing out that the toy said one
+// thing (a character/topic/offer) and is now doing another — e.g. "ты вначале
+// сказала про зайчика, а начинаешь про кошку рассказывать". Caught real examples
+// in production logs where isCorrection/isComplaintAboutUnderstanding both missed
+// this phrasing (it doesn't contain "не это"/"ты меня не понял" etc, and
+// REFERENCES_PREVIOUS_REPLY's rigid "ты сказал" didn't match "ты вначале сказала"
+// with a word in between and a different verb suffix). Deliberately broad — a
+// false positive here just means one extra escalation to the strong model, not
+// a safety issue, whereas a miss lets prepared-content patches (see
+// storyContentPatch.js) hijack a complaint into launching an unrelated story.
+const CONVERSATION_INCONSISTENCY_PATTERNS = [
+    /ты\s+(?:сначала|вначале|сперва|в\s*начале)/iu,
+    /ты\s+начал[аи]?\s+(?:говорить|рассказывать)/iu,
+    /ты\s+поменял[а]?\s+героя|ты\s+перепутал[а]?/iu,
+    /почему\s+ты\s+(?:сейчас\s+)?говоришь\s+(?:другое|не\s+то)/iu,
+    /you (?:first|initially) said|why are you (?:now )?(?:saying|talking about) something else/i,
+    /ai spus (?:mai )?intai|ai spus (?:mai )?întâi/i,
+    /dijiste primero|antes dijiste/i,
+    /tu as dit (?:d'abord|au début)/i,
+    /prima hai detto/i,
 ];
 
 function matchesAny(text, patterns) {
@@ -57,9 +79,14 @@ function referencesPreviousReply(text) {
     return matchesAny(text, REFERENCES_PREVIOUS_REPLY_PATTERNS);
 }
 
+function isConversationInconsistency(text) {
+    return matchesAny(text, CONVERSATION_INCONSISTENCY_PATTERNS);
+}
+
 module.exports = {
     isCorrection,
     isComplaintAboutUnderstanding,
     hasMultipleConstraints,
     referencesPreviousReply,
+    isConversationInconsistency,
 };

@@ -1,9 +1,9 @@
 'use strict';
 
-// Post-generation checks run on an LLM reply before it goes to TTS. These are
-// monitoring/escalation signals, not hard truncators — cutting a reply mid-word
-// for TTS is worse than a slightly-too-long one, so length violations are logged
-// (see [ReplyValidation] in llm.js) rather than silently trimmed.
+// Post-generation checks run on an LLM reply before it goes to TTS. Length
+// violations trigger one repair re-call in llm.js (see [LLMEscalation]); if the
+// repair also fails, trimReplyToLimits below provides a deterministic last-resort
+// fallback so an invalid reply is never sent to TTS unmodified.
 
 function normalizeForLetterCheck(text) {
     return String(text || '').normalize('NFC');
@@ -30,6 +30,22 @@ function checkReplyLength(text, { isStory = false, maxSentences = 3 } = {}) {
         questionCount,
         reason: tooLong ? 'too_many_sentences' : (tooManyQuestions ? 'too_many_questions' : null),
     };
+}
+
+// Deterministic last-resort fallback when the model can't produce a short-enough
+// reply even after one repair attempt: keep the first maxSentences sentences, and
+// if more than one question mark remains, cut right after the first one so the
+// reply still ends on a complete thought instead of a mid-sentence truncation.
+function trimReplyToLimits(text, { isStory = false, maxSentences = 3 } = {}) {
+    const raw = String(text || '').trim();
+    if (isStory || !raw) return raw;
+    const sentences = raw.split(/(?<=[.!?…])\s+/).filter(Boolean);
+    let trimmed = sentences.slice(0, maxSentences).join(' ').trim();
+    const firstQuestionMark = trimmed.indexOf('?');
+    if (firstQuestionMark !== -1 && trimmed.indexOf('?', firstQuestionMark + 1) !== -1) {
+        trimmed = trimmed.slice(0, firstQuestionMark + 1);
+    }
+    return trimmed;
 }
 
 // Detects confident claims about the child's personal facts (favorite things, pet
@@ -91,6 +107,7 @@ module.exports = {
     extractWords,
     firstLetterUpper,
     checkReplyLength,
+    trimReplyToLimits,
     checkUnconfirmedFacts,
     checkFirstLetterConstraint,
     checkRiddlePayload,
