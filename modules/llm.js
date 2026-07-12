@@ -12,6 +12,7 @@ const llmRouter = require('./llmRouter');
 const { sanitizeVoiceReply } = require('./voiceSanitizer');
 const routingSignals = require('./routingSignals');
 const dialogState = require('./dialogState');
+const replyValidators = require('./replyValidators');
 
 const MAX_TOKENS = 120;
 const MAX_STORY_TOKENS = 200;
@@ -370,7 +371,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
 
     logger.info(`[LLMRoute] correction=${routeInput.isCorrection} complaint=${routeInput.isComplaintAboutUnderstanding} multi_constraint=${routeInput.hasMultipleConstraints} refs_prev=${routeInput.referencesPreviousReply}`);
 
-    const result = await llmRouter.callModel({
+    let result = await llmRouter.callModel({
         modelName: options.model || DEFAULT_MODEL,
         messages: llmMessages,
         maxTokens,
@@ -378,16 +379,57 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
     });
 
     const rawReply = result.reply || '';
-    const reply = sanitizeVoiceReply(rawReply);
+    let reply = sanitizeVoiceReply(rawReply);
     if (reply !== rawReply) {
         logger.info('[LLM] sanitized non-spoken markup/actions from reply');
     }
+
+    // Post-generation validation + single escalation (see modules/replyValidators.js).
+    // Length is monitoring-only (logged, never trimmed — cutting TTS speech mid-word
+    // is worse than a slightly long reply). Unconfirmed personal facts trigger one
+    // re-call on the complex OpenAI tier with an explicit no-invention instruction,
+    // unless we were already on that tier.
+    const lengthCheck = replyValidators.checkReplyLength(reply, { isStory: Boolean(options.isStory) });
+    const factsCheck = replyValidators.checkUnconfirmedFacts(reply, { hasMemoryContext: Boolean(options.memoryContext) });
+    logger.info(`[ReplyValidation] length_ok=${lengthCheck.ok} facts_ok=${factsCheck.ok} sentence_count=${lengthCheck.sentenceCount ?? 'n/a'} reason=${factsCheck.reason || lengthCheck.reason || 'none'}`);
+
+    let escalationUsed = false;
+    if (!factsCheck.ok && result.router_choice !== 'gpt-complex') {
+        logger.warn(`[LLMEscalation] selected=gpt-complex reason=validation_failed:${factsCheck.reason}`);
+        try {
+            const noInventionInstruction = {
+                role: 'system',
+                content: 'STRICT: Do not state or invent any personal fact about the child (favorite things, pet name, home, today\'s activities) unless it was explicitly given to you in the memory/content context above or earlier in this conversation. If you do not actually know it, ask the child instead of guessing.',
+            };
+            const escalationMessages = [
+                { role: 'system', content: staticSystemPrompt },
+                { role: 'system', content: dynamicSystemContext },
+                noInventionInstruction,
+                ...messages,
+            ];
+            const escalated = await llmRouter.callModel({
+                modelName: 'gpt-complex',
+                messages: escalationMessages,
+                maxTokens,
+                routeInput: { ...routeInput, needsExactValidation: true },
+            });
+            const escalatedReply = sanitizeVoiceReply(escalated.reply || '');
+            const escalatedCheck = replyValidators.checkUnconfirmedFacts(escalatedReply, { hasMemoryContext: Boolean(options.memoryContext) });
+            logger.info(`[LLMEscalation] result_ok=${escalatedCheck.ok}`);
+            result = escalated;
+            reply = escalatedReply;
+            escalationUsed = true;
+        } catch (escErr) {
+            logger.warn(`[LLMEscalation] failed: ${escErr.message}; keeping original reply`);
+        }
+    }
+
     messages.push({ role: 'assistant', content: reply });
 
     if (result.finish_reason === 'length') {
         logger.warn(`[LLM] reply hit max_tokens=${maxTokens}; output may be truncated`);
     }
-    logger.info(`[LLM] provider=${result.provider} model=${result.model_used} routing_reason=${result.routing_reason || 'n/a'} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
+    logger.info(`[LLM] provider=${result.provider} model=${result.model_used} routing_reason=${result.routing_reason || 'n/a'} escalation_used=${escalationUsed} latency=${result.latency_ms}ms question="${String(options.routingText || userText).slice(0, 180)}"`);
     logger.debug(`[LLM] tokens used: ${result.tokens_used}`);
     // Приблизительный размер промпта в символах (не токенах) — дёшево и достаточно, чтобы
     // видеть в логах, как «вес» запроса растёт от memoryContext/contentContext/истории.
@@ -405,6 +447,7 @@ async function chat(wsRef, userText, lang = 'ru-RU', options = {}) {
             fallback: result.fallback,
             fallback_reason: result.fallback_reason,
             continued: result.continued,
+            escalation_used: escalationUsed,
         };
     }
 

@@ -38,6 +38,7 @@ function getDeepSeekClient() {
 
 function normalizeModelName(modelName) {
     const value = String(modelName || 'gpt').toLowerCase().trim();
+    if (['gpt-complex', 'openai-complex'].includes(value)) return 'gpt-complex';
     if (['gpt', 'openai', 'gpt-4o-mini'].includes(value)) return 'gpt';
     if (['deepseek', 'deepseek-pro', 'deepseek-v4-pro', 'ds'].includes(value)) return 'deepseek';
     if (['deepseek-flash', 'deepseek-v4-flash', 'ds-flash'].includes(value)) return 'deepseek-flash';
@@ -117,6 +118,14 @@ function routeAutoModel(input = {}) {
 function getModelProvider(modelName, input = {}) {
     const normalized = normalizeModelName(modelName);
     if (normalized === 'auto') return routeAutoModel(input);
+    if (normalized === 'gpt-complex') {
+        return {
+            key: 'gpt-complex',
+            provider: 'openai',
+            model: OPENAI_COMPLEX_MODEL,
+            reason: 'explicit_gpt_complex',
+        };
+    }
     if (normalized === 'deepseek') {
         return {
             key: 'deepseek',
