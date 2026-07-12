@@ -131,6 +131,9 @@ const LETTER_REQUEST_PATTERNS = [
   /на\s+букв[уы]\s+([а-яёăâîșț])/iu,
   /(?:start|starts|starting|begin|begins|beginning)\s+with\s+(?:the\s+)?letter\s+([a-z])/iu,
   /pe\s+litera\s+([a-zăâîșț])|litera\s+([a-zăâîșț])/iu,
+  /(?:empezar|empiece|empiecen|comience|comiencen)\s+con\s+(?:la\s+)?letra\s+([a-zñáéíóúü])/iu,
+  /(?:commencer|commencent|commence)\s+par\s+(?:la\s+)?lettre\s+([a-zàâçéèêëîïôûùüÿœæ])/iu,
+  /(?:iniziare|iniziano|inizia|iniziamo)\s+con\s+(?:la\s+)?lettera\s+([a-zàèéìíîòóùú])/iu,
 ];
 
 function extractTargetLetter(text) {
@@ -147,7 +150,7 @@ function extractTargetLetter(text) {
 
 function isLetterConstrainedTongueTwisterRequest(text) {
   const t = String(text || '').toLowerCase();
-  return Boolean(extractTargetLetter(t)) && /скороговорк|tongue\s+twister|framantare|frământare/i.test(t);
+  return Boolean(extractTargetLetter(t)) && /скороговорк|tongue\s+twister|framantare|frământare|trabalenguas|virelangue|scioglilingua/i.test(t);
 }
 
 function tongueTwisterContext() {
@@ -178,13 +181,17 @@ function stricterTongueTwisterPrompt(requestText, targetLetter) {
   return `${buildTongueTwisterPrompt(requestText, targetLetter)}\n\nВАЖНО: строго один JSON {"text": "..."}. Предыдущая попытка была отклонена — не все слова начинались на "${targetLetter}". Проверь каждое слово перед ответом.`;
 }
 
-// Reuses existing verified content-pack lines as safe fallbacks (see seed data in
-// modules/content.js) rather than fabricating new letter-specific text with no
-// validation history.
+// ru/ro/en fallbacks reuse existing verified content-pack lines (see seed data
+// in modules/content.js). es/fr/it have no such seed pack yet, so these use
+// well-known, established public tongue twisters in each language (not
+// fabricated letter-specific text) — same safety bar as the others.
 const FALLBACK_TONGUE_TWISTER_BY_LANG = {
   'ru-RU': 'Не получилось идеально на эту букву. Вот скороговорка попроще: Звонкая зебра Зоя задорно звенела зелёным звоночком.',
   'ro-RO': 'Nu am reusit perfect pe litera aceea. Iata o framantare mai simpla: Sase sasi in sase saci.',
   'en-US': 'I could not quite manage that letter perfectly. Here is a simpler one: Tiny turtle tiptoes to the tall tree.',
+  'es-ES': 'No lo logré perfecto con esa letra. Aquí va una más sencilla: Tres tristes tigres tragaban trigo en un trigal.',
+  'fr-FR': "Je n'ai pas réussi parfaitement avec cette lettre. En voici une plus simple : Un chasseur sachant chasser sait chasser sans son chien.",
+  'it-IT': 'Non ci sono riuscito perfettamente con quella lettera. Eccone una più semplice: Trentatré trentini entrarono a Trento, tutti e trentatré trotterellando.',
 };
 
 function fallbackTongueTwister(lang) {
@@ -196,6 +203,9 @@ function fallbackTongueTwister(lang) {
 const LETTER_CORRECTION_PATTERNS = [
   /не\s+(?:на\s+)?([a-zа-яёăâîșț])\s*,?\s*а\s+(?:на\s+)?([a-zа-яёăâîșț])/iu,
   /not\s+([a-z])\s*,?\s*but\s+([a-z])/iu,
+  /no\s+([a-zñ])\s*,?\s*sino\s+([a-zñ])/iu,
+  /pas\s+([a-zàâçéèêë])\s*,?\s*mais\s+([a-zàâçéèêë])/iu,
+  /non\s+([a-zàèéìíîòóùú])\s*,?\s*ma\s+([a-zàèéìíîòóùú])/iu,
 ];
 
 function extractCorrectionLetter(text) {
