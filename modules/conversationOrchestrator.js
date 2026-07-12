@@ -5,9 +5,88 @@ const voiceUx = require('./voiceUxPhrases');
 
 const OFFER_TTL_MS = 2 * 60 * 1000;
 const RIDDLE_HISTORY_LIMIT = 10;
+const TIME_ZONE = process.env.TZ_MARKET || 'Europe/Chisinau';
+
+const TIME_DATE_PATTERNS = {
+    'ru-RU': {
+        time: /(который час|сколько времени|сколько сейчас времени)/i,
+        date: /(какое сегодня число|какое число сегодня|какой сегодня день недели|какой день недели|какой сейчас год|какой сегодня год)/i,
+    },
+    'ro-RO': {
+        time: /(cat e ceasul|c[aă]t e ceasul|ce ora e|ce or[aă] e)/i,
+        date: /(ce zi e azi|ce data e azi|ce dat[aă] e azi|in ce an suntem|[iî]n ce an suntem)/i,
+    },
+    'en-US': {
+        time: /(what time is it|what'?s the time|do you know the time)/i,
+        date: /(what'?s today'?s date|what is the date today|what day is it|what year is it)/i,
+    },
+    'es-ES': {
+        time: /(que hora es|qu[eé] hora es)/i,
+        date: /(que dia es hoy|qu[eé] d[ií]a es hoy|que fecha es hoy|qu[eé] fecha es hoy|en que a[nñ]o estamos|en qu[eé] a[nñ]o estamos)/i,
+    },
+    'fr-FR': {
+        time: /(quelle heure est.?il|quelle heure il est)/i,
+        date: /(quel jour sommes.?nous|quelle est la date aujourd'?hui|en quelle ann[eé]e sommes.?nous)/i,
+    },
+    'it-IT': {
+        time: /(che ore sono|che ora [eè])/i,
+        date: /(che giorno [eè] oggi|che data [eè] oggi|in che anno siamo)/i,
+    },
+};
+
+const TIME_REPLY_TEMPLATES = {
+    'ru-RU': timeStr => `Сейчас ${timeStr}.`,
+    'ro-RO': timeStr => `Acum este ora ${timeStr}.`,
+    'en-US': timeStr => `It's ${timeStr} right now.`,
+    'es-ES': timeStr => `Ahora son las ${timeStr}.`,
+    'fr-FR': timeStr => `Il est ${timeStr} maintenant.`,
+    'it-IT': timeStr => `Ora sono le ${timeStr}.`,
+};
+
+const DATE_REPLY_TEMPLATES = {
+    'ru-RU': dateStr => `Сегодня ${dateStr}.`,
+    'ro-RO': dateStr => `Astazi este ${dateStr}.`,
+    'en-US': dateStr => `Today is ${dateStr}.`,
+    'es-ES': dateStr => `Hoy es ${dateStr}.`,
+    'fr-FR': dateStr => `Aujourd'hui nous sommes le ${dateStr}.`,
+    'it-IT': dateStr => `Oggi è ${dateStr}.`,
+};
 
 function nowMs() {
     return Date.now();
+}
+
+// Detects "который час?" / "какое сегодня число?" style requests so they can be
+// answered deterministically from server time instead of letting the LLM guess.
+function detectTimeDateIntent(text, lang) {
+    const patterns = TIME_DATE_PATTERNS[lang] || TIME_DATE_PATTERNS['ru-RU'];
+    const t = String(text || '').toLowerCase();
+    if (patterns.time.test(t)) return 'time';
+    if (patterns.date.test(t)) return 'date';
+    return null;
+}
+
+function formatTimeDateReply(kind, lang) {
+    const locale = TIME_DATE_PATTERNS[lang] ? lang : 'ru-RU';
+
+    if (kind === 'time') {
+        const timeStr = new Intl.DateTimeFormat(locale, {
+            timeZone: TIME_ZONE,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(new Date());
+        return (TIME_REPLY_TEMPLATES[locale] || TIME_REPLY_TEMPLATES['ru-RU'])(timeStr);
+    }
+
+    const dateStr = new Intl.DateTimeFormat(locale, {
+        timeZone: TIME_ZONE,
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        weekday: 'long',
+    }).format(new Date()).replace(/\.$/, '');
+    return (DATE_REPLY_TEMPLATES[locale] || DATE_REPLY_TEMPLATES['ru-RU'])(dateStr);
 }
 
 function createActiveTask() {
@@ -210,6 +289,7 @@ function detectDecision(text, state, options = {}) {
     const s = clearExpiredOffer(ensureState(state), options.now || nowMs());
     const normalized = dialogState.normalizeText(text);
     const intent = inferIntentFromText(text);
+    const lang = options.lang || 'ru-RU';
 
     s.lastUserText = String(text || '').slice(0, 500);
 
@@ -219,6 +299,18 @@ function detectDecision(text, state, options = {}) {
             type: 'chat',
             reply: 'Ой, я не расслышала. Скажи ещё раз, пожалуйста.',
             reason: 'empty_text',
+        };
+        s.lastDecision = decision;
+        return decision;
+    }
+
+    const timeDateKind = detectTimeDateIntent(text, lang);
+    if (timeDateKind) {
+        const decision = {
+            action: 'reply',
+            type: 'time_date',
+            reply: formatTimeDateReply(timeDateKind, lang),
+            reason: `deterministic_${timeDateKind}`,
         };
         s.lastDecision = decision;
         return decision;
@@ -427,4 +519,6 @@ module.exports = {
     updateActiveTask,
     clearActiveTask,
     isRepeatRiddleRequest,
+    detectTimeDateIntent,
+    formatTimeDateReply,
 };
