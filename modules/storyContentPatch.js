@@ -484,7 +484,12 @@ content.tryHandleShortRequest = async function patchedStoryTryHandleShortRequest
         return originalTryHandleShortRequest ? originalTryHandleShortRequest(text, options) : null;
     }
 
+    const searchStartedAt = Date.now();
     const item = pickPreparedStory(text);
+    const storySearchMs = Date.now() - searchStartedAt;
+    const level = storySearchMs > 1000 ? 'error' : (storySearchMs > 300 ? 'warn' : 'info');
+    logger[level](`[StoryContentPatch] story_search_ms=${storySearchMs} found=${Boolean(item)}`);
+
     if (!item) {
         return null;
     }
