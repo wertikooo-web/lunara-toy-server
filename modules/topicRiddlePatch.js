@@ -258,6 +258,57 @@ if (typeof originalChat === 'function') {
     let forcedType = '';
     let extraContext = '';
 
+    // Answer-correctness gating for LLM-generated ("creative") riddles. Cached
+    // riddles already get this via riddleEngine.handleActiveRiddleAnswer/
+    // state.activeRiddle in server.js — but that path is never populated for
+    // riddles generated here (see the routeAsRiddle branch below), so without
+    // this a creative riddle could get "ты угадал!" regardless of what the
+    // child actually said. dialog.lastRiddleAnswer/lastRiddleHint are set right
+    // after a creative riddle is spoken (see routeAsRiddle branch).
+    if (dialog && dialog.lastIntent === 'riddle' && dialog.lastRiddleAnswer) {
+      if (riddleEngine.isHintRequest(routingText)) {
+        const hint = dialog.lastRiddleHint || 'Подумай, где это можно встретить.';
+        console.log('[TopicRiddle] creative riddle hint given');
+        return directResult(hint, options);
+      }
+
+      if (riddleEngine.isRevealRequest(routingText)) {
+        const reply = `Ответ: ${dialog.lastRiddleAnswer}. Хочешь ещё одну загадку?`;
+        console.log(`[TopicRiddle] creative riddle revealed: ${dialog.lastRiddleAnswer}`);
+        dialog.lastRiddleAnswer = null;
+        dialog.lastRiddleHint = null;
+        dialog.lastRiddleAttempts = 0;
+        return directResult(reply, options);
+      }
+
+      if (riddleEngine.isLikelyRiddleAnswer(routingText)) {
+        const isCorrect = riddleEngine.isCorrectAnswer(routingText, { answer: dialog.lastRiddleAnswer, aliases: [] });
+        if (isCorrect) {
+          console.log('[TopicRiddle] creative riddle answered correctly');
+          dialog.lastRiddleAnswer = null;
+          dialog.lastRiddleHint = null;
+          dialog.lastRiddleAttempts = 0;
+          return directResult('Правильно! Ты угадал! Хочешь ещё одну загадку?', options);
+        }
+
+        const attempts = (dialog.lastRiddleAttempts || 0) + 1;
+        dialog.lastRiddleAttempts = attempts;
+        if (attempts >= 2) {
+          const reply = `Хорошая попытка! Ответ: ${dialog.lastRiddleAnswer}.`;
+          console.log(`[TopicRiddle] creative riddle wrong attempt ${attempts}; revealing`);
+          dialog.lastRiddleAnswer = null;
+          dialog.lastRiddleHint = null;
+          dialog.lastRiddleAttempts = 0;
+          return directResult(reply, options);
+        }
+        console.log(`[TopicRiddle] creative riddle wrong attempt ${attempts}`);
+        return directResult('Не совсем. Хочешь подсказку?', options);
+      }
+      // Not an answer/hint/reveal attempt (e.g. a new unrelated request) — fall
+      // through to normal routing below, but the riddle stays active until it
+      // is explicitly answered, revealed, or a new riddle/topic is requested.
+    }
+
     if (dialog) {
       const followup = dialogState.resolveFollowup(dialog, routingText);
       if (followup?.action === 'clarify') {

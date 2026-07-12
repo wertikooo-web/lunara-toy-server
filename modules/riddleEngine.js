@@ -513,6 +513,8 @@ module.exports = {
     shouldUseLlmRiddle,
     isRevealRequest,
     isHintRequest,
+    isLikelyRiddleAnswer,
+    isCorrectAnswer,
     startRiddle,
     handleActiveRiddleAnswer,
 };
