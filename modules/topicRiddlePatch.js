@@ -191,6 +191,22 @@ function fallbackTongueTwister(lang) {
   return FALLBACK_TONGUE_TWISTER_BY_LANG[lang] || FALLBACK_TONGUE_TWISTER_BY_LANG['ru-RU'];
 }
 
+// Detects a follow-up letter correction on an active tongue twister, e.g.
+// "Не G, а Z" / "not G, but Z" — returns the corrected letter, or null.
+const LETTER_CORRECTION_PATTERNS = [
+  /не\s+(?:на\s+)?([a-zа-яёăâîșț])\s*,?\s*а\s+(?:на\s+)?([a-zа-яёăâîșț])/iu,
+  /not\s+([a-z])\s*,?\s*but\s+([a-z])/iu,
+];
+
+function extractCorrectionLetter(text) {
+  const t = String(text || '');
+  for (const re of LETTER_CORRECTION_PATTERNS) {
+    const m = t.match(re);
+    if (m && m[2]) return m[2].toUpperCase();
+  }
+  return null;
+}
+
 function followupContext() {
   return [
     'DIALOG FOLLOW-UP MODE:',
@@ -307,6 +323,20 @@ if (typeof originalChat === 'function') {
       // Not an answer/hint/reveal attempt (e.g. a new unrelated request) — fall
       // through to normal routing below, but the riddle stays active until it
       // is explicitly answered, revealed, or a new riddle/topic is requested.
+    }
+
+    // Tongue-twister letter correction ("Не G, а Z") — the child is correcting
+    // the letter of the tongue twister they just asked for, not starting a new
+    // unrelated request. Reroute into the same generate+validate+escalate flow
+    // (see routeAsTongueTwister below) with the corrected letter, instead of
+    // losing the tongue-twister task and falling through to plain chat.
+    if (dialog && dialog.lastIntent === 'tongue_twister' && dialog.lastTongueTwisterLetter) {
+      const correctionLetter = extractCorrectionLetter(routingText);
+      if (correctionLetter) {
+        console.log(`[TopicRiddle] tongue twister letter correction: ${dialog.lastTongueTwisterLetter} -> ${correctionLetter}`);
+        nextRoutingText = `Давай скороговорку на букву ${correctionLetter}`;
+        nextText = nextRoutingText;
+      }
     }
 
     if (dialog) {
