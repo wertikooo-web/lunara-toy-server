@@ -122,6 +122,75 @@ function fallbackRiddle(lang) {
   return FALLBACK_RIDDLE_BY_LANG[lang] || FALLBACK_RIDDLE_BY_LANG['ru-RU'];
 }
 
+// Letter-constrained tongue twisters ("скороговорку на букву З"). Only wired for
+// ru-RU/ro-RO/en-US — those are the only languages with any existing tongue-twister
+// content pack coverage in this codebase (checked data seeds in modules/content.js);
+// inventing es/fr/it examples with no existing base to anchor quality against would
+// be guessing, not fixing.
+const LETTER_REQUEST_PATTERNS = [
+  /на\s+букв[уы]\s+([а-яёăâîșț])/iu,
+  /(?:start|starts|starting|begin|begins|beginning)\s+with\s+(?:the\s+)?letter\s+([a-z])/iu,
+  /pe\s+litera\s+([a-zăâîșț])|litera\s+([a-zăâîșț])/iu,
+];
+
+function extractTargetLetter(text) {
+  const t = String(text || '');
+  for (const re of LETTER_REQUEST_PATTERNS) {
+    const m = t.match(re);
+    if (m) {
+      const letter = (m[1] || m[2] || '').toUpperCase();
+      if (letter) return letter;
+    }
+  }
+  return null;
+}
+
+function isLetterConstrainedTongueTwisterRequest(text) {
+  const t = String(text || '').toLowerCase();
+  return Boolean(extractTargetLetter(t)) && /скороговорк|tongue\s+twister|framantare|frământare/i.test(t);
+}
+
+function tongueTwisterContext() {
+  return [
+    'STRICT TONGUE TWISTER MODE:',
+    '- Output ONLY a single JSON object {"text": "..."}, nothing else — no markdown, no explanations.',
+    '- Every meaningful word in "text" must start with the requested letter (1-2 letter prepositions/particles are OK).',
+    '- Keep it short (one or two simple phrases), fun, and easy for a young child to pronounce.',
+    '- No scary or unsafe content.',
+  ].join('\n');
+}
+
+function buildTongueTwisterPrompt(requestText, targetLetter) {
+  return [
+    `Сгенерируй короткую детскую скороговорку на языке текущей сессии, где КАЖДОЕ значимое слово начинается на букву "${targetLetter}".`,
+    `Исходный запрос ребенка: "${String(requestText || '').slice(0, 240)}"`,
+    '',
+    'Верни ТОЛЬКО валидный JSON вида {"text": "..."}, без другого текста.',
+    'Правила:',
+    `1. Каждое значимое слово должно начинаться на букву "${targetLetter}" (короткие предлоги/союзы из 1-2 букв допустимы).`,
+    '2. Текст короткий — одна-две простые фразы, легко произносимые ребёнком.',
+    '3. Без markdown и пояснений, без слова "скороговорка" внутри самого текста.',
+    '4. Дружелюбно, без пугающих тем.',
+  ].join('\n');
+}
+
+function stricterTongueTwisterPrompt(requestText, targetLetter) {
+  return `${buildTongueTwisterPrompt(requestText, targetLetter)}\n\nВАЖНО: строго один JSON {"text": "..."}. Предыдущая попытка была отклонена — не все слова начинались на "${targetLetter}". Проверь каждое слово перед ответом.`;
+}
+
+// Reuses existing verified content-pack lines as safe fallbacks (see seed data in
+// modules/content.js) rather than fabricating new letter-specific text with no
+// validation history.
+const FALLBACK_TONGUE_TWISTER_BY_LANG = {
+  'ru-RU': 'Не получилось идеально на эту букву. Вот скороговорка попроще: Звонкая зебра Зоя задорно звенела зелёным звоночком.',
+  'ro-RO': 'Nu am reusit perfect pe litera aceea. Iata o framantare mai simpla: Sase sasi in sase saci.',
+  'en-US': 'I could not quite manage that letter perfectly. Here is a simpler one: Tiny turtle tiptoes to the tall tree.',
+};
+
+function fallbackTongueTwister(lang) {
+  return FALLBACK_TONGUE_TWISTER_BY_LANG[lang] || FALLBACK_TONGUE_TWISTER_BY_LANG['ru-RU'];
+}
+
 function followupContext() {
   return [
     'DIALOG FOLLOW-UP MODE:',
@@ -218,9 +287,44 @@ if (typeof originalChat === 'function') {
     }
 
     const routeAsRiddle = forcedType === 'riddle' || shouldRouteToLlm(nextRoutingText);
+    const targetLetter = extractTargetLetter(nextRoutingText);
+    const routeAsTongueTwister = !routeAsRiddle && Boolean(targetLetter) && isLetterConstrainedTongueTwisterRequest(nextRoutingText);
     let result;
 
-    if (routeAsRiddle) {
+    if (routeAsTongueTwister) {
+      console.log(`[TopicRiddle] letter-constrained tongue twister: letter=${targetLetter} text=${JSON.stringify(String(nextRoutingText || '').slice(0, 120))}`);
+      const nextOptions = {
+        ...options,
+        routingText: nextRoutingText,
+        contentContext: [options.contentContext, extraContext, tongueTwisterContext()].filter(Boolean).join('\n\n'),
+      };
+
+      const rawResult = await originalChat.call(this, sessionRef, buildTongueTwisterPrompt(nextRoutingText, targetLetter), lang, nextOptions);
+      let payload = parseRiddleJson(resultReply(rawResult));
+      let text = payload && typeof payload.text === 'string' ? payload.text : '';
+      let check = text ? replyValidators.checkFirstLetterConstraint(text, targetLetter) : { ok: false, reason: 'no_text' };
+
+      if (!check.ok) {
+        console.log(`[ReplyValidation] tongue_twister failed=${check.reason}; retrying with complex model`);
+        const retryOptions = { ...nextOptions, model: 'gpt-complex', needsExactValidation: true };
+        const retryResult = await originalChat.call(this, sessionRef, stricterTongueTwisterPrompt(nextRoutingText, targetLetter), lang, retryOptions);
+        payload = parseRiddleJson(resultReply(retryResult));
+        text = payload && typeof payload.text === 'string' ? payload.text : '';
+        check = text ? replyValidators.checkFirstLetterConstraint(text, targetLetter) : { ok: false, reason: 'no_text' };
+        console.log(`[LLMEscalation] selected=gpt-complex reason=tongue_twister_validation_failed result_ok=${check.ok}`);
+      }
+
+      if (!check.ok) {
+        console.log(`[ReplyValidation] tongue_twister failed twice; using safe fallback letter=${targetLetter} lang=${lang}`);
+        text = fallbackTongueTwister(lang);
+      }
+
+      if (dialog) {
+        dialog.lastTongueTwisterLetter = targetLetter;
+      }
+
+      result = directResult(text, options);
+    } else if (routeAsRiddle) {
       console.log(`[TopicRiddle] LLM context attached: ${JSON.stringify(String(nextRoutingText || '').slice(0, 120))}`);
       const nextOptions = {
         ...options,
@@ -263,7 +367,7 @@ if (typeof originalChat === 'function') {
 
     if (dialog) {
       const reply = resultReply(result);
-      const type = forcedType || (routeAsRiddle ? 'riddle' : inferTypeFromRequest(nextRoutingText));
+      const type = forcedType || (routeAsTongueTwister ? 'tongue_twister' : (routeAsRiddle ? 'riddle' : inferTypeFromRequest(nextRoutingText)));
       const offer = dialogState.markBotReply(dialog, reply, { type });
       if (offer) {
         console.log(`[DialogState] pending offer=${offer.type}`);
