@@ -107,6 +107,7 @@ function createActiveTask() {
 function createState() {
     return {
         pendingOffer: null,
+        pendingChoice: null,
         lastIntent: '',
         lastBotReply: '',
         lastUserText: '',
@@ -120,6 +121,7 @@ function createState() {
 function ensureState(state) {
     if (!state || typeof state !== 'object') return createState();
     if (!Object.prototype.hasOwnProperty.call(state, 'pendingOffer')) state.pendingOffer = null;
+    if (!Object.prototype.hasOwnProperty.call(state, 'pendingChoice')) state.pendingChoice = null;
     if (typeof state.lastIntent !== 'string') state.lastIntent = '';
     if (typeof state.lastBotReply !== 'string') state.lastBotReply = '';
     if (typeof state.lastUserText !== 'string') state.lastUserText = '';
@@ -166,7 +168,61 @@ function clearExpiredOffer(state, now = nowMs()) {
     if (isExpiredOffer(s.pendingOffer, now)) {
         s.pendingOffer = null;
     }
+    if (isExpiredOffer(s.pendingChoice, now)) {
+        s.pendingChoice = null;
+    }
     return s;
+}
+
+// Detects EVERY offer mentioned in a bot reply, not just the first keyword match —
+// fixes a confirmed bug: "Загадку или историю про Лунного Зайчика?" only ever
+// saved pendingOffer=riddle (dialogState.detectOffer's if/else-if chain stops at
+// the first hit), silently losing the story option. When a reply mentions 2+
+// distinct offers, the caller stores pendingChoice instead of a single pendingOffer.
+function detectOffers(reply) {
+    const raw = String(reply || '');
+    const t = dialogState.normalizeText(raw);
+    if (!t || !/хочешь|давай|можем|будем|или/.test(t)) return [];
+
+    const offers = [];
+    if (/загадк/.test(t)) offers.push({ type: 'riddle', topic: null, label: 'загадку' });
+    if (/сказк|истори/.test(t)) {
+        const topicMatch = raw.match(/(?:про|о|об)\s+([А-ЯЁ][а-яёА-ЯЁ]*(?:\s+[А-ЯЁ][а-яёА-ЯЁ]*)?)/u);
+        const topic = topicMatch ? topicMatch[1].trim() : null;
+        offers.push({ type: 'story', topic, label: topic ? `историю про ${topic}` : 'историю' });
+    }
+    if (/поигра|игру|игр[ауы]/.test(t)) offers.push({ type: 'game', topic: null, label: 'игру' });
+    if (/шутк|анекдот|смешн|пошут/.test(t)) offers.push({ type: 'joke', topic: null, label: 'шутку' });
+    // "расскажу" deliberately excluded — too generic ("I'll tell you...") and
+    // shared by riddle/story/joke offers alike, e.g. "Давай расскажу тебе
+    // загадку" was spuriously creating a phantom 3rd "fact" option.
+    if (/интересн|факт|узна/.test(t)) offers.push({ type: 'fact', topic: null, label: 'факт' });
+
+    return offers;
+}
+
+// Matches the child's reply against pendingChoice.options — topic first (more
+// specific, e.g. "про зайчика" -> the story option about Лунный Зайчик), then
+// bare type keywords ("историю" -> the story option, "загадку" -> the riddle one).
+function matchChoiceOption(text, options) {
+    const t = dialogState.normalizeText(text);
+    if (!t || !Array.isArray(options)) return null;
+
+    for (const opt of options) {
+        if (!opt.topic) continue;
+        const topicWords = dialogState.normalizeText(opt.topic).split(' ').filter(w => w.length >= 4);
+        if (topicWords.some(w => t.includes(w))) return opt;
+    }
+
+    for (const opt of options) {
+        if (opt.type === 'riddle' && /загадк/.test(t)) return opt;
+        if (opt.type === 'story' && /истори|сказк/.test(t)) return opt;
+        if (opt.type === 'game' && /игр/.test(t)) return opt;
+        if (opt.type === 'joke' && /шутк|анекдот/.test(t)) return opt;
+        if (opt.type === 'fact' && /факт/.test(t)) return opt;
+    }
+
+    return null;
 }
 
 function inferIntentFromText(text) {
@@ -325,6 +381,50 @@ function detectDecision(text, state, options = {}) {
         return decision;
     }
 
+    if (s.pendingChoice?.options?.length) {
+        const chosen = matchChoiceOption(text, s.pendingChoice.options);
+        if (chosen) {
+            s.pendingChoice = null;
+            const rewrittenText = chosen.topic
+                ? `Придумай короткую весёлую историю именно про ${chosen.topic}.`
+                : offerToText(chosen.type);
+            const decision = {
+                action: rewrittenText ? 'rewrite_to_llm' : 'llm',
+                type: chosen.type,
+                rewrittenText: rewrittenText || String(text || ''),
+                reason: 'accepted_pending_choice',
+            };
+            s.lastDecision = decision;
+            return decision;
+        }
+
+        if (dialogState.isAffirmative(text)) {
+            const decision = {
+                action: 'reply',
+                type: 'chat',
+                reply: `Что выбираем: ${s.pendingChoice.options.map(o => o.label).join(' или ')}?`,
+                keepPendingChoice: true,
+                reason: 'ambiguous_choice_yes',
+            };
+            s.lastDecision = decision;
+            return decision;
+        }
+
+        if (dialogState.isNegative(text)) {
+            s.pendingChoice = null;
+            const decision = {
+                action: 'reply',
+                type: 'chat',
+                reply: replyForRejectedOffer('chat'),
+                reason: 'rejected_pending_choice',
+            };
+            s.lastDecision = decision;
+            return decision;
+        }
+        // Not a recognizable choice/yes/no — fall through to normal routing below,
+        // but pendingChoice stays active until the TTL expires or is resolved.
+    }
+
     if (s.pendingOffer && isShortFollowup(text)) {
         const pendingType = s.pendingOffer.type || 'chat';
 
@@ -450,7 +550,17 @@ function rememberBotReply(state, reply, meta = {}) {
     s.lastBotReply = text.slice(0, 500);
     s.lastIntent = type || 'chat';
 
-    const offer = dialogState.detectOffer(text, type);
+    const offers = detectOffers(text);
+    if (offers.length >= 2) {
+        s.pendingOffer = null;
+        s.pendingChoice = { createdAt: nowMs(), options: offers };
+        return { type: 'choice', options: offers };
+    }
+
+    s.pendingChoice = null;
+    const offer = offers.length === 1
+        ? { type: offers[0].type, source: 'bot_offer' }
+        : dialogState.detectOffer(text, type);
     if (offer) {
         s.pendingOffer = {
             type: offer.type,
