@@ -1,0 +1,2394 @@
+{
+  "pack_id": "riddles_ru_v2",
+  "type": "riddle",
+  "lang": "ru-RU",
+  "pack_version": "v2",
+  "source": "legacy_riddles_ru_json",
+  "items": [
+    {
+      "id": "riddle_ru_v2_001",
+      "title": "Загадка 001",
+      "text": "Зелёная, прыгучая, на речке певучая.",
+      "answers": [
+        "лягушка"
+      ],
+      "tags": [
+        "animals",
+        "water",
+        "nature"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_001",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лягушка",
+          "лягушку",
+          "лягушке"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_002",
+      "title": "Загадка 002",
+      "text": "Хвост пушистый, мех золотистый, в лесу живёт, кур крадёт.",
+      "answers": [
+        "лиса"
+      ],
+      "tags": [
+        "animals",
+        "forest"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_002",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лиса",
+          "лису",
+          "лисе",
+          "лисичка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_003",
+      "title": "Загадка 003",
+      "text": "Зимой спит в берлоге, летом ходит по дороге.",
+      "answers": [
+        "медведь"
+      ],
+      "tags": [
+        "animals",
+        "forest"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_003",
+        "weight": 3,
+        "avoid_if_requested": [
+          "медведь",
+          "медведя",
+          "мишку",
+          "мишка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_004",
+      "title": "Загадка 004",
+      "text": "По веткам скачет, в дупло шишки прячет.",
+      "answers": [
+        "белка"
+      ],
+      "tags": [
+        "animals",
+        "forest"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_004",
+        "weight": 3,
+        "avoid_if_requested": [
+          "белка",
+          "белку",
+          "белке"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_005",
+      "title": "Загадка 005",
+      "text": "Маленький, серенький, под кустом сидит, ушами шевелит.",
+      "answers": [
+        "заяц"
+      ],
+      "tags": [
+        "animals",
+        "forest"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_005",
+        "weight": 3,
+        "avoid_if_requested": [
+          "заяц",
+          "зайца",
+          "зайчик",
+          "зайца"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_006",
+      "title": "Загадка 006",
+      "text": "Живёт во дворе, лает в конуре.",
+      "answers": [
+        "собака"
+      ],
+      "tags": [
+        "animals",
+        "home"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_006",
+        "weight": 3,
+        "avoid_if_requested": [
+          "собака",
+          "собаку",
+          "собаке",
+          "пёс",
+          "пса"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_007",
+      "title": "Загадка 007",
+      "text": "Мягкие лапки, а в лапках цап-царапки.",
+      "answers": [
+        "кошка"
+      ],
+      "tags": [
+        "animals",
+        "home"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_007",
+        "weight": 3,
+        "avoid_if_requested": [
+          "кошка",
+          "кошку",
+          "кот",
+          "кота"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_008",
+      "title": "Загадка 008",
+      "text": "Иголки на спине носит, ниток никогда не просит.",
+      "answers": [
+        "ёж"
+      ],
+      "tags": [
+        "animals",
+        "forest"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_008",
+        "weight": 3,
+        "avoid_if_requested": [
+          "еж",
+          "ёж",
+          "ежа",
+          "ёжа"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_009",
+      "title": "Загадка 009",
+      "text": "Вместо носа — пятачок, вместо хвостика — крючок.",
+      "answers": [
+        "свинья"
+      ],
+      "tags": [
+        "animals",
+        "farm"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_009",
+        "weight": 3,
+        "avoid_if_requested": [
+          "свинья"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_010",
+      "title": "Загадка 010",
+      "text": "Говорит она «му-му», молока налить кому?",
+      "answers": [
+        "корова"
+      ],
+      "tags": [
+        "animals",
+        "farm"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_010",
+        "weight": 3,
+        "avoid_if_requested": [
+          "корова"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_011",
+      "title": "Загадка 011",
+      "text": "Подковы на ногах, возит телегу на лугах.",
+      "answers": [
+        "лошадь"
+      ],
+      "tags": [
+        "animals",
+        "farm"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_011",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лошадь"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_012",
+      "title": "Загадка 012",
+      "text": "Плывёт по речке белый пух, кричит «кря-кря»...",
+      "answers": [
+        "утка"
+      ],
+      "tags": [
+        "animals",
+        "birds",
+        "farm",
+        "water"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_012",
+        "weight": 3,
+        "avoid_if_requested": [
+          "утка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_013",
+      "title": "Загадка 013",
+      "text": "Днём спит, ночью летает, прохожих пугает.",
+      "answers": [
+        "сова"
+      ],
+      "tags": [
+        "animals",
+        "birds",
+        "forest",
+        "night"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_013",
+        "weight": 3,
+        "avoid_if_requested": [
+          "сова"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_014",
+      "title": "Загадка 014",
+      "text": "Птица мирная, степная, почту людям доставляет.",
+      "answers": [
+        "голубь"
+      ],
+      "tags": [
+        "animals",
+        "birds",
+        "city"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_014",
+        "weight": 3,
+        "avoid_if_requested": [
+          "голубь"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_015",
+      "title": "Загадка 015",
+      "text": "Красный гребешок, будит всех...",
+      "answers": [
+        "петушок"
+      ],
+      "tags": [
+        "animals",
+        "birds",
+        "farm"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_015",
+        "weight": 3,
+        "avoid_if_requested": [
+          "петушок"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_016",
+      "title": "Загадка 016",
+      "text": "Не птица, а летает, на цветках засыпает.",
+      "answers": [
+        "бабочка"
+      ],
+      "tags": [
+        "animals",
+        "insects",
+        "nature"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_016",
+        "weight": 3,
+        "avoid_if_requested": [
+          "бабочка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_017",
+      "title": "Загадка 017",
+      "text": "Целый день жужжит, мёд в улей тащит.",
+      "answers": [
+        "пчела"
+      ],
+      "tags": [
+        "animals",
+        "insects",
+        "nature"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_017",
+        "weight": 3,
+        "avoid_if_requested": [
+          "пчела"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_018",
+      "title": "Загадка 018",
+      "text": "Наткёт сеточку кругом, для мушек это дом.",
+      "answers": [
+        "паук"
+      ],
+      "tags": [
+        "animals",
+        "insects"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_018",
+        "weight": 3,
+        "avoid_if_requested": [
+          "паук"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_019",
+      "title": "Загадка 019",
+      "text": "Шея длинная, как кран, ходит важный великан.",
+      "answers": [
+        "жираф"
+      ],
+      "tags": [
+        "animals",
+        "zoo",
+        "africa"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_019",
+        "weight": 3,
+        "avoid_if_requested": [
+          "жираф",
+          "жирафа",
+          "жирафе",
+          "жирафом"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_020",
+      "title": "Загадка 020",
+      "text": "Носит домик на спине, ползёт тихо по траве.",
+      "answers": [
+        "улитка"
+      ],
+      "tags": [
+        "animals",
+        "nature"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_020",
+        "weight": 3,
+        "avoid_if_requested": [
+          "улитка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_021",
+      "title": "Загадка 021",
+      "text": "Маленький, зелёный, в траве стрекочет.",
+      "answers": [
+        "кузнечик"
+      ],
+      "tags": [
+        "animals",
+        "insects",
+        "nature"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_021",
+        "weight": 3,
+        "avoid_if_requested": [
+          "кузнечик"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_022",
+      "title": "Загадка 022",
+      "text": "Под землёй прорыл метро этот маленький герой.",
+      "answers": [
+        "крот"
+      ],
+      "tags": [
+        "animals",
+        "underground"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_022",
+        "weight": 3,
+        "avoid_if_requested": [
+          "крот"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_023",
+      "title": "Загадка 023",
+      "text": "Под водой живёт, хвостом виляет, рот открывает.",
+      "answers": [
+        "рыба"
+      ],
+      "tags": [
+        "animals",
+        "water"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_023",
+        "weight": 3,
+        "avoid_if_requested": [
+          "рыба"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_024",
+      "title": "Загадка 024",
+      "text": "В реке живёт бревно, зелёное и зубастое оно.",
+      "answers": [
+        "крокодил"
+      ],
+      "tags": [
+        "animals",
+        "zoo",
+        "water"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_024",
+        "weight": 3,
+        "avoid_if_requested": [
+          "крокодил",
+          "крокодила"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_025",
+      "title": "Загадка 025",
+      "text": "Полосатая лошадка, скачет по дорожке гладко.",
+      "answers": [
+        "зебра"
+      ],
+      "tags": [
+        "animals",
+        "zoo",
+        "africa"
+      ],
+      "topic": "animals",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_025",
+        "weight": 3,
+        "avoid_if_requested": [
+          "зебра",
+          "зебру",
+          "зебре"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_026",
+      "title": "Загадка 026",
+      "text": "Круглое, жёлтое, в небе сияет, всех согревает.",
+      "answers": [
+        "солнце"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "weather"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_026",
+        "weight": 3,
+        "avoid_if_requested": [
+          "солнце"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_027",
+      "title": "Загадка 027",
+      "text": "Ночью на небе один золотой рог виден.",
+      "answers": [
+        "месяц"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "space",
+        "night"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_027",
+        "weight": 3,
+        "avoid_if_requested": [
+          "месяц"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_028",
+      "title": "Загадка 028",
+      "text": "Горошины рассыпались по ночному небу.",
+      "answers": [
+        "звёзды"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "space",
+        "night"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_028",
+        "weight": 3,
+        "avoid_if_requested": [
+          "звёзды"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_029",
+      "title": "Загадка 029",
+      "text": "По небу плывёт белая вата.",
+      "answers": [
+        "облако"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "weather"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_029",
+        "weight": 3,
+        "avoid_if_requested": [
+          "облако"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_030",
+      "title": "Загадка 030",
+      "text": "С неба падает водичка, пьёт её трава-сестричка.",
+      "answers": [
+        "дождь"
+      ],
+      "tags": [
+        "nature",
+        "weather",
+        "water"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_030",
+        "weight": 3,
+        "avoid_if_requested": [
+          "дождь"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_031",
+      "title": "Загадка 031",
+      "text": "Белый, холодный, зимой землю укрывает.",
+      "answers": [
+        "снег"
+      ],
+      "tags": [
+        "nature",
+        "weather",
+        "winter"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_031",
+        "weight": 3,
+        "avoid_if_requested": [
+          "снег"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_032",
+      "title": "Загадка 032",
+      "text": "Без рук, без ног, а ворота открывает.",
+      "answers": [
+        "ветер"
+      ],
+      "tags": [
+        "nature",
+        "weather"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_032",
+        "weight": 3,
+        "avoid_if_requested": [
+          "ветер"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_033",
+      "title": "Загадка 033",
+      "text": "После дождя в небе цветной мост встаёт.",
+      "answers": [
+        "радуга"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "weather",
+        "colors"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_033",
+        "weight": 3,
+        "avoid_if_requested": [
+          "радуга"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_034",
+      "title": "Загадка 034",
+      "text": "На дворе горой, а в избе водой.",
+      "answers": [
+        "лёд"
+      ],
+      "tags": [
+        "nature",
+        "winter",
+        "water"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_034",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лёд"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_035",
+      "title": "Загадка 035",
+      "text": "Весной растёт сверху вниз, прозрачный каприз.",
+      "answers": [
+        "сосулька"
+      ],
+      "tags": [
+        "nature",
+        "winter",
+        "water"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_035",
+        "weight": 3,
+        "avoid_if_requested": [
+          "сосулька"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_036",
+      "title": "Загадка 036",
+      "text": "Летом гремит, молнией блестит.",
+      "answers": [
+        "гроза"
+      ],
+      "tags": [
+        "nature",
+        "weather",
+        "sky"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_036",
+        "weight": 3,
+        "avoid_if_requested": [
+          "гроза"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_037",
+      "title": "Загадка 037",
+      "text": "Бабахнет на небе, а мы прячемся в доме.",
+      "answers": [
+        "гром"
+      ],
+      "tags": [
+        "nature",
+        "weather",
+        "sky"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_037",
+        "weight": 3,
+        "avoid_if_requested": [
+          "гром"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_038",
+      "title": "Загадка 038",
+      "text": "Траву росой умывает, утро начинает.",
+      "answers": [
+        "заря"
+      ],
+      "tags": [
+        "nature",
+        "sky",
+        "morning"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_038",
+        "weight": 3,
+        "avoid_if_requested": [
+          "заря"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_039",
+      "title": "Загадка 039",
+      "text": "Зимой стекло узорами украшает.",
+      "answers": [
+        "мороз"
+      ],
+      "tags": [
+        "nature",
+        "winter",
+        "weather"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_039",
+        "weight": 3,
+        "avoid_if_requested": [
+          "мороз"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_040",
+      "title": "Загадка 040",
+      "text": "Белая дымка над рекой встаёт с утра.",
+      "answers": [
+        "туман"
+      ],
+      "tags": [
+        "nature",
+        "weather"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_040",
+        "weight": 3,
+        "avoid_if_requested": [
+          "туман"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_041",
+      "title": "Загадка 041",
+      "text": "Сами падают с ветвей, осенью летят быстрей.",
+      "answers": [
+        "листья"
+      ],
+      "tags": [
+        "nature",
+        "plants",
+        "autumn"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_041",
+        "weight": 3,
+        "avoid_if_requested": [
+          "листья"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_042",
+      "title": "Загадка 042",
+      "text": "Летом зеленеет, осенью желтеет.",
+      "answers": [
+        "трава"
+      ],
+      "tags": [
+        "nature",
+        "plants"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_042",
+        "weight": 3,
+        "avoid_if_requested": [
+          "трава"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_043",
+      "title": "Загадка 043",
+      "text": "Бежит, журчит, в реку спешит.",
+      "answers": [
+        "ручей"
+      ],
+      "tags": [
+        "nature",
+        "water"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_043",
+        "weight": 3,
+        "avoid_if_requested": [
+          "ручей"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_044",
+      "title": "Загадка 044",
+      "text": "Моря и океаны соединяет, корабли качает.",
+      "answers": [
+        "вода"
+      ],
+      "tags": [
+        "nature",
+        "water"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_044",
+        "weight": 3,
+        "avoid_if_requested": [
+          "вода"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_045",
+      "title": "Загадка 045",
+      "text": "Стоит Антошка на одной ножке, его ищут в лукошке.",
+      "answers": [
+        "гриб"
+      ],
+      "tags": [
+        "nature",
+        "plants",
+        "forest"
+      ],
+      "topic": "nature",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_045",
+        "weight": 3,
+        "avoid_if_requested": [
+          "гриб"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_046",
+      "title": "Загадка 046",
+      "text": "Круглое, румяное, с дерева упало — мне в рот попало.",
+      "answers": [
+        "яблоко"
+      ],
+      "tags": [
+        "food",
+        "fruit",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_046",
+        "weight": 3,
+        "avoid_if_requested": [
+          "яблоко"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_047",
+      "title": "Загадка 047",
+      "text": "Сидит дед, во сто шуб одет, кто его раздевает, слёзы проливает.",
+      "answers": [
+        "лук"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_047",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лук"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_048",
+      "title": "Загадка 048",
+      "text": "Красная девица сидит в темнице, а коса на улице.",
+      "answers": [
+        "морковь"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_048",
+        "weight": 3,
+        "avoid_if_requested": [
+          "морковь"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_049",
+      "title": "Загадка 049",
+      "text": "Сто одёжек и все без застёжек.",
+      "answers": [
+        "капуста"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_049",
+        "weight": 3,
+        "avoid_if_requested": [
+          "капуста"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_050",
+      "title": "Загадка 050",
+      "text": "Маленький, горький, луку брат.",
+      "answers": [
+        "чеснок"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_050",
+        "weight": 3,
+        "avoid_if_requested": [
+          "чеснок"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_051",
+      "title": "Загадка 051",
+      "text": "Синий мундир, жёлтая подкладка, а в середине сладко.",
+      "answers": [
+        "слива"
+      ],
+      "tags": [
+        "food",
+        "fruit",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_051",
+        "weight": 3,
+        "avoid_if_requested": [
+          "слива"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_052",
+      "title": "Загадка 052",
+      "text": "Жёлтый, кислый, в чай его кладут.",
+      "answers": [
+        "лимон"
+      ],
+      "tags": [
+        "food",
+        "fruit",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_052",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лимон"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_053",
+      "title": "Загадка 053",
+      "text": "Длинный, зелёный, на грядке растёт.",
+      "answers": [
+        "огурец"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_053",
+        "weight": 3,
+        "avoid_if_requested": [
+          "огурец"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_054",
+      "title": "Загадка 054",
+      "text": "Растёт в земле, круглая, коричневая, в суп её кладут.",
+      "answers": [
+        "картошка"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_054",
+        "weight": 3,
+        "avoid_if_requested": [
+          "картошка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_055",
+      "title": "Загадка 055",
+      "text": "Сверху зелёный, внутри красный, сладкий-прекрасный.",
+      "answers": [
+        "арбуз"
+      ],
+      "tags": [
+        "food",
+        "fruit",
+        "plants",
+        "summer"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_055",
+        "weight": 3,
+        "avoid_if_requested": [
+          "арбуз"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_056",
+      "title": "Загадка 056",
+      "text": "На ниточке качаются маленькие сладкие бусины.",
+      "answers": [
+        "земляника"
+      ],
+      "tags": [
+        "food",
+        "berries",
+        "plants",
+        "summer"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_056",
+        "weight": 3,
+        "avoid_if_requested": [
+          "земляника"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_057",
+      "title": "Загадка 057",
+      "text": "Круглый, красный, сочный, для салата нужен точно.",
+      "answers": [
+        "помидор"
+      ],
+      "tags": [
+        "food",
+        "vegetables",
+        "plants"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_057",
+        "weight": 3,
+        "avoid_if_requested": [
+          "помидор"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_058",
+      "title": "Загадка 058",
+      "text": "Пчёлы его носят, к чаю все просят.",
+      "answers": [
+        "мёд"
+      ],
+      "tags": [
+        "food",
+        "sweet"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_058",
+        "weight": 3,
+        "avoid_if_requested": [
+          "мёд"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_059",
+      "title": "Загадка 059",
+      "text": "Из неё кашу варят и в мешки насыпают.",
+      "answers": [
+        "крупа"
+      ],
+      "tags": [
+        "food"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_059",
+        "weight": 3,
+        "avoid_if_requested": [
+          "крупа"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_060",
+      "title": "Загадка 060",
+      "text": "Белое, жидкое, корова даёт.",
+      "answers": [
+        "молоко"
+      ],
+      "tags": [
+        "food",
+        "farm"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_060",
+        "weight": 3,
+        "avoid_if_requested": [
+          "молоко"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_061",
+      "title": "Загадка 061",
+      "text": "Круглый, жёлтый, с дырками, мыши его любят.",
+      "answers": [
+        "сыр"
+      ],
+      "tags": [
+        "food",
+        "farm"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_061",
+        "weight": 3,
+        "avoid_if_requested": [
+          "сыр"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_062",
+      "title": "Загадка 062",
+      "text": "Белый камень в воде тает, чай подслащает.",
+      "answers": [
+        "сахар"
+      ],
+      "tags": [
+        "food",
+        "sweet"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_062",
+        "weight": 3,
+        "avoid_if_requested": [
+          "сахар"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_063",
+      "title": "Загадка 063",
+      "text": "Белый, пушистый, из печи душистый.",
+      "answers": [
+        "хлеб"
+      ],
+      "tags": [
+        "food"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_063",
+        "weight": 3,
+        "avoid_if_requested": [
+          "хлеб"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_064",
+      "title": "Загадка 064",
+      "text": "Холодное, сладкое, летом в стаканчике тает.",
+      "answers": [
+        "мороженое"
+      ],
+      "tags": [
+        "food",
+        "sweet",
+        "summer"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_064",
+        "weight": 3,
+        "avoid_if_requested": [
+          "мороженое"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_065",
+      "title": "Загадка 065",
+      "text": "Курица снесла, круглое, белое, внутри желток.",
+      "answers": [
+        "яйцо"
+      ],
+      "tags": [
+        "food",
+        "farm"
+      ],
+      "topic": "food",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_065",
+        "weight": 3,
+        "avoid_if_requested": [
+          "яйцо"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_066",
+      "title": "Загадка 066",
+      "text": "Два конца, два кольца, посередине гвоздик.",
+      "answers": [
+        "ножницы"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_066",
+        "weight": 3,
+        "avoid_if_requested": [
+          "ножницы"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_067",
+      "title": "Загадка 067",
+      "text": "Сама худая, а голова с ушком.",
+      "answers": [
+        "иголка"
+      ],
+      "tags": [
+        "objects",
+        "home"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_067",
+        "weight": 3,
+        "avoid_if_requested": [
+          "иголка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_068",
+      "title": "Загадка 068",
+      "text": "Четыре ноги, а ходить не может.",
+      "answers": [
+        "стол"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "furniture"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_068",
+        "weight": 3,
+        "avoid_if_requested": [
+          "стол"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_069",
+      "title": "Загадка 069",
+      "text": "На нём сидят, спиной опираются.",
+      "answers": [
+        "стул"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "furniture"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_069",
+        "weight": 3,
+        "avoid_if_requested": [
+          "стул"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_070",
+      "title": "Загадка 070",
+      "text": "Мягкая, перьевая, под ушко ложится.",
+      "answers": [
+        "подушка"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "sleep"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_070",
+        "weight": 3,
+        "avoid_if_requested": [
+          "подушка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_071",
+      "title": "Загадка 071",
+      "text": "Зимой греет, летом в шкафу отдыхает.",
+      "answers": [
+        "шуба"
+      ],
+      "tags": [
+        "objects",
+        "clothes",
+        "winter"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_071",
+        "weight": 3,
+        "avoid_if_requested": [
+          "шуба"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_072",
+      "title": "Загадка 072",
+      "text": "Одеваем на ноги, чтобы бегать по дороге.",
+      "answers": [
+        "обувь"
+      ],
+      "tags": [
+        "objects",
+        "clothes"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_072",
+        "weight": 3,
+        "avoid_if_requested": [
+          "обувь"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_073",
+      "title": "Загадка 073",
+      "text": "Носик пылает, бельё разглаживает.",
+      "answers": [
+        "утюг"
+      ],
+      "tags": [
+        "objects",
+        "home"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_073",
+        "weight": 3,
+        "avoid_if_requested": [
+          "утюг"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_074",
+      "title": "Загадка 074",
+      "text": "Гудит, шумит, пыль в себя так и тащит.",
+      "answers": [
+        "пылесос"
+      ],
+      "tags": [
+        "objects",
+        "home"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_074",
+        "weight": 3,
+        "avoid_if_requested": [
+          "пылесос"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_075",
+      "title": "Загадка 075",
+      "text": "Стоит ящик, в нём экран, показывает сказки нам.",
+      "answers": [
+        "телевизор"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "tech"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_075",
+        "weight": 3,
+        "avoid_if_requested": [
+          "телевизор"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_076",
+      "title": "Загадка 076",
+      "text": "Картинки показывает, сказки рассказывает, из бумаги сделана.",
+      "answers": [
+        "книга"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_076",
+        "weight": 3,
+        "avoid_if_requested": [
+          "книга"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_077",
+      "title": "Загадка 077",
+      "text": "Белый лист, на нём карандаш рисует.",
+      "answers": [
+        "бумага"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_077",
+        "weight": 3,
+        "avoid_if_requested": [
+          "бумага"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_078",
+      "title": "Загадка 078",
+      "text": "Деревянная палочка, внутри чёрный носик, рисует домик.",
+      "answers": [
+        "карандаш"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_078",
+        "weight": 3,
+        "avoid_if_requested": [
+          "карандаш"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_079",
+      "title": "Загадка 079",
+      "text": "В пенал ложится, ровно чертить пригодится.",
+      "answers": [
+        "линейка"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_079",
+        "weight": 3,
+        "avoid_if_requested": [
+          "линейка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_080",
+      "title": "Загадка 080",
+      "text": "Ошибку в тетрадке быстро сотрёт.",
+      "answers": [
+        "ластик"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_080",
+        "weight": 3,
+        "avoid_if_requested": [
+          "ластик"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_081",
+      "title": "Загадка 081",
+      "text": "На спине висит, учебники хранит.",
+      "answers": [
+        "рюкзак"
+      ],
+      "tags": [
+        "objects",
+        "school"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_081",
+        "weight": 3,
+        "avoid_if_requested": [
+          "рюкзак"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_082",
+      "title": "Загадка 082",
+      "text": "Капает водичка на грязные ручки.",
+      "answers": [
+        "кран"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "water"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_082",
+        "weight": 3,
+        "avoid_if_requested": [
+          "кран"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_083",
+      "title": "Загадка 083",
+      "text": "Зубки имеет, а кусать не умеет, причёску делает.",
+      "answers": [
+        "расчёска"
+      ],
+      "tags": [
+        "objects",
+        "hygiene"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_083",
+        "weight": 3,
+        "avoid_if_requested": [
+          "расчёска"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_084",
+      "title": "Загадка 084",
+      "text": "Круглые, стеклянные, на носу сидят, в мир глядят.",
+      "answers": [
+        "очки"
+      ],
+      "tags": [
+        "objects",
+        "body"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_084",
+        "weight": 3,
+        "avoid_if_requested": [
+          "очки"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_085",
+      "title": "Загадка 085",
+      "text": "Круглое, стеклянное, себя в нём видишь.",
+      "answers": [
+        "зеркало"
+      ],
+      "tags": [
+        "objects",
+        "home"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_085",
+        "weight": 3,
+        "avoid_if_requested": [
+          "зеркало"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_086",
+      "title": "Загадка 086",
+      "text": "Растёт на голове, стригут в парикмахерской.",
+      "answers": [
+        "волосы"
+      ],
+      "tags": [
+        "body"
+      ],
+      "topic": "body",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_086",
+        "weight": 3,
+        "avoid_if_requested": [
+          "волосы"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_087",
+      "title": "Загадка 087",
+      "text": "Пять братьев вместе живут, а работать по одному ходят.",
+      "answers": [
+        "пальцы"
+      ],
+      "tags": [
+        "body"
+      ],
+      "topic": "body",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_087",
+        "weight": 3,
+        "avoid_if_requested": [
+          "пальцы"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_088",
+      "title": "Загадка 088",
+      "text": "Зимой на них катаются с горы, быстрые...",
+      "answers": [
+        "санки"
+      ],
+      "tags": [
+        "objects",
+        "winter",
+        "transport"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_088",
+        "weight": 3,
+        "avoid_if_requested": [
+          "санки"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_089",
+      "title": "Загадка 089",
+      "text": "Два колеса, руль и педали, мы на нём вдаль умчали.",
+      "answers": [
+        "велосипед"
+      ],
+      "tags": [
+        "transport",
+        "objects"
+      ],
+      "topic": "transport",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_089",
+        "weight": 3,
+        "avoid_if_requested": [
+          "велосипед"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_090",
+      "title": "Загадка 090",
+      "text": "Если дождь пойдёт, он над нами расцветёт.",
+      "answers": [
+        "зонт"
+      ],
+      "tags": [
+        "objects",
+        "weather"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_090",
+        "weight": 3,
+        "avoid_if_requested": [
+          "зонт"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_091",
+      "title": "Загадка 091",
+      "text": "Ног нет, а ходит, рта нет, а скажет, когда спать, когда вставать.",
+      "answers": [
+        "часы"
+      ],
+      "tags": [
+        "objects",
+        "home"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_091",
+        "weight": 3,
+        "avoid_if_requested": [
+          "часы"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_092",
+      "title": "Загадка 092",
+      "text": "Стеклянный дом, а в нём огонёк живёт.",
+      "answers": [
+        "лампочка"
+      ],
+      "tags": [
+        "objects",
+        "home",
+        "tech"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_092",
+        "weight": 3,
+        "avoid_if_requested": [
+          "лампочка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_093",
+      "title": "Загадка 093",
+      "text": "Хвостик из кости, а на спине щетина, зубы чистит.",
+      "answers": [
+        "зубная щётка"
+      ],
+      "tags": [
+        "objects",
+        "hygiene"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_093",
+        "weight": 3,
+        "avoid_if_requested": [
+          "зубная щётка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_094",
+      "title": "Загадка 094",
+      "text": "Кинешь в речку — не утонет, бьёшь о стенку — не стонет.",
+      "answers": [
+        "мяч"
+      ],
+      "tags": [
+        "objects",
+        "toys",
+        "game"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_094",
+        "weight": 3,
+        "avoid_if_requested": [
+          "мяч"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_095",
+      "title": "Загадка 095",
+      "text": "Огородная птица, мороза не боится, крыльями машет, а улететь не может.",
+      "answers": [
+        "пугало"
+      ],
+      "tags": [
+        "objects",
+        "garden"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_095",
+        "weight": 3,
+        "avoid_if_requested": [
+          "пугало"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_096",
+      "title": "Загадка 096",
+      "text": "Четыре колеса, бензин пьёт, по дороге везёт.",
+      "answers": [
+        "машина"
+      ],
+      "tags": [
+        "transport"
+      ],
+      "topic": "transport",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_096",
+        "weight": 3,
+        "avoid_if_requested": [
+          "машина",
+          "машину",
+          "машине"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_097",
+      "title": "Загадка 097",
+      "text": "По рельсам бежит, весело гудит.",
+      "answers": [
+        "поезд"
+      ],
+      "tags": [
+        "transport"
+      ],
+      "topic": "transport",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_097",
+        "weight": 3,
+        "avoid_if_requested": [
+          "поезд",
+          "поезда"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_098",
+      "title": "Загадка 098",
+      "text": "Железная птица в небе кружится.",
+      "answers": [
+        "самолёт"
+      ],
+      "tags": [
+        "transport",
+        "sky"
+      ],
+      "topic": "transport",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_098",
+        "weight": 3,
+        "avoid_if_requested": [
+          "самолет",
+          "самолёт",
+          "самолета",
+          "самолёта"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_099",
+      "title": "Загадка 099",
+      "text": "Под водой плывёт, железный кит.",
+      "answers": [
+        "подводная лодка"
+      ],
+      "tags": [
+        "transport",
+        "water"
+      ],
+      "topic": "transport",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_099",
+        "weight": 3,
+        "avoid_if_requested": [
+          "подводная лодка"
+        ]
+      }
+    },
+    {
+      "id": "riddle_ru_v2_100",
+      "title": "Загадка 100",
+      "text": "В кармане лежит, звонит и поёт, маме привет передаёт.",
+      "answers": [
+        "телефон"
+      ],
+      "tags": [
+        "objects",
+        "tech"
+      ],
+      "topic": "objects",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "legacy_id": "riddle_100",
+        "weight": 3,
+        "avoid_if_requested": [
+          "телефон"
+        ]
+      }
+    }
+  ]
+}

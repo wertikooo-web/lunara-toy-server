@@ -14,7 +14,7 @@ const byType = result.items.reduce((acc, item) => {
     return acc;
 }, {});
 
-assert.ok(byType.riddle >= 150, 'should load 150 riddles');
+assert.ok(byType.riddle >= 100, 'should load converted riddle pack');
 assert.ok(byType.tongue_twister >= 150, 'should load 150 tongue twisters');
 assert.ok(byType.joke >= 150, 'should load 150 jokes');
 assert.ok(byType.fact >= 5, 'should load facts');
@@ -26,7 +26,7 @@ function findByType(type) {
 
 function assertValidSource(item, type) {
     assert.ok(item, `${type} sample should exist`);
-    assert.ok(['db_export', 'content_pack_generated', 'content_pack', 'legacy_pack'].includes(item.source), `${type} sample has unexpected source ${item.source}`);
+    assert.ok(['db_export', 'content_pack_generated', 'content_pack', 'legacy_pack', 'legacy_riddles_ru_json'].includes(item.source), `${type} sample has unexpected source ${item.source}`);
     assert.ok(item.metadata?.pack_id, `${type} sample should include metadata.pack_id`);
     assert.ok(item.metadata?.pack_version, `${type} sample should include metadata.pack_version`);
 }

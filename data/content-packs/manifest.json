@@ -3,12 +3,12 @@
   "description": "Lunara content packs are prepared content for the toy. This is not child memory.",
   "packs": [
     {
-      "file": "riddles_ru_v1.json",
-      "pack_id": "riddles_ru_v1",
+      "file": "riddles_ru_v2.json",
+      "pack_id": "riddles_ru_v2",
       "type": "riddle",
       "lang": "ru-RU",
-      "pack_version": "v1",
-      "source": "content_pack",
+      "pack_version": "v2",
+      "source": "legacy_riddles_ru_json",
       "active": true
     },
     {
