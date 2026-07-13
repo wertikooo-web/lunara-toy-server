@@ -8,25 +8,25 @@
       "type": "riddle",
       "lang": "ru-RU",
       "pack_version": "v2",
-      "source": "legacy_riddles_ru_json",
+      "source": "docx_import",
       "active": true
     },
     {
-      "file": "tongue_twisters_ru_v1.json",
-      "pack_id": "tongue_twisters_ru_v1",
+      "file": "tongue_twisters_ru_v2.json",
+      "pack_id": "tongue_twisters_ru_v2",
       "type": "tongue_twister",
       "lang": "ru-RU",
-      "pack_version": "v1",
-      "source": "content_pack",
+      "pack_version": "v2",
+      "source": "docx_import",
       "active": true
     },
     {
-      "file": "jokes_ru_v1.json",
-      "pack_id": "jokes_ru_v1",
+      "file": "jokes_ru_v2.json",
+      "pack_id": "jokes_ru_v2",
       "type": "joke",
       "lang": "ru-RU",
-      "pack_version": "v1",
-      "source": "content_pack",
+      "pack_version": "v2",
+      "source": "docx_import",
       "active": true
     },
     {
@@ -45,6 +45,15 @@
       "lang": "ru-RU",
       "pack_version": "v1",
       "source": "content_pack",
+      "active": true
+    },
+    {
+      "file": "thinking_phrases_ru_v1.json",
+      "pack_id": "thinking_phrases_ru_v1",
+      "type": "thinking_phrase",
+      "lang": "ru-RU",
+      "pack_version": "v1",
+      "source": "legacy_seed_migration",
       "active": true
     },
     {

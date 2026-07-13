@@ -1,0 +1,1567 @@
+{
+  "pack_id": "thinking_phrases_ru_v1",
+  "type": "thinking_phrase",
+  "lang": "ru-RU",
+  "pack_version": "v1",
+  "source": "legacy_seed_migration",
+  "items": [
+    {
+      "id": "thinking_phrase_ru_v1_001",
+      "title": "Thinking phrase 001",
+      "text": "Ого, какой вопросик!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 1
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_002",
+      "title": "Thinking phrase 002",
+      "text": "Ну и ну!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 2
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_003",
+      "title": "Thinking phrase 003",
+      "text": "Ой, мамочки, сейчас вспомню!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 3
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_004",
+      "title": "Thinking phrase 004",
+      "text": "Ух ты, надо подумать!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 4
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_005",
+      "title": "Thinking phrase 005",
+      "text": "Стоп-кадр!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 5
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_006",
+      "title": "Thinking phrase 006",
+      "text": "Вот это поворот!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 6
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_007",
+      "title": "Thinking phrase 007",
+      "text": "Жужжу, как пчёлка... Жжж...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 7
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_008",
+      "title": "Thinking phrase 008",
+      "text": "Глаза на лоб полезли!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 8
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_009",
+      "title": "Thinking phrase 009",
+      "text": "А, всё, думаю!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 9
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_010",
+      "title": "Thinking phrase 010",
+      "text": "Каррамба!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 10
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_011",
+      "title": "Thinking phrase 011",
+      "text": "Ёлки-иголки!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 11
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_012",
+      "title": "Thinking phrase 012",
+      "text": "Сейчас-сейчас...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 12
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_013",
+      "title": "Thinking phrase 013",
+      "text": "Погоди капельку!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 13
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_014",
+      "title": "Thinking phrase 014",
+      "text": "Дай соображу...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 14
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_015",
+      "title": "Thinking phrase 015",
+      "text": "Так, что там у нас?",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 15
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_016",
+      "title": "Thinking phrase 016",
+      "text": "Хм, интересно...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 16
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_017",
+      "title": "Thinking phrase 017",
+      "text": "Мой носик чует ответ!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 17
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_018",
+      "title": "Thinking phrase 018",
+      "text": "Включаю голову!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 18
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_019",
+      "title": "Thinking phrase 019",
+      "text": "Почти вспомнил!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 19
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_020",
+      "title": "Thinking phrase 020",
+      "text": "Тра-ля-ля, сейчас скажу!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 20
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_021",
+      "title": "Thinking phrase 021",
+      "text": "Раз, два, три...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 21
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_022",
+      "title": "Thinking phrase 022",
+      "text": "Кручу-верчу, ответить хочу!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 22
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_023",
+      "title": "Thinking phrase 023",
+      "text": "Минутку!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 23
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_024",
+      "title": "Thinking phrase 024",
+      "text": "Пип-поп-пип... Ищу ответ!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 24
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_025",
+      "title": "Thinking phrase 025",
+      "text": "Буль-буль-буль, мысль плывёт!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 25
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_026",
+      "title": "Thinking phrase 026",
+      "text": "Тык-тык-тык, кнопочку нажал!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 26
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_027",
+      "title": "Thinking phrase 027",
+      "text": "Чики-брики!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 27
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_028",
+      "title": "Thinking phrase 028",
+      "text": "Оп-ля!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 28
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_029",
+      "title": "Thinking phrase 029",
+      "text": "Чок-чок, зубок молчок, а голова думает!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 29
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_030",
+      "title": "Thinking phrase 030",
+      "text": "Шуршу мыслями... Шур-шур...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 30
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_031",
+      "title": "Thinking phrase 031",
+      "text": "Хрум-хрум, сейчас догрызу мысль!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 31
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_032",
+      "title": "Thinking phrase 032",
+      "text": "Вжжжух!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 32
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_033",
+      "title": "Thinking phrase 033",
+      "text": "Бум-бам, готовлю ответ!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 33
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_034",
+      "title": "Thinking phrase 034",
+      "text": "Каля-маля...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 34
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_035",
+      "title": "Thinking phrase 035",
+      "text": "Мяу-секундочку!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 35
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_036",
+      "title": "Thinking phrase 036",
+      "text": "Так-так-так...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 36
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_037",
+      "title": "Thinking phrase 037",
+      "text": "Загружаю мысль!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 37
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_038",
+      "title": "Thinking phrase 038",
+      "text": "Колдую, колдую...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 38
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_039",
+      "title": "Thinking phrase 039",
+      "text": "Ой, мысль спряталась!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 39
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_040",
+      "title": "Thinking phrase 040",
+      "text": "Хм, гляди-ка!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 40
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_041",
+      "title": "Thinking phrase 041",
+      "text": "Оп-па, лови!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 41
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_042",
+      "title": "Thinking phrase 042",
+      "text": "Сейчас выдам!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 42
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_043",
+      "title": "Thinking phrase 043",
+      "text": "Так, глянем...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 43
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_044",
+      "title": "Thinking phrase 044",
+      "text": "Ищу в голове!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 44
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_045",
+      "title": "Thinking phrase 045",
+      "text": "Ого, ловушка!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 45
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_046",
+      "title": "Thinking phrase 046",
+      "text": "Погоди секунду!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 46
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_047",
+      "title": "Thinking phrase 047",
+      "text": "Мысля пришла!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 47
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_048",
+      "title": "Thinking phrase 048",
+      "text": "Тык-тык, думаю!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 48
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_049",
+      "title": "Thinking phrase 049",
+      "text": "Эй, погоди!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 49
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_050",
+      "title": "Thinking phrase 050",
+      "text": "Тихо-тихо...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 50
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_051",
+      "title": "Thinking phrase 051",
+      "text": "Чудо-юдо!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 51
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_052",
+      "title": "Thinking phrase 052",
+      "text": "Оп, секунду!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 52
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_053",
+      "title": "Thinking phrase 053",
+      "text": "Ой, забыл!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 53
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_054",
+      "title": "Thinking phrase 054",
+      "text": "Нашёл, ура!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 54
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_055",
+      "title": "Thinking phrase 055",
+      "text": "Хм, ладно...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 55
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_056",
+      "title": "Thinking phrase 056",
+      "text": "Так-с, начнём!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 56
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_057",
+      "title": "Thinking phrase 057",
+      "text": "Ну-ка, ну-ка...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 57
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_058",
+      "title": "Thinking phrase 058",
+      "text": "Во дают!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 58
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_059",
+      "title": "Thinking phrase 059",
+      "text": "Бам-бам-бум!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 59
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_060",
+      "title": "Thinking phrase 060",
+      "text": "Чок-чок!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 60
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_061",
+      "title": "Thinking phrase 061",
+      "text": "Цап-царап!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 61
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_062",
+      "title": "Thinking phrase 062",
+      "text": "Бум, готово!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 62
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_063",
+      "title": "Thinking phrase 063",
+      "text": "Опачки!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 63
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_064",
+      "title": "Thinking phrase 064",
+      "text": "Шевелю умом!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 64
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_065",
+      "title": "Thinking phrase 065",
+      "text": "Хм, хитро!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 65
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_066",
+      "title": "Thinking phrase 066",
+      "text": "Ого, ух ты!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 66
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_067",
+      "title": "Thinking phrase 067",
+      "text": "Сейчас скажу!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 67
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_068",
+      "title": "Thinking phrase 068",
+      "text": "Ждём-ка...",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 68
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_069",
+      "title": "Thinking phrase 069",
+      "text": "Хоп-хоп-хоп!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 69
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_070",
+      "title": "Thinking phrase 070",
+      "text": "Чик-чирик!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 70
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_071",
+      "title": "Thinking phrase 071",
+      "text": "Бульк!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 71
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_072",
+      "title": "Thinking phrase 072",
+      "text": "Эники-беники!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 72
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_073",
+      "title": "Thinking phrase 073",
+      "text": "Ловлю мысль!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 73
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_074",
+      "title": "Thinking phrase 074",
+      "text": "Оп, мысля!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 74
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_075",
+      "title": "Thinking phrase 075",
+      "text": "Секунду, ок?",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 75
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_076",
+      "title": "Thinking phrase 076",
+      "text": "Стоп, думаю!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 76
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_077",
+      "title": "Thinking phrase 077",
+      "text": "Хм, погодите!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 77
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_078",
+      "title": "Thinking phrase 078",
+      "text": "Так, стоять!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 78
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_079",
+      "title": "Thinking phrase 079",
+      "text": "Дай вспомнить!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 79
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_080",
+      "title": "Thinking phrase 080",
+      "text": "Ой, капец!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 80
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_081",
+      "title": "Thinking phrase 081",
+      "text": "Ну, держись!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 81
+      }
+    },
+    {
+      "id": "thinking_phrase_ru_v1_082",
+      "title": "Thinking phrase 082",
+      "text": "Оп, поехали!",
+      "tags": [
+        "legacy_seed_migration",
+        "thinking_phrase",
+        "ru"
+      ],
+      "topic": "thinking",
+      "difficulty": "easy",
+      "age_min": 3,
+      "age_max": 8,
+      "metadata": {
+        "source_seed": "content_seed.json",
+        "source_pack": "thinking_phrase_ru_v1",
+        "source_line": 82
+      }
+    }
+  ]
+}
